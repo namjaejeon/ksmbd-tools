@@ -25,120 +25,135 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <errno.h>
 
 /* global definitions */
-#define PATH_CIFSSRV_STAT "/sys/fs/cifssrv/stat"
-#define LINESZ 4096
-#define MAX_IPLEN 16
+#define PATH_STATS "/sys/fs/cifssrv/stat"
+#define BUF_SIZE 4096
 
-#define SERVER_STAT 1
-#define CLIENT_STAT 2
+#ifdef IPV6_SUPPORTED
+#define MAX_IPLEN 128
+#else
+#define MAX_IPLEN 16
+#endif
+
+
+#define OPT_SERVER "1"
+
+#define O_SERVER 1
+#define O_CLIENT 2
 
 /**
- * rstat() - reads data from cifssrv statistics control interface
- * @dst:	destination buffer to copy statistics data
- * @sz:	length of statistics data to read
+ * readstat() - reads data from cifssrv statistics control interface
+ * @buf:	destination buffer to copy statistics data
+ * @size:	length of statistics data to read
  *
  * Return:	length of data copied to dst buffer
  */
-int rstat(char *dst, int sz)
+int readstat(char *buf, int size)
 {
-	FILE *fdstat;
+	FILE *fp;
 	int rc;
 
-	fdstat = fopen(PATH_CIFSSRV_STAT, "r");
-	if (!fdstat) {
-		fprintf(stdout, "cifssrv not available\n");
-		return 0;
+	fp = fopen(PATH_STATS, "r");
+	if (!fp) {
+		fprintf(stdout, "Not able to open (%s) for read, err(%d)\n",
+					PATH_STATS, errno);
+		return -1;
 	}
 
-	rc = fread(dst, 1, sz, fdstat);
+	rc = fread(buf, sizeof(char), size, fp);
 
-	fclose(fdstat);
+	fclose(fp);
 
 	return rc;
 }
 
 /**
- * wstat() - writes data to cifssrv statistics control interface
- * @src:	source buffer containing data to write
- * @sz:	length of statistics data write
+ * setstatopt() - writes data to cifssrv statistics control interface
+ *	       Needed during read stat, to check if the request is
+ *		for server stats or specific client stat
+ * @opt:	buffer for setting stat option
+ *		"1" in case of server and
+ *		valid ip address in case of client
+ * @size:	bytes to write as per option
  *
  * Return:	length of data written to cifssrv interface
  */
-int wstat(char *src, int sz)
+int setstatopt(char *opt, int size)
 {
-	FILE *fdstat;
-	int rc = 1;
+	FILE *fp;
+	int rc = 0;
 
-	fdstat = fopen(PATH_CIFSSRV_STAT, "w");
-	if (!fdstat) {
-		fprintf(stdout, "cifssrv not available\n");
-		return 0;
+	fp = fopen(PATH_STATS, "w");
+	if (!fp) {
+		fprintf(stdout, "Not able to open (%s) for write, err(%d)\n",
+					PATH_STATS, errno);
+		return -1;
 	}
 
-	if (fwrite(src, 1, sz, fdstat) != sz) {
-		fprintf(stdout, "%d: file operation failed\n", __LINE__);
-		rc = 0;
+	if (fwrite(opt, sizeof(char), size, fp) != size) {
+		fprintf(stdout, "Failed to set stat (%s) on %s\n",
+				opt, PATH_STATS);
+		rc = -1;
 	}
 
-	fclose(fdstat);
+	fclose(fp);
 
 	return rc;
 }
 
 /**
- * valIP() - utility function to validate IP address
- * @src:	source buffer containing IP to verify
+ * getstats() - reads stats from CIFSSRSV sysfs interface
+ * @node:    either server/client which object to consider for reading stats
  *
- * Return:	success: "IP address length"; fail: 0
+ * Return:	0 on success and -1 on failure
  */
-int valIP(char *src)
+
+int getstats(char *node)
 {
-	int len = strnlen(src, MAX_IPLEN);
-	char token[5] = ". \t\n";
-	int chcnt;
-	int dcnt = 0;
-	int sz = 0, sz1;
-	int i;
+	char *buffer;
+	int rc;
 
-	if (len >= MAX_IPLEN)
-		return 0;
-
-	while (sz < len && dcnt < 3) {
-		sz1 = strcspn(src+sz, token);
-		if (!sz1)
-			return 0;
-
-		for (i = sz, chcnt = 0; i < sz + sz1; i++) {
-			if (src[i] >= 0x30 && src[i] <= 0x39)
-				chcnt++;
-			else
-				return 0;
-		}
-
-		if (chcnt <= 3 && src[i] == 0x2e) {
-			sz += sz1+1;
-			dcnt++;
-			continue;
-		} else
-			return 0;
+	buffer = calloc(BUF_SIZE, sizeof(char));
+	if (!buffer) {
+		fprintf(stdout,"Failed to allocate memory for stat buffer\n");
+		return -1;
 	}
 
-	if ((dcnt != 3) || (sz == len))
-		return 0;
-
-	for (i = sz, chcnt = 0; i < len; i++) {
-		if (src[i] >= 0x30 && src[i] <= 0x39)
-			chcnt++;
-		else
-			return 0;
+	rc = readstat(buffer, BUF_SIZE-1);
+	if (rc < 0) {
+		fprintf(stdout, "%s : readstat failed, err(%d)\n", node, errno);
+		free(buffer);
+		return -1;
+	} else if (rc == 0)
+		fprintf(stdout, "(%s) info not found\n", node);
+	else {
+		fprintf(stdout, "%s stats:\n", node);
+		fprintf(stdout, "%s", buffer);
 	}
-
-	if (chcnt <= 3)
-		return len;
-
+	free(buffer);
 	return 0;
+}
+
+/**
+ * is_validIP() - utility function to validate IP address
+ * @ipaddr:	source buffer containing IP to verify
+ *
+ * Return:	'0' for invalid IP, 1 for valid
+ */
+int is_validIP(char *ipaddr)
+{
+	struct sockaddr_in sa;
+	int result;
+	result = inet_pton(AF_INET, ipaddr, &(sa.sin_addr));
+	if (result == 0) {
+#ifdef IPV6_SUPPORTED
+		result = inet_pton(AF_INET6, ipaddr, &(sa.sin_addr));
+#endif
+	}
+	return result != 0;
 }
 
 /**
@@ -147,94 +162,35 @@ int valIP(char *src)
  * @client:	client IP under request
  * @sz:	length of client IP address
  *
- * Return:	success: 1; fail: 0
+ * Return:	success: 0; fail: -1
  */
-int process_args(int flags, char *client, int sz)
+int process_args(int flags, char *client, int size)
 {
-	char rbuf[LINESZ];
-	char *construct;
-	int rc;
-
-	while (flags) {
-		if (flags & SERVER_STAT) {
-			int len = strlen("SERVER_STAT") + 1;
-
-			construct = malloc(len);
-			if (!construct)
-				return 0;
-
-			memset(rbuf, 0, LINESZ);
-			memset(construct, 0, len);
-
-			strncpy(construct, "SERVER_STAT", len-1);
-
-			if (!wstat(construct, len)) {
-				free(construct);
-				return 0;
-			}
-			free(construct);
-
-			memset(rbuf, 0, LINESZ);
-			rc = rstat(rbuf, LINESZ-1);
-			if (rc < 0) {
-				fprintf(stdout, "%d: file operation failed\n",
-					__LINE__);
-				return 0;
-			} else if (rc == 0)
-				fprintf(stdout, "server info not found\n");
-			else {
-				fprintf(stdout, "Server stats\n");
-				fprintf(stdout, "%s", rbuf);
-			}
-
-			flags &= ~SERVER_STAT;
+	if (flags & O_SERVER) {
+		if (setstatopt(OPT_SERVER, sizeof(OPT_SERVER))) {
+			return -1;
 		}
-
-		if (flags & CLIENT_STAT) {
-			int len = strlen("CLIENT_STAT:") + sz + 1;
-
-			construct = malloc(len);
-			if (!construct)
-				return 0;
-
-			memset(rbuf, 0, LINESZ);
-			memset(construct, 0, len);
-
-			strncpy(construct, "CLIENT_STAT:", len-(sz+1));
-			strncat(construct, client, sz);
-
-			if (!wstat(construct, len)) {
-				free(construct);
-				return 0;
-			}
-			free(construct);
-
-			memset(rbuf, 0, LINESZ);
-			rc = rstat(rbuf, LINESZ-1);
-			if (rc < 0) {
-				fprintf(stdout, "%d: file operation failed\n",
-					__LINE__);
-				return 0;
-			} else if (rc == 0)
-				fprintf(stdout, "client-%s stats not found\n",
-					client);
-			else {
-				fprintf(stdout, "Client stats for : %s\n",
-					client);
-				fprintf(stdout, "%s", rbuf);
-			}
-
-			flags &= ~CLIENT_STAT;
-		}
+		if (getstats("Server"))
+			return -1;
+		flags &= ~O_SERVER;
 	}
 
-	return 1;
+	if (flags & O_CLIENT) {
+		if (setstatopt(client, size)) {
+			return -1;
+		}
+		if (getstats("Client"))
+			return -1;
+		flags &= ~O_CLIENT;
+	}
+
+	return 0;
 }
 
 /**
- * help() - function to show menu options to user
+ * usage() - function to show menu options to user
  */
-void help(void)
+void usage(void)
 {
 	fprintf(stdout, "Usage: cifsstat [options]\n"
 			"options:\n"
@@ -248,78 +204,37 @@ void help(void)
  * @argc:	commandline argument count
  * @argv:	commandline argument list
  *
- * Return:	success/fail: 0
+ * Return:	success '0', fail exit with EXIT_FAILURE
  */
 int main(int argc, char *argv[])
 {
 	char client[MAX_IPLEN];
-	int flags = 0;
-	int sz = 0;
+	int flags = 0, opt;
 
 	memset(client, 0, MAX_IPLEN);
 
-	if (argc < 2 || !strncmp(argv[1], "-h", 2)) {
-		help();
-		return 0;
-	}
-
-	if (argc > 4) {
-		fprintf(stdout, "Too many arguments, exiting\n");
-		help();
-		return 0;
-	}
-
-	if (!strncmp(argv[1], "-s", 2)) {
-		if (argc > 3) {
-			if (!strncmp(argv[2], "-c", 2)) {
-				sz = valIP(argv[3]);
-				if (sz > 0) {
-					strncpy(client, argv[3], sz);
-					flags |= CLIENT_STAT;
+	while ((opt = getopt(argc, argv, "hsc:")) != -1) {
+		switch (opt) {
+			case 's':
+				flags |= O_SERVER;
+				break;
+			case 'c':
+				if (is_validIP(optarg)) {
+					strncpy(client, optarg, MAX_IPLEN - 1);
+					flags |= O_CLIENT;
 				} else {
 					fprintf(stdout,
-						"Invalid client IP, exiting\n");
-					return 0;
+							"Invalid client IP, exiting\n");
+					exit(EXIT_FAILURE);
 				}
-			} else {
-				fprintf(stdout,
-					"Invalid flag combination, exiting\n");
-				help();
-				return 0;
-			}
+				break;
+			case 'h':
+			default: /* '?' */
+				usage();
+				exit(EXIT_FAILURE);
 		}
-
-		flags |= SERVER_STAT;
-	} else if (!strncmp(argv[1], "-c", 2)) {
-		if (argc < 3) {
-			fprintf(stdout, "-c flag requires client IP\n");
-			help();
-			return 0;
-		}
-
-		if (argc > 3) {
-			if (!strncmp(argv[3], "-s", 2))
-				flags |= SERVER_STAT;
-			else {
-				fprintf(stdout,
-					"Invalid flag combination, exiting\n");
-				help();
-				return 0;
-			}
-		}
-
-		sz = valIP(argv[2]);
-		if (sz > 0) {
-			strncpy(client, argv[2], sz);
-			flags |= CLIENT_STAT;
-		} else {
-			fprintf(stdout, "Invalid client IP, exiting\n");
-			return 0;
-		}
-
 	}
-
-	if (!process_args(flags, client, sz))
+	if (process_args(flags, client, strlen(client)))
 		fprintf(stdout, "Unable to process request, try again\n");
 
 	return 0;
