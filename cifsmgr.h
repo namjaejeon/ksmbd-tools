@@ -84,8 +84,8 @@ struct md4_ctx {
 };
 
 /* forward declarations */
-int md4_init(struct md4_ctx *);
-int md4_update(struct md4_ctx *, const unsigned char *, unsigned int);
-int md4_final(struct md4_ctx *, unsigned char *);
+void md4_init(struct md4_ctx *);
+void md4_update(struct md4_ctx *, const unsigned char *, unsigned int);
+void md4_final(struct md4_ctx *, unsigned char *);
 
 #endif /* _CIFSMGR_H */

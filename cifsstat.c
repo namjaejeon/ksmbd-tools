@@ -49,7 +49,7 @@
  * @buf:	destination buffer to copy statistics data
  * @size:	length of statistics data to read
  *
- * Return:	length of data copied to dst buffer
+ * Return:	success: length of data copied to dst buffer; fail: -1
  */
 int readstat(char *buf, int size)
 {
@@ -79,7 +79,7 @@ int readstat(char *buf, int size)
  *		valid ip address in case of client
  * @size:	bytes to write as per option
  *
- * Return:	length of data written to cifssrv interface
+ * Return:	success: 0; fail: -1
  */
 int setstatopt(char *opt, int size)
 {
@@ -141,7 +141,7 @@ int getstats(char *node)
  * is_validIP() - utility function to validate IP address
  * @ipaddr:	source buffer containing IP to verify
  *
- * Return:	'0' for invalid IP, 1 for valid
+ * Return:	0 for invalid IP, 1 for valid
  */
 int is_validIP(char *ipaddr)
 {
@@ -167,18 +167,16 @@ int is_validIP(char *ipaddr)
 int process_args(int flags, char *client, int size)
 {
 	if (flags & O_SERVER) {
-		if (setstatopt(OPT_SERVER, sizeof(OPT_SERVER))) {
+		if (setstatopt(OPT_SERVER, strlen(OPT_SERVER)))
 			return -1;
-		}
 		if (getstats("Server"))
 			return -1;
 		flags &= ~O_SERVER;
 	}
 
 	if (flags & O_CLIENT) {
-		if (setstatopt(client, size)) {
+		if (setstatopt(client, size))
 			return -1;
-		}
 		if (getstats("Client"))
 			return -1;
 		flags &= ~O_CLIENT;
