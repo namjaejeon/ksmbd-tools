@@ -159,18 +159,16 @@ static inline void md4_transform_helper(struct md4_ctx *ctx)
 	md4_transform(ctx->hash, ctx->block);
 }
 
-int md4_init(struct md4_ctx *mctx)
+void md4_init(struct md4_ctx *mctx)
 {
 	mctx->hash[0] = 0x67452301;
 	mctx->hash[1] = 0xefcdab89;
 	mctx->hash[2] = 0x98badcfe;
 	mctx->hash[3] = 0x10325476;
 	mctx->byte_count = 0;
-
-	return 0;
 }
 
-int md4_update(struct md4_ctx *mctx, const u8 *data, unsigned int len)
+void md4_update(struct md4_ctx *mctx, const u8 *data, unsigned int len)
 {
 	const u32 avail = sizeof(mctx->block) - (mctx->byte_count & 0x3f);
 
@@ -179,7 +177,7 @@ int md4_update(struct md4_ctx *mctx, const u8 *data, unsigned int len)
 	if (avail > len) {
 		memcpy((char *)mctx->block + (sizeof(mctx->block) - avail),
 				data, len);
-		return 0;
+		return;
 	}
 
 	memcpy((char *)mctx->block + (sizeof(mctx->block) - avail),
@@ -198,10 +196,10 @@ int md4_update(struct md4_ctx *mctx, const u8 *data, unsigned int len)
 
 	memcpy(mctx->block, data, len);
 
-	return 0;
+	return;
 }
 
-int md4_final(struct md4_ctx *mctx, u8 *out)
+void md4_final(struct md4_ctx *mctx, u8 *out)
 {
 	const unsigned int offset = mctx->byte_count & 0x3f;
 	char *p = (char *)mctx->block + offset;
@@ -225,5 +223,5 @@ int md4_final(struct md4_ctx *mctx, u8 *out)
 	memcpy(out, mctx->hash, sizeof(mctx->hash));
 	memset(mctx, 0, sizeof(*mctx));
 
-	return 0;
+	return;
 }

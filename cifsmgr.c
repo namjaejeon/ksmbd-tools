@@ -64,12 +64,12 @@ static char def_conf[] =
 "\tpath = /tmp\n";
 
 /**
- * int_signal_handler() - registered signal handler for SIGINT
+ * handle_sigint() - registered signal handler for SIGINT
  * @signum:	occured signal number
  * @siginfo:	information associated with signum
  * @message:	additonal text data for signum
  */
-static void int_signal_handler(int signum, siginfo_t *siginfo, void *message)
+static void handle_sigint(int signum, siginfo_t *siginfo, void *message)
 {
 	if (signum == SIGINT) {
 		fprintf(stdout, "Received [Signo:%d] [SigCode:%d]\n",
@@ -98,17 +98,17 @@ static void cifs_chk_err(int flags)
 		return;
 
 	switch (flags) {
-	case CIFS_NONE_USR:
-		fprintf(stderr, "Invalid user\n");
-	break;
-	case CIFS_CONF_FAIL:
-		fprintf(stderr, "Configuration failed\n");
-	break;
-	case CIFS_AUTH_FAIL:
-		fprintf(stderr, "Authentication failed\n");
-	break;
-	default:
-	break;
+		case CIFS_NONE_USR:
+			fprintf(stderr, "Invalid user\n");
+			break;
+		case CIFS_CONF_FAIL:
+			fprintf(stderr, "Configuration failed\n");
+			break;
+		case CIFS_AUTH_FAIL:
+			fprintf(stderr, "Authentication failed\n");
+			break;
+		default:
+			break;
 	}
 }
 
@@ -130,13 +130,13 @@ size_t strlen_w(const unsigned short *src)
 }
 
 /**
- * conv_nt() - function to convert password to NTHash
+ * convert_nthash() - function to convert password to NTHash
  * @dst:	destination pointer to save NTHash
  * @pwd:	source password string
  *
- * Return:	success: 1; fail: 0
+ * Return:	success: 0; fail: -1
  */
-int conv_nt(unsigned char *dst, char *pwd)
+int convert_nthash(unsigned char *dst, char *pwd)
 {
 	unsigned short uni[MAX_NT_PWD_LEN];
 	char *pOut = (char *)uni;
@@ -153,21 +153,17 @@ int conv_nt(unsigned char *dst, char *pwd)
 		if (errno == EINVAL) {
 			conv = iconv_open("UCS-2LE", "UTF-8");
 			if (conv == (iconv_t)-1) {
-				if (errno == EINVAL)
-					fprintf(stderr,
-					"Conversion is not supported\n");
-				else
-					fprintf(stderr,
-					"Initialization failure\n");
-			} else
-				goto found;
-		} else
-			fprintf(stderr, "Initialization failure\n");
-
-		return 0;
+				fprintf(stderr,"failed(%d) to open conversion"
+					" for UCS-2LE to UTF-8\n", errno);
+				return -1;
+			}
+		} else {
+			fprintf(stderr, "failed to open conversion for"
+					" UTF16LE to UTF-8\n");
+			return -1;
+		}
 	}
 
-found:
 	iconv(conv, &pwd, &srclen, &pOut, &dstlen);
 	len = strlen_w(uni) * sizeof(unsigned short);
 	md4_init(&mctx);
@@ -175,23 +171,23 @@ found:
 	md4_final(&mctx, dst);
 
 	iconv_close(conv);
-	return 1;
+	return 0;
 }
 
 /**
  * prompt_pwd() - helper function to read user password string from stdin
- * @print:	information to be displayed to user
+ * @message:	information to be displayed to user
  *
  * Return:	success: "user provided pwd string"; fail: "NULL"
  */
-char *prompt_pwd(char *print)
+char *prompt_pwd(char *message)
 {
 	struct termios attr;
-	char pstring[MAX_NT_PWD_LEN];
+	char password[MAX_NT_PWD_LEN];
 	int fd = -1;
 	size_t len;
 
-	memset(pstring, 0, MAX_NT_PWD_LEN);
+	memset(password, 0, MAX_NT_PWD_LEN);
 
 	if (isatty(STDIN_FILENO)) {
 		memset((void *)&attr, 0, sizeof(attr));
@@ -219,48 +215,45 @@ char *prompt_pwd(char *print)
 		}
 	}
 
-AGAIN:
-	fprintf(stdout, "%s", print);
-	if (fgets(pstring, sizeof(pstring), stdin) == NULL) {
+retry:
+	fprintf(stdout, "%s", message);
+	if (fgets(password, sizeof(password), stdin) == NULL) {
 		if (isatty(STDIN_FILENO)) {
 			tcsetattr(STDIN_FILENO, TCSANOW, &old_attr);
 			isterm = 0;
 		}
-
 		return NULL;
 	}
 
-	len = strlen(pstring);
+	len = strlen(password);
 	if (!len) {
-		fprintf(stdout, "Password can't be empty\n");
-		goto AGAIN;
-	} else if (len > MAX_NT_PWD_LEN - 1) {
-		fprintf(stdout, "Pwd too long, max len %d char\n",
-			MAX_NT_PWD_LEN - 1);
-		goto AGAIN;
+		fprintf(stdout, "Password length(%d) invalid!"
+				" allowed length 1 ~ %d\n",
+				len, MAX_NT_PWD_LEN-1);
+		goto retry;
 	}
 
-	if (pstring[len-1] == '\n')
-		pstring[len - 1] = 0;
+	if (password[len-1] == '\n')
+		password[len - 1] = 0;
 
 	if (isatty(STDIN_FILENO)) {
 		tcsetattr(STDIN_FILENO, TCSANOW, &old_attr);
 		isterm = 0;
 	}
 
-	return strdup(pstring);
+	return strdup(password);
 }
 
 /**
  * readline() - reads single line of characters from file
- * @fd:	source file descriptor
+ * @fp:	source file pointer
  * @buf:	allocate and initialize destination pointer
  * @isEOF:	end of file indicator
  * @check:	flag to check line input for formatting
  *
  * Return:	line size in number of characters
  */
-int readline(FILE *fd, char **buf, int *isEOF, int check)
+int readline(FILE *fp, char **buf, int *isEOF, int check)
 {
 	ssize_t cnt = 0;
 	size_t sz = 0;
@@ -268,7 +261,7 @@ int readline(FILE *fd, char **buf, int *isEOF, int check)
 	static int lcnt;
 	int i;
 
-	cnt = getline(&lbuf, &sz, fd);
+	cnt = getline(&lbuf, &sz, fp);
 	if (cnt == -1)
 		*isEOF = 1;
 	else {
@@ -386,7 +379,7 @@ int rdpwd(unsigned char **pwd)
 		return 0;
 	}
 
-	if (!conv_nt(encrypt, new_pwd)) {
+	if (convert_nthash(encrypt, new_pwd)) {
 		free(encrypt);
 		free(new_pwd);
 		free(re_pwd);
@@ -545,7 +538,7 @@ int add_usr(char *usrname, int flag)
 
 			if (!strcmp((const char *)fusrname,
 						(const char *)usrname)) {
-				unsigned char *pwd2 = NULL;
+				char *pwd2 = NULL;
 				unsigned char encrypt[CIFS_NTHASH_SIZE + 1];
 
 				memset(encrypt, 0, CIFS_NTHASH_SIZE + 1);
@@ -553,8 +546,7 @@ int add_usr(char *usrname, int flag)
 				if (flag & AM_ROOT)
 					goto BYPASS;
 
-				pwd2 = (unsigned char *)prompt_pwd(
-						"Old Password:\n");
+				pwd2 = prompt_pwd("Old Password:\n");
 				if (!pwd2) {
 					fprintf(stdout,
 						"Error while setting pwd.\n");
@@ -564,7 +556,7 @@ int add_usr(char *usrname, int flag)
 					return CIFS_FAIL;
 				}
 
-				if (!conv_nt(encrypt, (char *)pwd2)) {
+				if (convert_nthash(encrypt, pwd2)) {
 					free(line);
 					free(fusrname);
 					free(pwd1);
@@ -1457,7 +1449,7 @@ char *getsh(char *buf, char *share, int sz, int *osz)
  */
 int sshare(char *shname)
 {
-	FILE *fd;
+	FILE *fp;
 	char buf[PAGE_SZ];
 	char *sbuf;
 	int found = 0;
@@ -1465,13 +1457,13 @@ int sshare(char *shname)
 	int ocnt;
 	int i;
 
-	fd = fopen(PATH_CIFSSRV_CONFIG, "r");
-	if (!fd) {
+	fp = fopen(PATH_CIFSSRV_CONFIG, "r");
+	if (!fp) {
 		fprintf(stdout, "cifssrv not available\n");
 		return CIFS_FAIL;
 	}
 
-	while ((cnt = fread(buf, 1, PAGE_SZ, fd)) > 0) {
+	while ((cnt = fread(buf, 1, PAGE_SZ, fp)) > 0) {
 		sbuf = getsh(buf, shname, cnt, &ocnt);
 		if (sbuf) {
 			fprintf(stdout, "[%s]", shname);
@@ -1486,7 +1478,7 @@ int sshare(char *shname)
 	if (!found)
 		fprintf(stdout, "[%s] do not exist\n", shname);
 
-	fclose(fd);
+	fclose(fp);
 	return CIFS_SUCCESS;
 }
 
@@ -1498,22 +1490,22 @@ int sshare(char *shname)
  */
 int lshares(void)
 {
-	FILE *fd;
+	FILE *fp;
 	char buf[PAGE_SZ];
 	int cnt;
 	int i;
 
-	fd = fopen(PATH_CIFSSRV_SHARE, "r");
-	if (!fd) {
+	fp = fopen(PATH_CIFSSRV_SHARE, "r");
+	if (!fp) {
 		fprintf(stdout, "cifssrv not available\n");
 		return CIFS_FAIL;
 	}
 
-	while ((cnt = fread(buf, 1, PAGE_SZ, fd)) > 0) {
+	while ((cnt = fread(buf, 1, PAGE_SZ, fp)) > 0) {
 		for (i = 0; i < cnt; i++)
 			fprintf(stdout, "%c", buf[i]);
 	}
-	fclose(fd);
+	fclose(fp);
 	return CIFS_SUCCESS;
 }
 
@@ -1626,7 +1618,7 @@ void sigcatcher_setup(void)
 	struct sigaction sa;
 
 	memset(&sa, 0, sizeof(struct sigaction));
-	sa.sa_sigaction = int_signal_handler;
+	sa.sa_sigaction = handle_sigint;
 	sa.sa_flags = SA_SIGINFO;
 
 	sigaction(SIGINT, &sa, 0);
@@ -1641,8 +1633,7 @@ void sigcatcher_setup(void)
  */
 int main(int argc, char *argv[])
 {
-	int options = 0;
-	int ret = 0;
+	int options = 0, ret = 0;
 
 	if (argc < 2) {
 		usage();
