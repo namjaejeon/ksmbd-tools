@@ -61,7 +61,7 @@ static char def_conf[] =
 ";\t- Every parameter should be indented with single tab\n"
 ";\t- There should be single spaces around equal (eg: \" = \")\n"
 ";\t- Multiple parameters should be separated with comma\n"
-"\t\teg: \"invalid users = usr1,usr2,usr3\"\n"
+";\t\teg: \"invalid users = usr1,usr2,usr3\"\n"
 ";\n"
 "; Make sure to configure the server after making changes to this file.\n"
 ";**************************************************************************\n"
@@ -1240,6 +1240,95 @@ void tlws(char *src, char *dst, int *sz)
 }
 
 /**
+ * validate_share_path() - check if share path exist or not
+ *
+ * @path:	share path name string
+ * @sname:	share name string
+ * Return:	0 on success ortherwise error
+ */
+int validate_share_path(char *path, char *sname)
+{
+	struct stat st;
+
+	if (stat(path, &st) == -1) {
+		fprintf(stderr, "Failed to add SMB %s \t", sname);
+		fprintf(stderr, "%s: %s\n", path, strerror(errno));
+		return -errno;
+	}
+
+	return 0;
+}
+
+/**
+ * get_share_path() - get share path for a share
+ *
+ * @dst:	destination buffer for share path
+ * @src:	source string to be scanned
+ * @sharename:	share name string
+ * Return:	lenth of share path on success otherwise zero or error
+ */
+int get_share_path(char *dst, char *src, char *sharename)
+{
+	char *pname;
+	char *tmp, *dup;
+	int len;
+	int ret;
+
+	if (!src || !dst)
+		return 0;
+
+	/* global config does not have share path */
+	if (strcasestr(sharename, "sharepath = global"))
+		return 0;
+
+	tmp = dup = strdup(src);
+	if (strcasestr(dup, "path = "))
+	{
+		pname = strtok(dup, "= ");
+		pname = strtok(NULL, "= ");
+		if (pname)
+		{
+			len = strlen(pname);
+			strncpy(dst, pname, len);
+			dst[len] = '\0';
+			free(tmp);
+			ret = validate_share_path(dst, sharename);
+			if (ret < 0)
+				return ret;
+			else
+				return len;
+		}
+	}
+
+	free(tmp);
+	return 0;
+}
+
+/**
+ * prefix_share_name() - add prefix to share name for simple parsing
+ * @src:	source string to be scanned
+ * @srclen:	lenth of share name
+ */
+
+void prefix_share_name(char *src, int *srclen)
+{
+	char *share_cfg = "sharename = ";
+	char share_name[PAGE_SZ];
+	int i, j;
+
+	/* remove [ and ] from share name */
+	for (i = 0, j = 0; i < *srclen; i++) {
+		if (!(src[i] == '[' || src[i] == ']'))
+			share_name[j++] = src[i];
+	}
+	share_name[j] = '\0';
+
+	strncpy(src, share_cfg,  strlen(share_cfg));
+	strncat(src, share_name, strlen(share_name));
+	*srclen = strlen(src);
+}
+
+/**
  * config_shares() - function to initialize cifssrv with share settings.
  *			This function parses local configuration file and
  *			initializes cifssrv with [share] settings
@@ -1249,7 +1338,9 @@ void tlws(char *src, char *dst, int *sz)
 int config_shares(void)
 {
 	char lshare[PAGE_SZ] = "";
+	char sharepath[PAGE_SZ] = "";
 	char tbuf[PAGE_SZ];
+	int sharepath_len;
 	int cnt = 0;
 	int lssz = 0;
 	int limit = 0;
@@ -1330,34 +1421,51 @@ start:
 			if ((ch == '[') ||
 					(ch >= 'A' && ch <= 'Z') ||
 					(ch >= 'a' && ch <= 'z')) {
+
+				/* writeout previous export entry */
+				if (ch == '[' && limit > 0)
+				{
+					if (sharepath_len >= 0) {
+						tbuf[limit] = '\0';
+						limit += 1;
+						rewind(fd_cifssrv_config);
+						sz = fwrite(tbuf, 1, limit,
+							fd_cifssrv_config);
+						if (sz != limit)
+							perror("config error");
+					}
+
+					memset(tbuf, 0, PAGE_SZ);
+					limit = 0;
+					sharepath_len = 0;
+				}
+
 				if (ch == '[') {
+					prefix_share_name(str, &ssz);
 					memset(lshare, 0, PAGE_SZ);
 					strncpy(lshare, str, ssz);
 					lssz = ssz;
 				}
 
+				if (!sharepath_len)
+					sharepath_len =
+						get_share_path(sharepath, str,
+								lshare);
 again:
-				if ((limit + ssz + 2) < PAGE_SZ) {
+				if ((limit + ssz + 1) < PAGE_SZ) {
 					strncat(tbuf+limit, "<", 1);
 					strncat(tbuf+limit+1, str, ssz);
-					strncat(tbuf+limit+1+ssz, ">", 1);
-					limit += ssz+2;
+					limit += ssz+1;
 				} else {
-					strncat(tbuf+limit, "#", 1);
-					limit += 1;
-					sz = fwrite(tbuf, 1, limit,
-							fd_cifssrv_config);
-					if (sz != limit) {
-						/* retry once again */
-						sleep(1);
+					if (sharepath_len >= 0)
+					{
+						tbuf[limit] = '\0';
+						limit += 1;
+						rewind(fd_cifssrv_config);
 						sz = fwrite(tbuf, 1, limit,
 							fd_cifssrv_config);
-						if (sz != limit) {
-							fprintf(stdout,
-								"%d:",
-								__LINE__);
-							perror("write error");
-						}
+						if (sz != limit)
+							perror("config error");
 					}
 
 					memset(tbuf, 0, PAGE_SZ);
@@ -1365,10 +1473,11 @@ again:
 					if (ch != '[') {
 						strncat(tbuf, "<", 1);
 						strncat(tbuf+1, lshare, lssz);
-						strncat(tbuf+1+lssz, ">", 1);
-						limit = lssz+2;
-					} else
+						limit = lssz+1;
+					} else {
+						sharepath_len = 0;
 						limit = 0;
+					}
 
 					goto again;
 				}
@@ -1378,19 +1487,24 @@ again:
 		free(LINE);
 	}
 
-	strncat(tbuf+limit, "#", 1);
-	limit += 1;
+	if (sharepath_len >= 0 && limit > 0) {
+		tbuf[limit] = '\0';
+		limit += 1;
 
-	sz = fwrite(tbuf, 1, limit, fd_cifssrv_config);
-	if (sz != limit) {
-		/* retry once again */
-		sleep(1);
+		rewind(fd_cifssrv_config);
 		sz = fwrite(tbuf, 1, limit, fd_cifssrv_config);
 		if (sz != limit) {
-			perror("write error");
-			fprintf(stdout, "%d: <write=%d> <req=%d>\n",
-				__LINE__, sz, limit);
+			/* retry once again */
+			sleep(1);
+			rewind(fd_cifssrv_config);
+			sz = fwrite(tbuf, 1, limit, fd_cifssrv_config);
+			if (sz != limit) {
+				perror("write error");
+				fprintf(stdout, "%d: <write=%d> <req=%d>\n",
+						__LINE__, sz, limit);
+			}
 		}
+		sharepath_len = 0;
 	}
 
 	fclose(fd_share_dir);
