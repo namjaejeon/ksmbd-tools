@@ -943,6 +943,7 @@ static int srvsvc_net_share_enum_all(struct cifssrv_pipe *pipe, char *data,
 
 	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
 			handle.handle_info.actual_count);
+	free(server_unc);
 
 	server_unc_len = 2 * handle.handle_info.actual_count;
 	server_unc_len = ((server_unc_len + 3) & ~3);
@@ -1110,6 +1111,7 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 
 	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
 			req->server_unc_handle.handle_info.actual_count);
+	free(server_unc);
 
 	server_unc_len = 2 * req->server_unc_handle.handle_info.actual_count;
 	server_unc_len = ((server_unc_len + 3) & ~3);
@@ -1135,6 +1137,7 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 			       req->info_level);
 		ret = init_srvsvc_share_info2(pipe, rpc_request_req,
 								share_name);
+		free(share_name);
 		break;
 
 	default:
@@ -1250,6 +1253,7 @@ int wkkssvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 
 	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
 			req->server_unc_handle.handle_info.actual_count);
+	free(server_unc);
 
 	server_unc_len = 2 * req->server_unc_handle.handle_info.actual_count;
 	server_unc_len = ((server_unc_len + 3) & ~3);

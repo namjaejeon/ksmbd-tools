@@ -204,8 +204,10 @@ int winreg_delete_key(struct cifssrv_pipe *pipe,
 	cifssrv_debug("ret %x\n", (__u32)ret);
 
 	winreg_rsp = malloc(sizeof(WINREG_COMMON_RSP) );
-	if (!winreg_rsp)
+	if (!winreg_rsp) {
+		free(relative_name);
 		return -ENOMEM;
+	}
 
 	pipe->data = (char *)winreg_rsp;
 	if (base_key == NULL || base_key->open_status == 0 ||
@@ -292,8 +294,10 @@ int winreg_create_key(struct cifssrv_pipe *pipe,
 	ret = create_key(relative_name, (struct registry_node *)key_addr);
 
 	winreg_rsp = malloc(sizeof(CREATE_KEY_RSP));
-	if (!winreg_rsp)
+	if (!winreg_rsp) {
+		free(relative_name);
 		return -ENOMEM;
+	}
 
 	pipe->data = (char *)winreg_rsp;
 	rpc_request_rsp = &winreg_rsp->rpc_request_rsp;
@@ -335,8 +339,10 @@ int winreg_open_key(struct cifssrv_pipe *pipe,
 	ret = search_registry(relative_name, (struct registry_node *)key_addr);
 
 	winreg_rsp = malloc(sizeof(OPENHKEY_RSP));
-	if (!winreg_rsp)
+	if (!winreg_rsp) {
+		free(relative_name);
 		return -ENOMEM;
+	}
 
 	pipe->data = (char *)winreg_rsp;
 
@@ -496,8 +502,10 @@ int winreg_set_value(struct cifssrv_pipe *pipe,
 	value_buffer =  (VALUE_BUFFER *)(((char *)in_data) + offset);
 	offset += (sizeof(__u32)*2);
 	winreg_rsp = malloc(sizeof(WINREG_COMMON_RSP));
-	if (!winreg_rsp)
+	if (!winreg_rsp) {
+		free(value_name);
 		return -ENOMEM;
+	}
 
 	pipe->data = (char *)winreg_rsp;
 	rpc_request_rsp = &winreg_rsp->rpc_request_rsp;
@@ -545,8 +553,10 @@ int winreg_delete_value(struct cifssrv_pipe *pipe,
 	if (IS_ERR(value_name))
 		return PTR_ERR(value_name);
 	winreg_rsp = malloc(sizeof(WINREG_COMMON_RSP));
-	if (!winreg_rsp)
+	if (!winreg_rsp) {
+		free(value_name);
 		return -ENOMEM;
+	}
 
 	pipe->data = (char *)winreg_rsp;
 	rpc_request_rsp = &winreg_rsp->rpc_request_rsp;
@@ -668,8 +678,10 @@ int winreg_query_value(struct cifssrv_pipe *pipe,
 
 	offset += (sizeof(DATA_INFO));
 	query_info = malloc(sizeof(QUERY_INFO));
-	if (!winreg_rsp)
+	if (!winreg_rsp) {
+		free(value_name);
 		return -ENOMEM;
+	}
 
 	winreg_rsp->query_val_info = query_info;
 	query_info->type_info.info = value->value_type;
