@@ -101,6 +101,7 @@ char *smb_strndup_from_utf16(char *src, const int maxlen,
 	srclen = maxlen;
 
 	if (is_unicode) {
+		srclen = maxlen * 2;
 		conv = init_conversion(codepage, 1);
 		if (conv == (iconv_t) -1)
 			return ERR_PTR(-EINVAL);
@@ -114,12 +115,14 @@ char *smb_strndup_from_utf16(char *src, const int maxlen,
 		start_dst = dst;
 		ret = iconv(conv, &src, &srclen, &dst, &dstlen);
 		if (ret == -1) {
-			cifssrv_err("Error in conversion of string\n");
+			cifssrv_err("Error in conversion of string, errno %d\n",
+					errno);
 			free(start_dst);
 			close_conversion(conv);
 			return ERR_PTR(-EINVAL);
 		}
 		close_conversion(conv);
+		dst = start_dst;
 	} else {
 		dstlen = strnlen(src, srclen);
 		dstlen++;

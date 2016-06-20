@@ -935,7 +935,8 @@ static int srvsvc_net_share_enum_all(struct cifssrv_pipe *pipe, char *data,
 
 	handle = req->server_unc_handle;
 	server_unc_ptr = (char *)(data + sizeof(SERVER_HANDLE));
-	server_unc = smb_strndup_from_utf16(server_unc_ptr, 256, 1,
+	server_unc = smb_strndup_from_utf16(server_unc_ptr,
+			req->server_unc_handle.handle_info.actual_count, 1,
 			pipe->codepage);
 	if (IS_ERR(server_unc))
 		return PTR_ERR(server_unc);
@@ -1090,7 +1091,6 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	SRVSVC_REQ *req = (SRVSVC_REQ *)data;
-	SERVER_HANDLE handle;
 	char *server_unc_ptr, *server_unc;
 	int server_unc_len = 0;
 	int ret = 0;
@@ -1098,17 +1098,17 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 	UNISTR_INFO *istr_info;
 	char *ptr, *share_name_ptr, *share_name;
 
-	handle = req->server_unc_handle;
 	server_unc_ptr = (char *)(data + sizeof(SERVER_HANDLE));
-	server_unc = smb_strndup_from_utf16(server_unc_ptr, 256, 1,
+	server_unc = smb_strndup_from_utf16(server_unc_ptr,
+			req->server_unc_handle.handle_info.actual_count, 1,
 			pipe->codepage);
 	if (IS_ERR(server_unc))
 		return PTR_ERR(server_unc);
 
 	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
-			handle.handle_info.actual_count);
+			req->server_unc_handle.handle_info.actual_count);
 
-	server_unc_len = 2 * handle.handle_info.actual_count;
+	server_unc_len = 2 * req->server_unc_handle.handle_info.actual_count;
 	server_unc_len = ((server_unc_len + 3) & ~3);
 	/* Add 2 for Pad */
 	istr_info = (UNISTR_INFO *)((char *)(server_unc_ptr + server_unc_len));
@@ -1119,8 +1119,8 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 	cifssrv_debug("istr_info->max_count %u, offset %u, actual count %u\n",
 	istr_info->max_count, istr_info->offset, istr_info->actual_count);
 	share_name_ptr = (char *)((char *)istr_info + sizeof(UNISTR_INFO));
-	share_name = smb_strndup_from_utf16(share_name_ptr, 256, 1,
-			pipe->codepage);
+	share_name = smb_strndup_from_utf16(share_name_ptr,
+			istr_info->actual_count, 1, pipe->codepage);
 	if (IS_ERR(share_name))
 		return PTR_ERR(share_name);
 
@@ -1233,23 +1233,22 @@ int wkkssvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	SRVSVC_REQ *req = (SRVSVC_REQ *)data;
-	SERVER_HANDLE handle;
 	char *server_unc_ptr, *server_unc;
 	int server_unc_len = 0;
 	int ret = 0;
 	int *info_level;
 
-	handle = req->server_unc_handle;
 	server_unc_ptr = (char *)(data + sizeof(SERVER_HANDLE));
-	server_unc = smb_strndup_from_utf16(server_unc_ptr, 256, 1,
+	server_unc = smb_strndup_from_utf16(server_unc_ptr,
+			req->server_unc_handle.handle_info.actual_count, 1,
 			pipe->codepage);
 	if (IS_ERR(server_unc))
 		return PTR_ERR(server_unc);
 
 	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
-			handle.handle_info.actual_count);
+			req->server_unc_handle.handle_info.actual_count);
 
-	server_unc_len = 2 * handle.handle_info.actual_count;
+	server_unc_len = 2 * req->server_unc_handle.handle_info.actual_count;
 	server_unc_len = ((server_unc_len + 3) & ~3);
 	/* Add 2 for Pad */
 	info_level = (int *)((char *)(server_unc_ptr + server_unc_len));
