@@ -1041,12 +1041,14 @@ int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
 				len =
 				smbConvertToUTF16((__le16 *)share_info->comment,
 				share->config.comment,
-						strlen(share->config.comment), 256, NULL);
+				strlen(share->config.comment),
+				256, pipe->codepage);
 				comment_len = strlen(share->config.comment) + 1;
 			} else {
 				len =
 				smbConvertToUTF16((__le16 *)share_info->comment,
-				share->sharename, strlen(share->sharename), 256, NULL);
+				share->sharename, strlen(share->sharename),
+				256, pipe->codepage);
 				comment_len = strlen(share->sharename) + 1;
 			}
 			cifssrv_debug("share %s added\n", share->sharename);
@@ -1060,8 +1062,9 @@ int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
 			ptr_info->ptr_remark = 1;
 
 			smbConvertToUTF16((__le16 *)share_info->sharename,
-					  share->sharename, strlen(share->sharename),
-					  256, NULL);
+					  share->sharename,
+					  strlen(share->sharename),
+					  256, pipe->codepage);
 			share_info->str_info1.max_count = share_name_len;
 			share_info->str_info1.offset = 0;
 			share_info->str_info1.actual_count = share_name_len;
