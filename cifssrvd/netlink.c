@@ -77,11 +77,9 @@ static int cifssrv_sendmsg(struct cifssrv_uevent *eev, unsigned int dlen,
 	return len;
 }
 
-int cifssrv_common_sendmsg(unsigned int etype, int err, __u64 shandle,
-		unsigned int nt_status, unsigned int cnt,
-		unsigned int buflen, char *buf, int param_len)
+int cifssrv_common_sendmsg(struct cifssrv_uevent *ev, char *buf,
+		unsigned int buflen)
 {
-	struct cifssrv_uevent ev;
 	int ret;
 
 	if (buflen > NETLINK_CIFSSRV_MAX_PAYLOAD) {
@@ -89,43 +87,31 @@ int cifssrv_common_sendmsg(unsigned int etype, int err, __u64 shandle,
 		return -1;
 	}
 
-	memset(&ev, 0, sizeof(ev));
-	ev.type = etype;
-	ev.error = err;
-	ev.server_handle = shandle;
-	ev.buflen = buflen;
-
-	ev.u.nt_status = nt_status;
-
-	switch (etype)
-	{
-	case CIFSSRV_UEVENT_INIT_CONNECTION:
-		break;
-	case CIFSSRV_UEVENT_EXIT_CONNECTION:
-		break;
-	case CIFSSRV_UEVENT_READ_PIPE_RSP:
-		ev.u.r_pipe_rsp.read_count = cnt;
-		break;
-	case CIFSSRV_UEVENT_WRITE_PIPE_RSP:
-		ev.u.w_pipe_rsp.write_count = cnt;
-		break;
-	case CIFSSRV_UEVENT_IOCTL_PIPE_RSP:
-		ev.u.i_pipe_rsp.data_count = cnt;
-		break;
-	case CIFSSRV_UEVENT_LANMAN_PIPE_RSP:
-		ev.u.l_pipe_rsp.data_count = cnt;
-		ev.u.l_pipe_rsp.param_count = param_len;
-		break;
-	default:
-		cifssrv_err("unknown event %u\n", etype);
-		return -1;
-	}
-
-	ret = cifssrv_sendmsg(&ev, buflen, buf);
+	ret = cifssrv_sendmsg(ev, buflen, buf);
 	if (ret < 0)
-		cifssrv_err("failed to send event %u\n", etype);
+		cifssrv_err("failed to send event %u\n", ev->type);
 
 	return ret;
+}
+
+static int handle_init_event(void)
+{
+	struct cifssrv_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSSRV_UEVENT_INIT_CONNECTION;
+
+	return cifssrv_common_sendmsg(&ev, NULL, 0);
+}
+
+static int handle_exit_event(void)
+{
+	struct cifssrv_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSSRV_UEVENT_EXIT_CONNECTION;
+
+	return cifssrv_common_sendmsg(&ev, NULL, 0);
 }
 
 static int cifssrv_nl_read(char *buf, unsigned int buflen, int flags)
@@ -267,13 +253,11 @@ int cifssrvd_netlink_setup(void)
 		return -1;
 
 	initialize();
-	cifssrv_common_sendmsg(CIFSSRV_UEVENT_INIT_CONNECTION,
-			0, 0, 0, 0, 0, NULL, 0);
+	handle_init_event();
 
 	cifssrv_nl_loop();
 
-	cifssrv_common_sendmsg(CIFSSRV_UEVENT_EXIT_CONNECTION,
-			0, 0, 0, 0, 0, NULL, 0);
+	handle_exit_event();
 	cifssrv_nl_exit();
 	return 0;
 }

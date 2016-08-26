@@ -76,9 +76,10 @@
 #define CIFSSRV_USERNAME_LEN	33
 
 enum cifssrv_pipe_type {
-        SRVSVC  =       1,
-        WINREG  =       2,
-	LANMAN  =       3,
+	SRVSVC,
+	WINREG,
+	LANMAN,
+	MAX_PIPE
 };
 
 struct cifssrv_pipe_table {
@@ -197,11 +198,6 @@ int smbConvertToUTF16(__le16 *target, char *source, int slen,
                 int targetlen, const char *codepage);
 char *smb_strndup_from_utf16(char *src, const int maxlen,
                 const int is_unicode, const char *codepage);
-
-int cifssrv_common_sendmsg(unsigned int etype, int err, __u64 shandle,
-		unsigned int nt_status, unsigned int cnt,
-		unsigned int buflen, char *buf, int param_len);
-int cifssrvd_netlink_setup(void);
 
 #define __constant_cpu_to_le64(x) ((__le64)(__u64)(x))
 #define __constant_le64_to_cpu(x) ((__u64)(__le64)(x))
