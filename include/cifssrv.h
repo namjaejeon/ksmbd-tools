@@ -73,10 +73,12 @@
 #define CIFSSRV_MINOR_VERSION 0
 
 #define CIFSSRV_CODEPAGE_LEN    32
+#define CIFSSRV_USERNAME_LEN	33
 
 enum cifssrv_pipe_type {
         SRVSVC  =       1,
         WINREG  =       2,
+	LANMAN  =       3,
 };
 
 struct cifssrv_pipe_table {
@@ -97,6 +99,7 @@ struct cifssrv_pipe {
         int datasize;
         int sent;
 	char codepage[CIFSSRV_CODEPAGE_LEN];
+	char username[CIFSSRV_USERNAME_LEN];
 };
 
 struct cifssrvd_client_info {
@@ -187,6 +190,8 @@ void tlws(char *src, char *dst, int *sz);
 
 int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size);
 int process_rpc(struct cifssrv_pipe *pipe, char *data);
+int handle_lanman_pipe(struct cifssrv_pipe *pipe, char *in_data,
+		char *out_data, int *param_len);
 
 int smbConvertToUTF16(__le16 *target, char *source, int slen,
                 int targetlen, const char *codepage);
@@ -194,8 +199,8 @@ char *smb_strndup_from_utf16(char *src, const int maxlen,
                 const int is_unicode, const char *codepage);
 
 int cifssrv_common_sendmsg(unsigned int etype, int err, __u64 shandle,
-                unsigned int nt_status, unsigned int cnt,
-                unsigned int buflen, char *buf);
+		unsigned int nt_status, unsigned int cnt,
+		unsigned int buflen, char *buf, int param_len);
 int cifssrvd_netlink_setup(void);
 
 #define __constant_cpu_to_le64(x) ((__le64)(__u64)(x))

@@ -27,7 +27,6 @@
 #include <sys/socket.h>
 
 #include "netlink.h"
-#include "cifssrv.h"
 
 static char *nlsk_rcv_buf = NULL;
 static char *nlsk_send_buf = NULL;
@@ -80,7 +79,7 @@ static int cifssrv_sendmsg(struct cifssrv_uevent *eev, unsigned int dlen,
 
 int cifssrv_common_sendmsg(unsigned int etype, int err, __u64 shandle,
 		unsigned int nt_status, unsigned int cnt,
-		unsigned int buflen, char *buf)
+		unsigned int buflen, char *buf, int param_len)
 {
 	struct cifssrv_uevent ev;
 	int ret;
@@ -112,6 +111,10 @@ int cifssrv_common_sendmsg(unsigned int etype, int err, __u64 shandle,
 		break;
 	case CIFSSRV_UEVENT_IOCTL_PIPE_RSP:
 		ev.u.i_pipe_rsp.data_count = cnt;
+		break;
+	case CIFSSRV_UEVENT_LANMAN_PIPE_RSP:
+		ev.u.l_pipe_rsp.data_count = cnt;
+		ev.u.l_pipe_rsp.param_count = param_len;
 		break;
 	default:
 		cifssrv_err("unknown event %u\n", etype);
@@ -265,12 +268,12 @@ int cifssrvd_netlink_setup(void)
 
 	initialize();
 	cifssrv_common_sendmsg(CIFSSRV_UEVENT_INIT_CONNECTION,
-			0, 0, 0, 0, 0, NULL);
+			0, 0, 0, 0, 0, NULL, 0);
 
 	cifssrv_nl_loop();
 
 	cifssrv_common_sendmsg(CIFSSRV_UEVENT_EXIT_CONNECTION,
-			0, 0, 0, 0, 0, NULL);
+			0, 0, 0, 0, 0, NULL, 0);
 	cifssrv_nl_exit();
 	return 0;
 }

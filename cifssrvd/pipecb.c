@@ -96,7 +96,7 @@ static struct cifssrv_pipe *initpipe(int pipetype, char *codepage)
 	pipe = (struct cifssrv_pipe*) calloc(1, sizeof(struct cifssrv_pipe));
 	if (pipe) {
 		pipe->pipe_type = pipetype;
-		strcpy(pipe->codepage, codepage);
+		strncpy(pipe->codepage, codepage, CIFSSRV_CODEPAGE_LEN - 1);
 		INIT_LIST_HEAD(&pipe->list);
 	}
 	return pipe;
@@ -150,13 +150,15 @@ static int cifssrv_remove_pipe(__u64 clienthash, int pipetype)
  */
 int request_handler(void *msg)
 {
-	struct cifssrv_pipe *pipe;
+	struct cifssrv_pipe *pipe = NULL;
 	int nbytes = 0;
 	int ret = 0;
 	unsigned int pipetype = 0;
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
 	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
 	__u64 clienthash = ev->server_handle;
+	char *obuf;
+	int param_len = 0;
 
 	cifssrv_debug("got %u event\n", nlh->nlmsg_type);
 	switch (nlh->nlmsg_type) {
@@ -189,18 +191,22 @@ int request_handler(void *msg)
 			cifssrv_debug("READ: nbytes %d\n", nbytes);
 
 			if (nbytes <= 0) {
-				ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_READ_PIPE_RSP,
-						nbytes, ev->server_handle, 0, 0, 0, NULL);
+				ret = cifssrv_common_sendmsg(
+						CIFSSRV_UEVENT_READ_PIPE_RSP,
+						nbytes, ev->server_handle, 0,
+						0, 0, NULL, 0);
 			} else {
-				ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_READ_PIPE_RSP,
-						0, ev->server_handle, 0, nbytes, nbytes,
-						ev->buffer);
+				ret = cifssrv_common_sendmsg(
+						CIFSSRV_UEVENT_READ_PIPE_RSP, 0,
+						ev->server_handle, 0, nbytes,
+						nbytes, ev->buffer, 0);
 			}
 		} else {
 			cifssrv_debug("READ: pipetype %u lookup failed for clienthash %llu\n",
 					pipetype, clienthash);
 			cifssrv_common_sendmsg(CIFSSRV_UEVENT_READ_PIPE_RSP,
-					-ENOENT, ev->server_handle, 0, 0, 0, NULL);
+					-ENOENT, ev->server_handle, 0, 0,
+					0, NULL, 0);
 		}
 		cifssrv_debug("READ: response u->k send, on server handle %llu\n",
 				ev->server_handle);
@@ -215,13 +221,17 @@ int request_handler(void *msg)
 			if (ret)
 				cifssrv_debug("process_rpc: failed ret %d\n", ret);
 
-			ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_WRITE_PIPE_RSP,
-					ret, ev->server_handle, 0, ev->buflen, 0, NULL);
+			ret = cifssrv_common_sendmsg(
+					CIFSSRV_UEVENT_WRITE_PIPE_RSP,
+					ret, ev->server_handle, 0, ev->buflen,
+					0, NULL, 0);
 		} else {
 			cifssrv_debug("WRITE: pipetype %u lookup failed for clienthash %llu\n",
 					pipetype, clienthash);
-			ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_WRITE_PIPE_RSP,
-					-ENOENT, ev->server_handle, 0, 0, 0, NULL);
+			ret = cifssrv_common_sendmsg(
+					CIFSSRV_UEVENT_WRITE_PIPE_RSP,
+					-ENOENT, ev->server_handle, 0, 0, 0,
+					NULL, 0);
 		}
 
 		cifssrv_debug("WRITE: response u->k send, on server handle %llu\n",
@@ -229,33 +239,95 @@ int request_handler(void *msg)
 		break;
 	case CIFSSRV_KEVENT_IOCTL_PIPE:
 		pipetype = ev->k.i_pipe.type;
-		cifssrv_debug("IOCTL: on server handle %llu\n", ev->server_handle);
+		cifssrv_debug("IOCTL: on server handle %llu\n",
+				ev->server_handle);
 
 		pipe = lookup_pipe(clienthash, pipetype);
 		if (pipe) {
 			ret = process_rpc(pipe, ev->buffer);
 			if (ret) {
-				cifssrv_debug("process_rpc: failed ret %d\n", ret);
-				cifssrv_common_sendmsg(CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
-						ret, ev->server_handle, 0, 0, 0, NULL);
+				cifssrv_debug("process_rpc: failed %d\n", ret);
+				cifssrv_common_sendmsg(
+						CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
+						ret, ev->server_handle, 0, 0,
+						0, NULL, 0);
 				break;
 			}
 
-			nbytes = process_rpc_rsp(pipe, ev->buffer, ev->k.i_pipe.out_buflen);
+			nbytes = process_rpc_rsp(pipe, ev->buffer,
+					ev->k.i_pipe.out_buflen);
 			if (nbytes <= 0) {
 				cifssrv_debug("process_rpc_rsp: failed nbytes %d\n", nbytes);
-				ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
-						nbytes, ev->server_handle, 0, 0, 0, NULL);
+				ret = cifssrv_common_sendmsg(
+						CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
+						nbytes, ev->server_handle, 0, 0,
+						0, NULL, 0);
 			} else {
-				ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
-						0, ev->server_handle, 0, nbytes, nbytes,
-						ev->buffer);
+				ret = cifssrv_common_sendmsg(
+						CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
+						0, ev->server_handle, 0, nbytes,
+						nbytes, ev->buffer, 0);
 			}
 
 		} else {
-			ret = cifssrv_common_sendmsg(CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
-					-ENOENT, ev->server_handle, 0, 0, 0, NULL);
+			ret = cifssrv_common_sendmsg(
+					CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
+					-ENOENT, ev->server_handle, 0, 0,
+					0, NULL, 0);
 		}
+		break;
+	case CIFSSRV_KEVENT_LANMAN_PIPE:
+		cifssrv_debug("LANMAN: on server handle %llu\n",
+				ev->server_handle);
+
+		ret = cifssrv_create_pipe(ev->server_handle, ev->k.l_pipe.type,
+				ev->k.l_pipe.codepage);
+		if (ret) {
+			cifssrv_debug("CREATE: pipe failed %d\n", ret);
+			goto out;
+		}
+
+		pipe = lookup_pipe(clienthash, ev->k.l_pipe.type);
+		if (!pipe) {
+			cifssrv_debug("LANMAN: pipetype %u lookup failed for clienthash %llu\n",
+					pipetype, clienthash);
+			ret = cifssrv_common_sendmsg(
+					CIFSSRV_UEVENT_LANMAN_PIPE_RSP,
+					-ENOENT, ev->server_handle, 0, 0,
+					0, NULL, 0);
+			ret = cifssrv_remove_pipe(clienthash,
+					ev->k.l_pipe.type);
+			if (ret)
+				cifssrv_debug("DESTROY: pipe failed %d\n", ret);
+			goto out;
+		}
+
+		strncpy(pipe->username, ev->k.l_pipe.username,
+				CIFSSRV_USERNAME_LEN - 1);
+
+		obuf = calloc(1, NETLINK_CIFSSRV_MAX_PAYLOAD);
+		if (!obuf) {
+			cifssrv_debug("failed to allocate memory\n");
+			return -ENOMEM;
+		}
+
+		nbytes = handle_lanman_pipe(pipe, ev->buffer, obuf, &param_len);
+		if (nbytes < 0) {
+			ret = cifssrv_common_sendmsg(
+					CIFSSRV_UEVENT_LANMAN_PIPE_RSP,
+					nbytes, ev->server_handle, 0, 0,
+					0, NULL, 0);
+		} else {
+			ret = cifssrv_common_sendmsg(
+					CIFSSRV_UEVENT_LANMAN_PIPE_RSP,
+					0, ev->server_handle, 0, nbytes,
+					nbytes, obuf, param_len);
+		}
+
+		free(obuf);
+		ret = cifssrv_remove_pipe(clienthash, ev->k.l_pipe.type);
+		if (ret)
+			cifssrv_debug("DESTROY: pipe failed %d\n", ret);
 		break;
 	default:
 		cifssrv_err("unknown event %u\n", ev->type);
@@ -263,5 +335,6 @@ int request_handler(void *msg)
 		break;
 	}
 
+out:
 	return ret;
 }

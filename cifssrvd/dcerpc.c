@@ -435,7 +435,7 @@ int rpc_read_bind_data(struct cifssrv_pipe *pipe, char *out_data)
 int rpc_read_srvsvc_data(struct cifssrv_pipe *pipe, char *outdata, int buf_len)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp = (RPC_REQUEST_RSP *)outdata;
-	int offset = 0, num_shares, string_len = 0;
+	int offset = 0, string_len = 0;
 	int i = 0, resume_handle = 0, data_sent = 0, datasize = 0;
 	SRVSVC_SHARE_INFO_CTR *sharectr;
 	SRVSVC_SHARE_GETINFO *shareinfo;
@@ -509,7 +509,6 @@ out:
 		buf = pipe->buf;
 		data_sent = pipe->sent;
 		datasize = pipe->datasize;
-		num_shares = sharectr->info.num_entries;
 		resume_handle = sharectr->resume_handle;
 
 		cifssrv_debug("num entries = %d\n", sharectr->info.num_entries);
@@ -1584,15 +1583,11 @@ static int handle_netshareenum_info1(struct cifssrv_pipe *pipe,
 	struct cifssrv_share *share;
 	int out_buffersize, comment_len = 0, comment_offset;
 	int num_shares = 0;
-	char *data_buf, *comment_buf;
+	char *comment_buf;
 
 	resp = (LANMAN_NETSHAREENUM_RESP *)out_data;
-
-	data_buf = resp->RAPOutData;
-
 	info1 = (NETSHAREINFO1 *)resp->RAPOutData;
-
-	num_shares = 5;// TBD: cifssrv_num_shares;
+	num_shares = cifssrv_num_shares;
 	comment_offset = num_shares * sizeof(NETSHAREINFO1);
 
 /*
@@ -1722,8 +1717,6 @@ int handle_wkstagetinfo_info10(struct cifssrv_pipe *pipe,
 	int out_buffersize;
 	int offset, len;
 	char *data;
-	struct cifssrv_usr *usr;
-//	struct cifssrv_usr *tmp;
 	int user_valid = 0;
 
 	resp = (LANMAN_WKSTAGEINFO_RESP *)out_data;
@@ -1744,24 +1737,14 @@ int handle_wkstagetinfo_info10(struct cifssrv_pipe *pipe,
 
 	/* Add user name */
 	info10->UserName = offset;
-/*
- * TBD: To replace with actual user configuration part,
- * need to decide complete logic to get this information
- */
-#if 0
-	list_for_each_entry_safe(usr, tmp, &cifssrv_usr_list, list) {
-		if (server->vuid  == usr->vuid) {
-			user_valid = true;
-			break;
-		}
-	}
-#endif
+	if (pipe->username[0] != '\0')
+		user_valid = 1;
 
 	/* If valid user is found provide logged in user
 	   otherwise send default user "root" */
 	if (user_valid) {
-		len = strlen(usr->name);
-		memcpy(data, usr->name, len);
+		len = strlen(pipe->username);
+		memcpy(data, pipe->username, len);
 	} else {
 		return -EINVAL;
 	}
