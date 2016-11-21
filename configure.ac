@@ -10,7 +10,7 @@ m4_define([cifssrv_tools_gitdate],
                 m4_esyscmd([git log -1 --pretty=format:%ci 2> /dev/null]))
 
 AC_INIT([CIFSSRV tools], [cifssrv_tools_version],
-                        [linkinjeon@gmail.com])
+                        [namjae.jeon@protocolfreedom.org])
 
 AC_DEFINE([CIFSSRV_TOOLS_VERSION], "cifssrv_tools_version", [cifssrv-tools version])
 AC_DEFINE([CIFSSRV_MAJOR_VERSION], m4_bpatsubst(cifssrv_tools_version,
