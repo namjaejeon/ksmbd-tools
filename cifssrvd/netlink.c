@@ -247,6 +247,64 @@ int cifssrv_nl_exit(void)
 	return 0;
 }
 
+int cifssrv_start_smbport(void)
+{
+	struct cifssrv_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSSRV_UEVENT_START_SMBPORT;
+	return cifssrv_common_sendmsg(&ev, NULL, 0);
+}
+
+int cifssrv_stop_smbport(void)
+{
+	struct cifssrv_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSSRV_UEVENT_STOP_SMBPORT;
+	return cifssrv_common_sendmsg(&ev, NULL, 0);
+}
+
+static void termination_handler(int signum)
+{
+	int err = 0;
+	struct cifssrvd_client_info *client;
+
+	failed_connection = 0;
+
+	list_for_each_entry(client, &cifssrvd_clients, list) {
+		++connection;
+	}
+	do {
+		connection += failed_connection;
+		failed_connection = 0;
+		err = cifssrv_stop_smbport();
+		if (err < 0) {
+			cifssrv_err("cifssrv stop smbport failed\n");
+			return;
+		}
+		while (connection)
+			cifssrv_handle_event();
+
+	} while (failed_connection);
+	exit(1);
+}
+
+static void cifssrv_sighandler(void)
+{
+	struct sigaction sa;
+
+	sa.sa_handler = &termination_handler;
+	sigfillset(&sa.sa_mask);
+
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+		perror("Failed to catch SIGINT\n");
+	if (sigaction(SIGABRT, &sa, NULL) == -1)
+		perror("Failed to catch SIGABORT\n");
+	if (sigaction(SIGBUS, &sa, NULL) == -1)
+		perror("Failed to catch SIGBUS\n");
+}
+
 int cifssrvd_netlink_setup(void)
 {
 	if (cifssrv_nl_init())
@@ -255,8 +313,11 @@ int cifssrvd_netlink_setup(void)
 	initialize();
 	handle_init_event();
 
+	cifssrv_start_smbport();
+	cifssrv_sighandler();
 	cifssrv_nl_loop();
 
+	cifssrv_stop_smbport();
 	handle_exit_event();
 	cifssrv_nl_exit();
 	return 0;

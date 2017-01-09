@@ -29,9 +29,6 @@
 #define WRITE	0x8
 #define TRANS	0x10
 
-/* List of connected clients */
-struct list_head cifssrvd_clients;
-
 void initialize(void)
 {
 	INIT_LIST_HEAD(&cifssrvd_clients);
@@ -399,7 +396,7 @@ int request_handler(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
 	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
-	int ret;
+	int ret = 0;
 
 	cifssrv_debug("got %u event, pipe type %u\n", nlh->nlmsg_type,
 			ev->pipe_type);
@@ -427,6 +424,15 @@ int request_handler(void *msg)
 
 	case CIFSSRV_KEVENT_LANMAN_PIPE:
 		ret = handle_lanman_pipe_event(msg);
+		break;
+
+	case CIFSSRV_KEVENT_SMBPORT_CLOSE_FAIL:
+		--connection;
+		++failed_connection;
+		break;
+
+	case CIFSSRV_KEVENT_SMBPORT_CLOSE_PASS:
+		--connection;
 		break;
 
 	default:

@@ -44,6 +44,8 @@ enum cifssrv_uevent_e {
 	CIFSSRV_UEVENT_WRITE_PIPE_RSP,
 	CIFSSRV_UEVENT_IOCTL_PIPE_RSP,
 	CIFSSRV_UEVENT_LANMAN_PIPE_RSP,
+	CIFSSRV_UEVENT_START_SMBPORT,
+	CIFSSRV_UEVENT_STOP_SMBPORT,
 	CIFSSRV_UEVENT_EXIT_CONNECTION,
 
 	/* up events: kernel space to userspace */
@@ -53,6 +55,8 @@ enum cifssrv_uevent_e {
 	CIFSSRV_KEVENT_IOCTL_PIPE,
 	CIFSSRV_KEVENT_LANMAN_PIPE,
 	CIFSSRV_KEVENT_DESTROY_PIPE,
+	CIFSSRV_KEVENT_SMBPORT_CLOSE_FAIL,
+	CIFSSRV_KEVENT_SMBPORT_CLOSE_PASS,
 };
 
 struct cifssrv_uevent {
@@ -114,6 +118,12 @@ struct cifssrv_uevent {
 	char buffer[0];
 };
 
+/* List of connected clients */
+struct list_head cifssrvd_clients;
+int connection;
+int failed_connection;
+int cifssrv_start_smbport(void);
+int cifssrv_stop_smbport(void);
 int cifssrv_common_sendmsg(struct cifssrv_uevent *ev, char *buf,
 		unsigned int buflen);
 int cifssrvd_netlink_setup(void);
