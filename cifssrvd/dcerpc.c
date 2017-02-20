@@ -1416,8 +1416,12 @@ int rpc_request(struct cifssrv_pipe *pipe, char *in_data)
 		break;
 	case WINREG:
 		cifssrv_debug("WINREG pipe\n");
+#ifdef WINREG_SUPPORT
 		ret = winreg_rpc_request(pipe, in_data);
 		break;
+#else
+		return -EOPNOTSUPP;
+#endif
 	default:
 		cifssrv_debug("pipe not supported\n");
 		return -EOPNOTSUPP;
