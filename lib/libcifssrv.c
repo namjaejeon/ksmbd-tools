@@ -114,7 +114,7 @@ int readline(FILE *fp, char **buf, int *isEOF, int check)
 			lcnt++;
 	}
 
-	if (cnt && check) {
+	if (cnt > 0 && check) {
 		if (strpbrk(lbuf, "=") != NULL) {
 			i = strcspn(lbuf, "=");
 

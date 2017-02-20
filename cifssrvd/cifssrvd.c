@@ -20,6 +20,7 @@
  */
 
 #include "cifssrv.h"
+#include <pwd.h>
 
 struct list_head cifssrv_share_list;
 int cifssrv_num_shares;
@@ -72,10 +73,13 @@ int config_users(char *dbpath)
 
 		init_2_strings(lstr, &usr, &pwd, len);
 		if (usr && pwd) {
+			struct passwd *passwd = NULL;
+			char *id_buf = NULL;
+
 			len = strlen(usr);
 			c_len = len + CIFS_NTHASH_SIZE + 2;
 
-			construct = (char *)malloc(c_len);
+			construct = (char *)malloc(c_len + 12);
 			if (!construct)
 				goto out;
 
@@ -83,6 +87,18 @@ int config_users(char *dbpath)
 			memcpy(construct, usr, len);
 			memcpy(construct + len, ":", 1);
 			memcpy(construct + len + 1, pwd, 16);
+
+			passwd = getpwnam(usr);
+			if (passwd) {
+				int id_len;
+
+				id_buf = (char *)malloc(12);
+				id_len = sprintf(id_buf, ":%u:%u\n",
+					passwd->pw_uid, passwd->pw_gid);
+				memcpy(construct + len + 1 + 16, id_buf,
+					id_len);
+				c_len += id_len;
+			}
 
 			if (write(fd_usr, construct,  c_len - 1) !=
 					c_len - 1) {
@@ -92,6 +108,8 @@ int config_users(char *dbpath)
 			free(usr);
 			free(pwd);
 			free(construct);
+			if (id_buf)
+				free(id_buf);
 		}
 		free(lstr);
 	}
