@@ -194,7 +194,7 @@ int winreg_delete_key(struct cifssrv_pipe *pipe,
 
 	key_addr = key_handle->addr;
 	base_key = (struct registry_node *)key_addr;
-	relative_name = smb_strndup_from_utf16(name_info->Buffer,
+	relative_name = smb_strndup_from_utf16((char *)name_info->Buffer,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(relative_name))
 		return PTR_ERR(relative_name);
@@ -279,15 +279,13 @@ int winreg_create_key(struct cifssrv_pipe *pipe,
 	struct registry_node *ret;
 	int key_addr;
 	char *relative_name;
-	struct registry_node *base_key;
 
 	KEY_HANDLE *key_handle = (KEY_HANDLE *)in_data;
 	NAME_INFO *name_info = (NAME_INFO *)(((char *)in_data) +
 						sizeof(KEY_HANDLE));
 
 	key_addr = key_handle->addr;
-	base_key = (struct registry_node *)key_addr;
-	relative_name = smb_strndup_from_utf16(name_info->Buffer,
+	relative_name = smb_strndup_from_utf16((char *)name_info->Buffer,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(relative_name))
 		return PTR_ERR(relative_name);
@@ -332,7 +330,7 @@ int winreg_open_key(struct cifssrv_pipe *pipe,
 
 	key_addr = key_handle->addr;
 	base_key = (struct registry_node *)key_addr;
-	relative_name = smb_strndup_from_utf16(name_info->Buffer,
+	relative_name = smb_strndup_from_utf16((char *)name_info->Buffer,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(relative_name))
 		return PTR_ERR(relative_name);
@@ -376,8 +374,8 @@ int winreg_close_key(struct cifssrv_pipe *pipe,
 	RPC_REQUEST_RSP *rpc_request_rsp;
 	OPENHKEY_RSP *winreg_rsp;
 	int key_addr;
-	struct registry_node *base_key;
 	KEY_HANDLE *key_handle = (KEY_HANDLE *)in_data;
+	struct registry_node *base_key;
 
 	key_addr = key_handle->addr;
 	base_key = (struct registry_node *)key_addr;
@@ -491,7 +489,7 @@ int winreg_set_value(struct cifssrv_pipe *pipe,
 	key_addr = key_handle->addr;
 	base_key = (struct registry_node *)key_addr;
 
-	value_name = smb_strndup_from_utf16(name_info->Buffer,
+	value_name = smb_strndup_from_utf16((char *)name_info->Buffer,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(value_name))
 		return PTR_ERR(value_name);
@@ -548,7 +546,7 @@ int winreg_delete_value(struct cifssrv_pipe *pipe,
 	key_addr = key_handle->addr;
 	base_key = (struct registry_node *)key_addr;
 
-	value_name = smb_strndup_from_utf16(name_info->Buffer,
+	value_name = smb_strndup_from_utf16((char *)name_info->Buffer,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(value_name))
 		return PTR_ERR(value_name);
@@ -604,7 +602,6 @@ int winreg_query_value(struct cifssrv_pipe *pipe,
 	int offset = 0;
 	int value_len = 0;
 	int key_addr;
-	struct registry_node *base_key;
 	struct registry_value *value;
 	char *value_name;
 	QUERY_VALUE_RSP *winreg_rsp;
@@ -630,9 +627,8 @@ int winreg_query_value(struct cifssrv_pipe *pipe,
 	name_info = (NAME_INFO *)(((char *)in_data) + offset);
 
 	key_addr = key_handle->addr;
-	base_key = (struct registry_node *)key_addr;
 
-	value_name = smb_strndup_from_utf16(name_info->Buffer,
+	value_name = smb_strndup_from_utf16((char *)name_info->Buffer,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(value_name))
 		return PTR_ERR(value_name);
@@ -883,14 +879,12 @@ struct registry_node *search_registry(char *name,
 {
 	struct registry_node *base_key_addr = key_addr;
 	struct registry_node *key = base_key_addr;
-	struct registry_node *prev_key;
 	char *token = strsep(&name, "\\");
 
 	while (token) {
 		if (key->child == NULL) {
 			return ERR_PTR(-EINVAL);
 		} else {
-			prev_key = key;
 			key = key->child;
 			while ((key != NULL) &&
 				(strcmp(key->key_name, token) != 0))
