@@ -20,6 +20,7 @@
  */
 
 #include "cifssrv.h"
+#include "netlink.h"
 #include <pwd.h>
 
 struct list_head cifssrv_share_list;
