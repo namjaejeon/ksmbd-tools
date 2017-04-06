@@ -988,19 +988,19 @@ int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
 	RPC_REQUEST_RSP *rpc_request_rsp;
 
 	shareinfo = (SRVSVC_SHARE_GETINFO *)
-			malloc(sizeof(SRVSVC_SHARE_GETINFO));
+			calloc(1, sizeof(SRVSVC_SHARE_GETINFO));
 	if (!shareinfo) {
 		return -ENOMEM;
 	}
 
 	pipe->data = (char *)shareinfo;
-	shareinfo->ptrs = malloc((num_shares * sizeof(PTR_INFO1)));
+	shareinfo->ptrs = calloc(1, (num_shares * sizeof(PTR_INFO1)));
 	if (!shareinfo->ptrs) {
 		free(shareinfo);
 		return -ENOMEM;
 	}
 
-	shareinfo->shares = malloc(num_shares * sizeof(SRVSVC_SHARE_INFO1));
+	shareinfo->shares = calloc(1, num_shares * sizeof(SRVSVC_SHARE_INFO1));
 	if (!shareinfo->shares) {
 		free(shareinfo->ptrs);
 		free(shareinfo);
@@ -1165,12 +1165,12 @@ int init_wkssvc_share_info2(struct cifssrv_pipe *pipe,
 	RPC_REQUEST_RSP *rpc_request_rsp;
 
 	shareinfo = (WKSSVC_SHARE_GETINFO *)
-			malloc(sizeof(WKSSVC_SHARE_GETINFO));
+			calloc(1, sizeof(WKSSVC_SHARE_GETINFO));
 	if (!shareinfo) {
 		return -ENOMEM;
 	}
 	pipe->data = (char *)shareinfo;
-	shareinfo->shares = malloc(sizeof(WKSSVC_SHARE_INFO1));
+	shareinfo->shares = calloc(1, sizeof(WKSSVC_SHARE_INFO1));
 
 	if (!shareinfo->shares) {
 		free(shareinfo);
@@ -1522,7 +1522,7 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 				len = smbConvertToUTF16(name, netbios_name,
 							strlen(netbios_name),8,
 							pipe->codepage);
-				rpc_bind_rsp->Buffer = malloc(
+				rpc_bind_rsp->Buffer = calloc(1,
 					sizeof(CHALLENGE_MESSAGE) +
 					sizeof(TargetInfo)*5 +
 					UNICODE_LEN(len)*4);
