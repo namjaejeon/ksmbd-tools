@@ -22,9 +22,21 @@
 #include "cifsadmin.h"
 
 /* global variables */
-static struct termios old_attr;
-static int isterm;
 static char *dup_optarg;
+
+static void term_toggle_echo(int on_off)
+{
+	struct termios term;
+
+	tcgetattr(STDIN_FILENO, &term);
+
+	if (on_off)
+		term.c_lflag |= ECHO;
+	else
+		term.c_lflag &= ~ECHO;
+
+	tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
+}
 
 /**
  * handle_sigint() - registered signal handler for SIGINT
@@ -42,9 +54,7 @@ static void handle_sigint(int signum, siginfo_t *siginfo, void *message)
 		if (!(int *)message)
 			cifssrv_debug("Message field empty\n");
 
-		if (isterm)
-			if (isatty(STDIN_FILENO))
-				tcsetattr(STDIN_FILENO, TCSANOW, &old_attr);
+		term_toggle_echo(1);
 
 		cifssrv_debug("Terminating program\n");
 		exit(0);
@@ -114,52 +124,28 @@ int convert_nthash(unsigned char *dst, char *pwd)
 }
 
 /**
- * prompt_pwd() - helper function to read user password string from stdin
+ * get_pwd_prompt() - helper function to read user password string from stdin
  * @message:	information to be displayed to user
  *
  * Return:	success: "user provided pwd string"; fail: "NULL"
  */
-char *prompt_pwd(char *message)
+char *get_pwd_prompt(char *message)
 {
-	char password[MAX_NT_PWD_LEN];
 	int len;
+	char *password;
 
-	if (isatty(STDIN_FILENO)) {
-		int fd;
-		struct termios attr;
+	password = malloc(MAX_NT_PWD_LEN + 1);
+	if (!password)
+		return NULL;
 
-		memset((void *)&attr, 0, sizeof(attr));
-		memset((void *)&old_attr, 0, sizeof(old_attr));
-
-		if (tcgetattr(STDIN_FILENO, &attr) < 0) {
-			perror("tcgetattr");
-			return NULL;
-		}
-
-		memcpy(&old_attr, &attr, sizeof(attr));
-		fd = fcntl(0, F_GETFL, 0);
-		if (fd < 0) {
-			perror("fcntl");
-			return NULL;
-		}
-
-		attr.c_lflag &= ~(ECHO);
-		isterm = 1;
-
-		if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &attr) < 0) {
-			perror("tcsetattr");
-			return NULL;
-		}
-	}
+	term_toggle_echo(0);
 
 retry:
 	fprintf(stdout, "%s", message);
-	if (fgets(password, sizeof(password), stdin) == NULL) {
-		if (isatty(STDIN_FILENO)) {
-			tcsetattr(STDIN_FILENO, TCSANOW, &old_attr);
-			isterm = 0;
-		}
-		return NULL;
+	if (fgets(password, MAX_NT_PWD_LEN, stdin) == NULL) {
+		free(password);
+		password = NULL;
+		goto out;
 	}
 
 	len = strlen(password);
@@ -173,67 +159,60 @@ retry:
 	if (password[len - 1] == '\n')
 		password[len - 1] = 0;
 
-	if (isatty(STDIN_FILENO)) {
-		tcsetattr(STDIN_FILENO, TCSANOW, &old_attr);
-		isterm = 0;
-	}
-
-	return strdup(password);
+out:
+	term_toggle_echo(1);
+	return password;
 }
 
 /**
- * rdpwd() - function to read and encrypted user password
- * @pwd:	allocate and initialize destination
- *		pointer for user supplied pwd
+ * get_enc_pwd() - function to read and encrypted user password
  *
- * Return:	success: 1; fail: 0
+ * Return:	pointer for user supplied pwd. otherwise NULL.
  */
-int rdpwd(unsigned char **pwd)
+unsigned char *get_enc_pwd()
 {
 	char *new_pwd = NULL;
 	char *re_pwd = NULL;
 	unsigned char *encrypt = NULL;
-	int ret = 0;
+	int err = -1;
 
-	*pwd = NULL;
-
-	encrypt = (unsigned char *)malloc(CIFS_NTHASH_SIZE + 1);
-	if (!encrypt)
-		return 0;
-
-	memset(encrypt, 0, CIFS_NTHASH_SIZE + 1);
-
-	new_pwd = prompt_pwd("New Password:\n");
+	new_pwd = get_pwd_prompt("New Password:\n");
 	if (!new_pwd) {
-		fprintf(stderr, "Error while setting password.\n");
+		cifssrv_err("Error while setting password.\n");
 		goto out;
 	}
 
-	re_pwd = prompt_pwd("Retype Password:\n");
+	re_pwd = get_pwd_prompt("Retype Password:\n");
 	if (!re_pwd) {
-		fprintf(stderr, "Error while setting password.\n");
+		cifssrv_err("Error while setting password.\n");
 		goto out;
 	}
 
 	if (strcmp(new_pwd, re_pwd)) {
-		fprintf(stderr, "Passwords mismatch.\n");
+		cifssrv_err("Passwords mismatch.\n");
 		goto out;
 	}
+
+	encrypt = (unsigned char *)malloc(CIFS_NTHASH_SIZE + 1);
+	if (!encrypt)
+		goto out;
+	memset(encrypt, 0, CIFS_NTHASH_SIZE + 1);
 
 	if (convert_nthash(encrypt, new_pwd))
 		goto out;
 
-	*pwd = encrypt;
-
+	err = 0;
 out:
 	if (new_pwd)
 		free(new_pwd);
 	if (re_pwd)
 		free(re_pwd);
-	if (*pwd == NULL && encrypt)
+	if (err < 0 && encrypt) {
 		free(encrypt);
+		encrypt = NULL;
+	}
 
-	return ret;
+	return encrypt;
 }
 
 /**
@@ -301,20 +280,18 @@ int update_current_user_entry(int fd, char *username, unsigned char *password,
 {
 	unsigned char *new_pwd;
 	int ret = CIFS_SUCCESS;
-	unsigned char encrypt[CIFS_NTHASH_SIZE + 1];
 
 	if (!is_root) {
 		char *old_pwd;
 		unsigned char enc_pwd[CIFS_NTHASH_SIZE + 1];
 
-		old_pwd = prompt_pwd("Old Password:\n");
+		old_pwd = get_pwd_prompt("Old Password:\n");
 		if (!old_pwd) {
-			cifssrv_debug("Error while setting password.\n");
+			cifssrv_err("Error while setting password.\n");
 			ret = CIFS_FAIL;
 			goto out;
 		}
 
-		memset(encrypt, 0, CIFS_NTHASH_SIZE + 1);
 		if (convert_nthash(enc_pwd, old_pwd)) {
 			free(old_pwd);
 			ret = CIFS_FAIL;
@@ -323,7 +300,7 @@ int update_current_user_entry(int fd, char *username, unsigned char *password,
 
 		if (strcmp((const char *)password,
 				(const char *)enc_pwd)) {
-			cifssrv_debug(
+			cifssrv_err(
 				"Password authentication failed\n");
 			goto out;
 		}
@@ -331,7 +308,7 @@ int update_current_user_entry(int fd, char *username, unsigned char *password,
 		free(old_pwd);
 	}
 
-	rdpwd(&new_pwd);
+	new_pwd = get_enc_pwd();
 	if (new_pwd) {
 		char *newline;
 		size_t sz;
@@ -365,7 +342,7 @@ int add_new_user_entry(int fd, char *username)
 {
 	unsigned char *newpwd;
 
-	rdpwd(&newpwd);
+	newpwd = get_enc_pwd();
 	if (newpwd) {
 		size_t sz, val = strlen(username);
 		char *construct;
@@ -416,7 +393,7 @@ int add_user_account(int fd, char *username, int flag)
 	char *fusrname, *line;
 	unsigned char *passwd = NULL;
 	int iseof = 0, lno = 0, len;
-	int found = 0, ret = CIFS_FAIL;
+	int ret = CIFS_FAIL;
 
 	if (lseek(fd, 0, SEEK_SET) == -1)
 		return CIFS_FAIL;
@@ -443,18 +420,17 @@ int add_user_account(int fd, char *username, int flag)
 		}
 
 		if (!strcmp((const char *)fusrname,
-					(const char *)username))
-			found = 1;
+					(const char *)username)) {
+			ret = update_current_user_entry(fd, username, passwd,
+				lno, flag & AM_ROOT);
+				goto out;
+		}
 
 		free(line);
 		free(fusrname);
-	} while (!iseof && !found);
+	} while (!iseof);
 
-	if (found)
-		ret = update_current_user_entry(fd, username, passwd, lno,
-			flag & AM_ROOT);
-	else
-		ret = add_new_user_entry(fd, username);
+	ret = add_new_user_entry(fd, username);
 out:
 
 	return ret;
@@ -607,7 +583,7 @@ int remove_user_account(int fd, char *username)
 		if (name && !strcmp(name, username)) {
 			if (remove_user_entry(fd, username, lcnt)) {
 				cifssrv_debug("[%s] remove success\n",
-						username);
+					username);
 				removed = 1;
 			}
 		}
@@ -648,14 +624,14 @@ retry:
 			ret = strncmp(q_usrname, username, strlen(username));
 
 		if (!ret) {
-			fprintf(stdout, "[%s] is configured with cifssrv\n",
+			cifssrv_err("[%s] is configured with cifssrv\n",
 				username);
 		} else {
 			free(q_usrname);
 			goto retry;
 		}
 	} else
-		fprintf(stderr, "[%s] is not configured with cifssrv\n",
+		cifssrv_err("[%s] is not configured with cifssrv\n",
 				username);
 
 	fclose(fp);
@@ -705,8 +681,7 @@ int parse_options(int argc, char **argv)
 
 		if (ch == 'a' || ch == 'd' || ch == 'q') {
 			if (s_flags && s_flags != F_VERBOSE) {
-				fprintf(stderr,
-					"Try with single flag at a time\n");
+				cifssrv_err("Try with single flag at a time\n");
 				usage();
 			}
 		}
@@ -769,7 +744,6 @@ int main(int argc, char *argv[])
 		usage();
 
 	sigcatcher_setup();
-	isterm = 0;
 	dup_optarg = NULL;
 
 	options = parse_options(argc, argv);
@@ -777,7 +751,7 @@ int main(int argc, char *argv[])
 	fd_db = open(PATH_PWDDB, O_RDWR);
 	if (fd_db < 0) {
 		/* file not existing, create it now */
-		fd_db = open(PATH_PWDDB, O_CREAT | O_RDWR, 0x666);
+		fd_db = open(PATH_PWDDB, O_CREAT | O_RDWR, 0666);
 		if (fd_db < 0) {
 			cifssrv_err("[%s] open failed\n", PATH_PWDDB);
 			return 0;
