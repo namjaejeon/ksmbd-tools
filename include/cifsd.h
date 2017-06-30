@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/include/cifssrv.h
+ *   cifsd-tools/include/cifssrv.h
  *
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
  *
@@ -17,8 +17,8 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef __CIFSSRV_HEADER_H
-#define __CIFSSRV_HEADER_H
+#ifndef __CIFSD_HEADER_H
+#define __CIFSD_HEADER_H
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -52,9 +52,9 @@
 #define PATH_PWDDB "/etc/cifs/cifspwd.db"
 #define PATH_SHARECONF "/etc/cifs/smb.conf"
 
-#define PATH_CIFSSRV_CONFIG "/sys/fs/cifssrv/config"
-#define PATH_CIFSSRV_SHARE "/sys/fs/cifssrv/share"
-#define PATH_CIFSSRV_USR "/sys/fs/cifssrv/user"
+#define PATH_CIFSD_CONFIG "/sys/fs/cifsd/config"
+#define PATH_CIFSD_SHARE "/sys/fs/cifsd/share"
+#define PATH_CIFSD_USR "/sys/fs/cifsd/user"
 
 #define UNICODE_LEN(x) (x * 2)
 
@@ -69,27 +69,27 @@
 #define RESP_BUF_SIZE (CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE)
 
 
-#define CIFSSRV_MAJOR_VERSION 1
-#define CIFSSRV_MINOR_VERSION 0
+#define CIFSD_MAJOR_VERSION 1
+#define CIFSD_MINOR_VERSION 0
 
-#define CIFSSRV_CODEPAGE_LEN    32
-#define CIFSSRV_USERNAME_LEN	33
+#define CIFSD_CODEPAGE_LEN    32
+#define CIFSD_USERNAME_LEN	33
 
-enum cifssrv_pipe_type {
+enum cifsd_pipe_type {
 	SRVSVC,
 	WINREG,
 	LANMAN,
 	MAX_PIPE
 };
 
-struct cifssrv_pipe_table {
+struct cifsd_pipe_table {
         char pipename[32];
         unsigned int pipetype;
 };
 
 #define INVALID_PIPE   0xFFFFFFFF
 
-struct cifssrv_pipe {
+struct cifsd_pipe {
         struct list_head list;
         int id;
         char *data;
@@ -99,11 +99,11 @@ struct cifssrv_pipe {
         char *buf;
         int datasize;
         int sent;
-	char codepage[CIFSSRV_CODEPAGE_LEN];
-	char username[CIFSSRV_USERNAME_LEN];
+	char codepage[CIFSD_CODEPAGE_LEN];
+	char username[CIFSD_USERNAME_LEN];
 };
 
-struct cifssrvd_client_info {
+struct cifsd_client_info {
         struct list_head list;
         __u64 hash;
 	void *local_nls; // To be replaced with actual encoding logic
@@ -118,7 +118,7 @@ struct cifssrvd_client_info {
 #define MAX_SERVER_WRKGRP_LEN	100
 
 #define STR_IPC		"IPC$"
-#define STR_SRV_NAME	"CIFSSRV SERVER"
+#define STR_SRV_NAME	"CIFSD SERVER"
 #define STR_WRKGRP	"WORKGROUP"
 
 struct share_config {
@@ -132,7 +132,7 @@ struct share_config {
 	unsigned int max_connections;
 };
 
-struct cifssrv_share {
+struct cifsd_share {
 	char    *path;
 	__u16   tid;
 	int     tcount;
@@ -143,8 +143,8 @@ struct cifssrv_share {
 	struct list_head list;
 };
 
-extern struct list_head cifssrv_share_list;
-extern int cifssrv_num_shares;
+extern struct list_head cifsd_share_list;
+extern int cifsd_num_shares;
 
 char *guestAccountName;
 //char *server_string;
@@ -152,7 +152,7 @@ char *guestAccountName;
 char *netbios_name;
 
 
-struct cifssrv_usr {
+struct cifsd_usr {
         char    *name;
 #if 0
         char    passkey[CIFS_NTHASH_SIZE];
@@ -160,7 +160,7 @@ struct cifssrv_usr {
         kgid_t  gid;
         __le32  sess_uid;
         bool    guest;
-        /* global list of cifssrv users */
+        /* global list of cifsd users */
         struct  list_head list;
         __u16   vuid;
         /* how many server have this user */
@@ -171,14 +171,14 @@ struct cifssrv_usr {
 
 int vflags;
 
-#define cifssrv_debug(fmt, ...)                         \
+#define cifsd_debug(fmt, ...)                         \
 	do {                                                    \
 		if (vflags)					\
 			printf("%s:%d: " fmt,                           \
 				__func__, __LINE__, ##__VA_ARGS__);     \
 	} while (0)
 
-#define cifssrv_err(fmt, ...)                                   \
+#define cifsd_err(fmt, ...)                                   \
 	do {                                                    \
 		printf("%s:%d: " fmt,                           \
 				__func__, __LINE__, ##__VA_ARGS__);     \
@@ -189,9 +189,9 @@ int readline(FILE *fp, char **buf, int *isEOF, int check);
 int get_entry(int fd, char **buf, int *isEOF);
 void tlws(char *src, char *dst, int *sz);
 
-int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size);
-int process_rpc(struct cifssrv_pipe *pipe, char *data);
-int handle_lanman_pipe(struct cifssrv_pipe *pipe, char *in_data,
+int process_rpc_rsp(struct cifsd_pipe *pipe, char *data_buf, int size);
+int process_rpc(struct cifsd_pipe *pipe, char *data);
+int handle_lanman_pipe(struct cifsd_pipe *pipe, char *in_data,
 		char *out_data, int *param_len);
 
 int smbConvertToUTF16(__le16 *target, char *source, int slen,

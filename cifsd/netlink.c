@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifssrvd/netlink.c
+ *   cifsd-tools/cifsd/netlink.c
  *
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
  *
@@ -36,23 +36,23 @@ static struct sockaddr_nl src_addr, dest_addr;
 extern int request_handler(void *msg);
 extern void initialize(void);
 
-static int cifssrv_sendmsg(struct cifssrv_uevent *eev, unsigned int dlen,
+static int cifsd_sendmsg(struct cifsd_uevent *eev, unsigned int dlen,
 		char *data)
 {
 	struct nlmsghdr *nlh;
-	struct cifssrv_uevent *ev;
+	struct cifsd_uevent *ev;
 	struct msghdr msg;
 	struct iovec iov;
 	int len;
 
-	cifssrv_debug("sending %u event\n", eev->type);
+	cifsd_debug("sending %u event\n", eev->type);
 	nlh = (struct nlmsghdr *)nlsk_send_buf;
-	memset(nlh, 0, NETLINK_CIFSSRV_MAX_BUF);
+	memset(nlh, 0, NETLINK_CIFSD_MAX_BUF);
 	nlh->nlmsg_len = NLMSG_SPACE(sizeof(*ev));
 	nlh->nlmsg_type = eev->type;
 	nlh->nlmsg_pid = getpid();
 	memcpy(NLMSG_DATA(nlh), eev, sizeof(*ev));
-	ev = (struct cifssrv_uevent *)NLMSG_DATA(nlh);
+	ev = (struct cifsd_uevent *)NLMSG_DATA(nlh);
 
 	if (dlen) {
 		memcpy(ev->buffer, data, dlen);
@@ -72,49 +72,49 @@ static int cifssrv_sendmsg(struct cifssrv_uevent *eev, unsigned int dlen,
 	if (len == -1)
 		perror("sendmsg");
 	else if (len != nlh->nlmsg_len)
-		cifssrv_err("partial data send, expected %u, actual %u\n",
+		cifsd_err("partial data send, expected %u, actual %u\n",
 				nlh->nlmsg_len, len);
 	return len;
 }
 
-int cifssrv_common_sendmsg(struct cifssrv_uevent *ev, char *buf,
+int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
 		unsigned int buflen)
 {
 	int ret;
 
-	if (buflen > NETLINK_CIFSSRV_MAX_PAYLOAD) {
-		cifssrv_err("too big(%u) buffer\n", buflen);
+	if (buflen > NETLINK_CIFSD_MAX_PAYLOAD) {
+		cifsd_err("too big(%u) buffer\n", buflen);
 		return -1;
 	}
 
-	ret = cifssrv_sendmsg(ev, buflen, buf);
+	ret = cifsd_sendmsg(ev, buflen, buf);
 	if (ret < 0)
-		cifssrv_err("failed to send event %u\n", ev->type);
+		cifsd_err("failed to send event %u\n", ev->type);
 
 	return ret;
 }
 
 static int handle_init_event(void)
 {
-	struct cifssrv_uevent ev;
+	struct cifsd_uevent ev;
 
 	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSSRV_UEVENT_INIT_CONNECTION;
+	ev.type = CIFSD_UEVENT_INIT_CONNECTION;
 
-	return cifssrv_common_sendmsg(&ev, NULL, 0);
+	return cifsd_common_sendmsg(&ev, NULL, 0);
 }
 
 static int handle_exit_event(void)
 {
-	struct cifssrv_uevent ev;
+	struct cifsd_uevent ev;
 
 	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSSRV_UEVENT_EXIT_CONNECTION;
+	ev.type = CIFSD_UEVENT_EXIT_CONNECTION;
 
-	return cifssrv_common_sendmsg(&ev, NULL, 0);
+	return cifsd_common_sendmsg(&ev, NULL, 0);
 }
 
-static int cifssrv_nl_read(char *buf, unsigned int buflen, int flags)
+static int cifsd_nl_read(char *buf, unsigned int buflen, int flags)
 {
 	int len;
 	struct iovec iov;
@@ -133,49 +133,49 @@ static int cifssrv_nl_read(char *buf, unsigned int buflen, int flags)
 	if (len == -1)
 		perror("recvmsg");
 	else if (len != buflen)
-		cifssrv_err("partial data read, expected %u, actual %u\n",
+		cifsd_err("partial data read, expected %u, actual %u\n",
 				buflen, len);
 
 	return len;
 }
 
-static int cifssrv_handle_event(void)
+static int cifsd_handle_event(void)
 {
 	int len;
-	struct cifssrv_uevent *ev;
+	struct cifsd_uevent *ev;
 	struct nlmsghdr *nlh;
 
-	len = cifssrv_nl_read(nlsk_rcv_buf,
-			NLMSG_SPACE(sizeof(struct cifssrv_uevent)),
+	len = cifsd_nl_read(nlsk_rcv_buf,
+			NLMSG_SPACE(sizeof(struct cifsd_uevent)),
 			MSG_PEEK);
-	if (len != NLMSG_SPACE(sizeof(struct cifssrv_uevent)))
+	if (len != NLMSG_SPACE(sizeof(struct cifsd_uevent)))
 		return -1;
 
 	nlh = (struct nlmsghdr *)nlsk_rcv_buf;
-	ev = (struct cifssrv_uevent *)NLMSG_DATA(nlsk_rcv_buf);
+	ev = (struct cifsd_uevent *)NLMSG_DATA(nlsk_rcv_buf);
 	if (len != nlh->nlmsg_len && ev->buflen) {
-		len = cifssrv_nl_read(nlsk_rcv_buf, nlh->nlmsg_len, MSG_PEEK);
+		len = cifsd_nl_read(nlsk_rcv_buf, nlh->nlmsg_len, MSG_PEEK);
 		if (len != nlh->nlmsg_len)
 			return -1;
 	}
 
-	len = cifssrv_nl_read(nlsk_rcv_buf, nlh->nlmsg_len, 0);
+	len = cifsd_nl_read(nlsk_rcv_buf, nlh->nlmsg_len, 0);
 	if (len != nlh->nlmsg_len)
 	{
-		cifssrv_err("failed to remove data\n");
+		cifsd_err("failed to remove data\n");
 		return -1;
 	}
 
 	return request_handler(nlh);
 }
 
-static void cifssrv_nl_loop(void)
+static void cifsd_nl_loop(void)
 {
 	fd_set readfds;
 	int ret;
 
 	for (;;) {
-		/* add cifssrv netlink socket fd to read fd list*/
+		/* add cifsd netlink socket fd to read fd list*/
 		FD_ZERO(&readfds);
 		FD_SET(nlsk_fd, &readfds);
 
@@ -185,27 +185,27 @@ static void cifssrv_nl_loop(void)
 		}
 		else {
 			if (FD_ISSET(nlsk_fd, &readfds)) {
-				cifssrv_handle_event();
+				cifsd_handle_event();
 			}
 		}
 	}
 }
 
-int cifssrv_nl_init(void)
+int cifsd_nl_init(void)
 {
-	nlsk_rcv_buf = malloc(NETLINK_CIFSSRV_MAX_BUF);
+	nlsk_rcv_buf = malloc(NETLINK_CIFSD_MAX_BUF);
 	if (!nlsk_rcv_buf) {
 		perror("can't alloc netlink buffer\n");
 		return -1;
 	}
 
-	nlsk_send_buf = malloc(NETLINK_CIFSSRV_MAX_BUF);
+	nlsk_send_buf = malloc(NETLINK_CIFSD_MAX_BUF);
 	if (!nlsk_send_buf) {
 		perror("can't alloc netlink buffer\n");
 		goto free_rcv_buf;
 	}
 
-	nlsk_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_CIFSSRV);
+	nlsk_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_CIFSD);
 	if (nlsk_fd < 0) {
 		perror("Failed to create netlink socket\n");
 		goto free_send_buf;
@@ -234,7 +234,7 @@ free_rcv_buf:
 	return -1;
 }
 
-int cifssrv_nl_exit(void)
+int cifsd_nl_exit(void)
 {
 	if (nlsk_fd >= 0)
 		close(nlsk_fd);
@@ -247,50 +247,50 @@ int cifssrv_nl_exit(void)
 	return 0;
 }
 
-int cifssrv_start_smbport(void)
+int cifsd_start_smbport(void)
 {
-	struct cifssrv_uevent ev;
+	struct cifsd_uevent ev;
 
 	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSSRV_UEVENT_START_SMBPORT;
-	return cifssrv_common_sendmsg(&ev, NULL, 0);
+	ev.type = CIFSD_UEVENT_START_SMBPORT;
+	return cifsd_common_sendmsg(&ev, NULL, 0);
 }
 
-int cifssrv_stop_smbport(void)
+int cifsd_stop_smbport(void)
 {
-	struct cifssrv_uevent ev;
+	struct cifsd_uevent ev;
 
 	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSSRV_UEVENT_STOP_SMBPORT;
-	return cifssrv_common_sendmsg(&ev, NULL, 0);
+	ev.type = CIFSD_UEVENT_STOP_SMBPORT;
+	return cifsd_common_sendmsg(&ev, NULL, 0);
 }
 
 static void termination_handler(int signum)
 {
 	int err = 0;
-	struct cifssrvd_client_info *client;
+	struct cifsd_client_info *client;
 
 	failed_connection = 0;
 
-	list_for_each_entry(client, &cifssrvd_clients, list) {
+	list_for_each_entry(client, &cifsd_clients, list) {
 		++connection;
 	}
 	do {
 		connection += failed_connection;
 		failed_connection = 0;
-		err = cifssrv_stop_smbport();
+		err = cifsd_stop_smbport();
 		if (err < 0) {
-			cifssrv_err("cifssrv stop smbport failed\n");
+			cifsd_err("cifsd stop smbport failed\n");
 			return;
 		}
 		while (connection)
-			cifssrv_handle_event();
+			cifsd_handle_event();
 
 	} while (failed_connection);
 	exit(1);
 }
 
-static void cifssrv_sighandler(void)
+static void cifsd_sighandler(void)
 {
 	struct sigaction sa;
 
@@ -305,20 +305,20 @@ static void cifssrv_sighandler(void)
 		perror("Failed to catch SIGBUS\n");
 }
 
-int cifssrvd_netlink_setup(void)
+int cifsd_netlink_setup(void)
 {
-	if (cifssrv_nl_init())
+	if (cifsd_nl_init())
 		return -1;
 
 	initialize();
 	handle_init_event();
 
-	cifssrv_start_smbport();
-	cifssrv_sighandler();
-	cifssrv_nl_loop();
+	cifsd_start_smbport();
+	cifsd_sighandler();
+	cifsd_nl_loop();
 
-	cifssrv_stop_smbport();
+	cifsd_stop_smbport();
 	handle_exit_event();
-	cifssrv_nl_exit();
+	cifsd_nl_exit();
 	return 0;
 }

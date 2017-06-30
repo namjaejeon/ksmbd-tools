@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifssrvd/pipecb.c
+ *   cifsd-tools/cifsd/pipecb.c
  *
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
  *
@@ -19,7 +19,7 @@
  */
 
 #include <assert.h>
-#include "cifssrv.h"
+#include "cifsd.h"
 #include "list.h"
 #include "netlink.h"
 
@@ -31,57 +31,57 @@
 
 void initialize(void)
 {
-	INIT_LIST_HEAD(&cifssrvd_clients);
+	INIT_LIST_HEAD(&cifsd_clients);
 }
 
-struct cifssrvd_client_info *head;
+struct cifsd_client_info *head;
 
-struct cifssrvd_client_info *lookup_client(__u64 clienthash)
+struct cifsd_client_info *lookup_client(__u64 clienthash)
 {
-	struct cifssrvd_client_info *client;
+	struct cifsd_client_info *client;
 	struct list_head *tmp;
 
-	if (!list_empty(&cifssrvd_clients)) {
-		list_for_each(tmp, &cifssrvd_clients) {
-			client = list_entry(tmp, struct cifssrvd_client_info, list);
+	if (!list_empty(&cifsd_clients)) {
+		list_for_each(tmp, &cifsd_clients) {
+			client = list_entry(tmp, struct cifsd_client_info, list);
 			if (client->hash == clienthash) {
-				cifssrv_debug("found matching clienthash %llu, client %p\n", clienthash, client);
+				cifsd_debug("found matching clienthash %llu, client %p\n", clienthash, client);
 				return client;
 			}
 		}
 	}
 
-	client = calloc(1, sizeof(struct cifssrvd_client_info));
+	client = calloc(1, sizeof(struct cifsd_client_info));
 	if (client) {
 		client->hash = clienthash;
 		INIT_LIST_HEAD(&client->list);
 		INIT_LIST_HEAD(&client->pipelist);
-		list_add(&client->list, &cifssrvd_clients);
-		cifssrv_debug("added clienthash %llu\n", clienthash);
+		list_add(&client->list, &cifsd_clients);
+		cifsd_debug("added clienthash %llu\n", clienthash);
 	}
 	return client;
 }
 
-struct cifssrv_pipe *lookup_pipe(__u64 clienthash, int pipetype)
+struct cifsd_pipe *lookup_pipe(__u64 clienthash, int pipetype)
 {
-	struct cifssrvd_client_info *client;
-	struct cifssrv_pipe *pipe;
+	struct cifsd_client_info *client;
+	struct cifsd_pipe *pipe;
 	struct list_head *tmp;
 
 	client = lookup_client(clienthash);
 	if (!client) {
-		cifssrv_err("Failed to locate client (0x%llx)\n", clienthash);
+		cifsd_err("Failed to locate client (0x%llx)\n", clienthash);
 		return NULL;
 	}
 
 	if (list_empty(&client->pipelist)) {
-		cifssrv_err("No pipe yet opened from the client(0x%llx)\n",
+		cifsd_err("No pipe yet opened from the client(0x%llx)\n",
 				clienthash);
 		return NULL;
 	}
 
 	list_for_each(tmp, &client->pipelist) {
-		pipe = list_entry(tmp, struct cifssrv_pipe, list);
+		pipe = list_entry(tmp, struct cifsd_pipe, list);
 		if (pipe->pipe_type == pipetype)
 			return pipe;
 	}
@@ -89,53 +89,53 @@ struct cifssrv_pipe *lookup_pipe(__u64 clienthash, int pipetype)
 	return NULL;
 }
 
-static struct cifssrv_pipe *initpipe(int pipetype, char *codepage)
+static struct cifsd_pipe *initpipe(int pipetype, char *codepage)
 {
-	struct cifssrv_pipe *pipe = NULL;
-	pipe = (struct cifssrv_pipe*) calloc(1, sizeof(struct cifssrv_pipe));
+	struct cifsd_pipe *pipe = NULL;
+	pipe = (struct cifsd_pipe*) calloc(1, sizeof(struct cifsd_pipe));
 	if (pipe) {
 		pipe->pipe_type = pipetype;
-		strncpy(pipe->codepage, codepage, CIFSSRV_CODEPAGE_LEN - 1);
+		strncpy(pipe->codepage, codepage, CIFSD_CODEPAGE_LEN - 1);
 		INIT_LIST_HEAD(&pipe->list);
 	}
 	return pipe;
 }
 
-static int cifssrv_create_pipe(__u64 clienthash, int pipetype, char *codepage)
+static int cifsd_create_pipe(__u64 clienthash, int pipetype, char *codepage)
 {
-        struct cifssrv_pipe *pipe;
-	struct cifssrvd_client_info *client;
+        struct cifsd_pipe *pipe;
+	struct cifsd_client_info *client;
 
 	pipe = initpipe(pipetype, codepage);
 	if (!pipe) {
-		cifssrv_err("Failed to allocate memory for cifssrv pipe\n");
+		cifsd_err("Failed to allocate memory for cifsd pipe\n");
 		return -ENOMEM;
 	}
 
 	client = lookup_client(clienthash);
 	if (!client) {
-		cifssrv_err("Failed to allocate memory for cifssrv client object\n");
+		cifsd_err("Failed to allocate memory for cifsd client object\n");
 		return -ENOMEM;
 	}
 
-	cifssrv_debug("added pipe %p, in client 0x%llx, client %p\n",
+	cifsd_debug("added pipe %p, in client 0x%llx, client %p\n",
 			pipe, clienthash, client);
 	list_add(&pipe->list, &client->pipelist);
 
 	return 0;
 }
 
-static int cifssrv_remove_pipe(__u64 clienthash, int pipetype)
+static int cifsd_remove_pipe(__u64 clienthash, int pipetype)
 {
-	struct cifssrv_pipe *pipe;
+	struct cifsd_pipe *pipe;
 
 	pipe = lookup_pipe(clienthash, pipetype);
 	if (!pipe) {
-		cifssrv_err("dcerpc pipe of type (%d) not found \n", pipetype);
+		cifsd_err("dcerpc pipe of type (%d) not found \n", pipetype);
 		return -EINVAL;
 	}
 
-	cifssrv_debug("remove pipe %p from clienthash 0x%llx\n", pipe,
+	cifsd_debug("remove pipe %p from clienthash 0x%llx\n", pipe,
 			clienthash);
 	/* If need to add logic about cleaning up pipe buffers, ADD HERE */
 	list_del(&pipe->list);
@@ -146,16 +146,16 @@ static int cifssrv_remove_pipe(__u64 clienthash, int pipetype)
 static int handle_create_pipe_event(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	int ret;
 
-	cifssrv_debug("CREATE: on server handle 0x%llx, pipe type %u\n",
+	cifsd_debug("CREATE: on server handle 0x%llx, pipe type %u\n",
 			ev->server_handle, ev->pipe_type);
-	ret = cifssrv_create_pipe(ev->server_handle, ev->pipe_type,
+	ret = cifsd_create_pipe(ev->server_handle, ev->pipe_type,
 			ev->k.c_pipe.codepage);
 	if (ret) {
 		//TODO:	... prepare pipe create failure netlink msg ...
-		cifssrv_debug("CREATE: pipe failed %d\n", ret);
+		cifsd_debug("CREATE: pipe failed %d\n", ret);
 	}
 
 	return ret;
@@ -164,15 +164,15 @@ static int handle_create_pipe_event(void *msg)
 static int handle_remove_pipe_event(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	int ret;
 
-	cifssrv_debug("DESTROY: on server handle 0x%llx, pipe %u\n",
+	cifsd_debug("DESTROY: on server handle 0x%llx, pipe %u\n",
 			ev->server_handle, ev->pipe_type);
-	ret = cifssrv_remove_pipe(ev->server_handle, ev->pipe_type);
+	ret = cifsd_remove_pipe(ev->server_handle, ev->pipe_type);
 	if (ret) {
 		//TODO:	... prepare pipe removal failure netlink msg...
-		cifssrv_debug("DESTROY: pipe failed %d\n", ret);
+		cifsd_debug("DESTROY: pipe failed %d\n", ret);
 	}
 
 	return ret;
@@ -181,25 +181,25 @@ static int handle_remove_pipe_event(void *msg)
 static int handle_read_pipe_event(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
-	struct cifssrv_uevent rsp_ev;
-	struct cifssrv_pipe *pipe;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent rsp_ev;
+	struct cifsd_pipe *pipe;
 	char *buf;
 	int ret = 0;
 	int nbytes = 0;
 
-	cifssrv_debug("READ: on server handle 0x%llx\n", ev->server_handle);
-	assert(ev->k.r_pipe.out_buflen < NETLINK_CIFSSRV_MAX_PAYLOAD);
-	buf = calloc(1, NETLINK_CIFSSRV_MAX_PAYLOAD);
+	cifsd_debug("READ: on server handle 0x%llx\n", ev->server_handle);
+	assert(ev->k.r_pipe.out_buflen < NETLINK_CIFSD_MAX_PAYLOAD);
+	buf = calloc(1, NETLINK_CIFSD_MAX_PAYLOAD);
 	if (!buf) {
-		cifssrv_debug("failed to allocate memory\n");
+		cifsd_debug("failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	pipe = lookup_pipe(ev->server_handle, ev->pipe_type);
 	if (!pipe) {
-		cifssrv_debug("READ: pipetype %u lookup failed for clienthash 0x%llx\n",
+		cifsd_debug("READ: pipetype %u lookup failed for clienthash 0x%llx\n",
 				ev->pipe_type, ev->server_handle);
 		ret = -ENOENT;
 		goto out;
@@ -210,19 +210,19 @@ static int handle_read_pipe_event(void *msg)
 		ret = nbytes;
 		nbytes = 0;
 	}
-	cifssrv_debug("READ: length %d\n", nbytes);
+	cifsd_debug("READ: length %d\n", nbytes);
 
 out:
 	memset(&rsp_ev, 0, sizeof(rsp_ev));
-	rsp_ev.type = CIFSSRV_UEVENT_READ_PIPE_RSP;
+	rsp_ev.type = CIFSD_UEVENT_READ_PIPE_RSP;
 	rsp_ev.server_handle = ev->server_handle;
 	rsp_ev.pipe_type = ev->pipe_type;
 
 	rsp_ev.error = ret;
 	rsp_ev.buflen = nbytes;
 	rsp_ev.u.r_pipe_rsp.read_count = nbytes;
-	ret = cifssrv_common_sendmsg(&rsp_ev, buf, nbytes);
-	cifssrv_debug("READ: response u->k send, on server handle 0x%llx, ret %d\n",
+	ret = cifsd_common_sendmsg(&rsp_ev, buf, nbytes);
+	cifsd_debug("READ: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	if (buf)
 		free(buf);
@@ -232,15 +232,15 @@ out:
 static int handle_write_pipe_event(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
-	struct cifssrv_uevent rsp_ev;
-	struct cifssrv_pipe *pipe;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent rsp_ev;
+	struct cifsd_pipe *pipe;
 	int ret;
 
-	cifssrv_debug("WRITE: on server handle 0x%llx\n", ev->server_handle);
+	cifsd_debug("WRITE: on server handle 0x%llx\n", ev->server_handle);
 	pipe = lookup_pipe(ev->server_handle, ev->pipe_type);
 	if (!pipe) {
-		cifssrv_debug("WRITE: pipetype %u lookup failed for clienthash 0x%llx\n",
+		cifsd_debug("WRITE: pipetype %u lookup failed for clienthash 0x%llx\n",
 				ev->pipe_type, ev->server_handle);
 		ret = -ENOENT;
 		goto out;
@@ -248,19 +248,19 @@ static int handle_write_pipe_event(void *msg)
 
 	ret = process_rpc(pipe, ev->buffer);
 	if (ret)
-		cifssrv_debug("process_rpc: failed ret %d\n", ret);
+		cifsd_debug("process_rpc: failed ret %d\n", ret);
 
 out:
 	memset(&rsp_ev, 0, sizeof(rsp_ev));
-	rsp_ev.type = CIFSSRV_UEVENT_WRITE_PIPE_RSP;
+	rsp_ev.type = CIFSD_UEVENT_WRITE_PIPE_RSP;
 	rsp_ev.server_handle = ev->server_handle;
 	rsp_ev.pipe_type = ev->pipe_type;
 
 	rsp_ev.error = ret;
 	rsp_ev.buflen = 0;
 	rsp_ev.u.w_pipe_rsp.write_count = ret < 0 ? 0 : ev->buflen;
-	ret = cifssrv_common_sendmsg(&rsp_ev, NULL, 0);
-	cifssrv_debug("WRITE: response u->k send, on server handle 0x%llx, ret %d\n",
+	ret = cifsd_common_sendmsg(&rsp_ev, NULL, 0);
+	cifsd_debug("WRITE: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	return ret;
 }
@@ -268,25 +268,25 @@ out:
 static int handle_ioctl_pipe_event(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
-	struct cifssrv_uevent rsp_ev;
-	struct cifssrv_pipe *pipe;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent rsp_ev;
+	struct cifsd_pipe *pipe;
 	char *buf;
 	int ret;
 	int nbytes = 0;
 
-	cifssrv_debug("IOCTL: on server handle %llu\n", ev->server_handle);
-	assert(ev->k.i_pipe.out_buflen < NETLINK_CIFSSRV_MAX_PAYLOAD);
-	buf = calloc(1, NETLINK_CIFSSRV_MAX_PAYLOAD);
+	cifsd_debug("IOCTL: on server handle %llu\n", ev->server_handle);
+	assert(ev->k.i_pipe.out_buflen < NETLINK_CIFSD_MAX_PAYLOAD);
+	buf = calloc(1, NETLINK_CIFSD_MAX_PAYLOAD);
 	if (!buf) {
-		cifssrv_debug("failed to allocate memory\n");
+		cifsd_debug("failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	pipe = lookup_pipe(ev->server_handle, ev->pipe_type);
 	if (!pipe) {
-		cifssrv_debug("IOCTL: pipetype %u lookup failed for clienthash 0x%llx\n",
+		cifsd_debug("IOCTL: pipetype %u lookup failed for clienthash 0x%llx\n",
 				ev->pipe_type, ev->server_handle);
 		ret = -ENOENT;
 		goto out;
@@ -294,7 +294,7 @@ static int handle_ioctl_pipe_event(void *msg)
 
 	ret = process_rpc(pipe, ev->buffer);
 	if (ret) {
-		cifssrv_debug("process_rpc: failed %d\n", ret);
+		cifsd_debug("process_rpc: failed %d\n", ret);
 		goto out;
 	}
 
@@ -306,15 +306,15 @@ static int handle_ioctl_pipe_event(void *msg)
 
 out:
 	memset(&rsp_ev, 0, sizeof(rsp_ev));
-	rsp_ev.type = CIFSSRV_UEVENT_IOCTL_PIPE_RSP;
+	rsp_ev.type = CIFSD_UEVENT_IOCTL_PIPE_RSP;
 	rsp_ev.server_handle = ev->server_handle;
 	rsp_ev.pipe_type = ev->pipe_type;
 
 	rsp_ev.error = ret;
 	rsp_ev.buflen = nbytes;
 	rsp_ev.u.i_pipe_rsp.data_count = nbytes;
-	ret = cifssrv_common_sendmsg(&rsp_ev, buf, nbytes);
-	cifssrv_debug("IOCTL: response u->k send, on server handle 0x%llx, ret %d\n",
+	ret = cifsd_common_sendmsg(&rsp_ev, buf, nbytes);
+	cifsd_debug("IOCTL: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	if (buf)
 		free(buf);
@@ -325,40 +325,40 @@ out:
 static int handle_lanman_pipe_event(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
-	struct cifssrv_uevent rsp_ev;
-	struct cifssrv_pipe *pipe;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent rsp_ev;
+	struct cifsd_pipe *pipe;
 	char *buf;
 	int ret;
 	int nbytes = 0;
 	int param_len = 0;
 
-	cifssrv_debug("LANMAN: on server handle 0x%llx\n", ev->server_handle);
-	assert(ev->k.l_pipe.out_buflen < NETLINK_CIFSSRV_MAX_PAYLOAD);
-	buf = calloc(1, NETLINK_CIFSSRV_MAX_PAYLOAD);
+	cifsd_debug("LANMAN: on server handle 0x%llx\n", ev->server_handle);
+	assert(ev->k.l_pipe.out_buflen < NETLINK_CIFSD_MAX_PAYLOAD);
+	buf = calloc(1, NETLINK_CIFSD_MAX_PAYLOAD);
 	if (!buf) {
-		cifssrv_debug("failed to allocate memory\n");
+		cifsd_debug("failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = cifssrv_create_pipe(ev->server_handle, ev->pipe_type,
+	ret = cifsd_create_pipe(ev->server_handle, ev->pipe_type,
 			ev->k.l_pipe.codepage);
 	if (ret) {
-		cifssrv_debug("CREATE: pipe failed %d\n", ret);
+		cifsd_debug("CREATE: pipe failed %d\n", ret);
 		goto out;
 	}
 
 	pipe = lookup_pipe(ev->server_handle, ev->pipe_type);
 	if (!pipe) {
-		cifssrv_debug("LANMAN: pipetype %u lookup failed for clienthash 0x%llx\n",
+		cifsd_debug("LANMAN: pipetype %u lookup failed for clienthash 0x%llx\n",
 				ev->pipe_type, ev->server_handle);
 		ret = -ENOENT;
 		goto out;
 	}
 
 	strncpy(pipe->username, ev->k.l_pipe.username,
-			CIFSSRV_USERNAME_LEN - 1);
+			CIFSD_USERNAME_LEN - 1);
 	nbytes = handle_lanman_pipe(pipe, ev->buffer, buf, &param_len);
 	if (nbytes < 0) {
 		ret = nbytes;
@@ -367,7 +367,7 @@ static int handle_lanman_pipe_event(void *msg)
 
 out:
 	memset(&rsp_ev, 0, sizeof(rsp_ev));
-	rsp_ev.type = CIFSSRV_UEVENT_LANMAN_PIPE_RSP;
+	rsp_ev.type = CIFSD_UEVENT_LANMAN_PIPE_RSP;
 	rsp_ev.server_handle = ev->server_handle;
 	rsp_ev.pipe_type = ev->pipe_type;
 
@@ -375,15 +375,15 @@ out:
 	rsp_ev.buflen = nbytes;
 	rsp_ev.u.l_pipe_rsp.data_count = nbytes;
 	rsp_ev.u.l_pipe_rsp.param_count = param_len;
-	ret = cifssrv_common_sendmsg(&rsp_ev, buf, nbytes);
-	cifssrv_debug("IOCTL: response u->k send, on server handle 0x%llx, ret %d\n",
+	ret = cifsd_common_sendmsg(&rsp_ev, buf, nbytes);
+	cifsd_debug("IOCTL: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	if (buf)
 		free(buf);
 
-	ret = cifssrv_remove_pipe(ev->server_handle, ev->pipe_type);
+	ret = cifsd_remove_pipe(ev->server_handle, ev->pipe_type);
 	if (ret)
-		cifssrv_debug("DESTROY: pipe failed %d\n", ret);
+		cifsd_debug("DESTROY: pipe failed %d\n", ret);
 
 	return ret;
 }
@@ -395,48 +395,48 @@ out:
 int request_handler(void *msg)
 {
 	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifssrv_uevent *ev = NLMSG_DATA(nlh);
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	int ret = 0;
 
-	cifssrv_debug("got %u event, pipe type %u\n", nlh->nlmsg_type,
+	cifsd_debug("got %u event, pipe type %u\n", nlh->nlmsg_type,
 			ev->pipe_type);
 
 	switch (nlh->nlmsg_type) {
-	case CIFSSRV_KEVENT_CREATE_PIPE:
+	case CIFSD_KEVENT_CREATE_PIPE:
 		ret = handle_create_pipe_event(msg);
 		break;
 
-	case CIFSSRV_KEVENT_DESTROY_PIPE:
+	case CIFSD_KEVENT_DESTROY_PIPE:
 		ret = handle_remove_pipe_event(msg);
 		break;
 
-	case CIFSSRV_KEVENT_READ_PIPE:
+	case CIFSD_KEVENT_READ_PIPE:
 		ret = handle_read_pipe_event(msg);
 		break;
 
-	case CIFSSRV_KEVENT_WRITE_PIPE:
+	case CIFSD_KEVENT_WRITE_PIPE:
 		ret = handle_write_pipe_event(msg);
 		break;
 
-	case CIFSSRV_KEVENT_IOCTL_PIPE:
+	case CIFSD_KEVENT_IOCTL_PIPE:
 		ret = handle_ioctl_pipe_event(msg);
 		break;
 
-	case CIFSSRV_KEVENT_LANMAN_PIPE:
+	case CIFSD_KEVENT_LANMAN_PIPE:
 		ret = handle_lanman_pipe_event(msg);
 		break;
 
-	case CIFSSRV_KEVENT_SMBPORT_CLOSE_FAIL:
+	case CIFSD_KEVENT_SMBPORT_CLOSE_FAIL:
 		--connection;
 		++failed_connection;
 		break;
 
-	case CIFSSRV_KEVENT_SMBPORT_CLOSE_PASS:
+	case CIFSD_KEVENT_SMBPORT_CLOSE_PASS:
 		--connection;
 		break;
 
 	default:
-		cifssrv_err("unknown event %u\n", ev->type);
+		cifsd_err("unknown event %u\n", ev->type);
 		ret = -EINVAL;
 		break;
 	}

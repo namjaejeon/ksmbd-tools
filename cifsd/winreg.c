@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifssrvd/winreg.c
+ *   cifsd-tools/cifsd/winreg.c
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -46,11 +46,11 @@ char *pre_def_key[] = {
 	"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
 };
 
-int cifssrv_init_registry(void)
+int cifsd_init_registry(void)
 {
 	int ret = 0;
 
-	cifssrv_debug("Initializing winreg support\n");
+	cifsd_debug("Initializing winreg support\n");
 	reg_openhkcr = init_root_key("HKEY_CLASSES_ROOT");
 	if (IS_ERR(reg_openhkcr))
 		return -ENOMEM;
@@ -87,7 +87,7 @@ struct registry_node *init_root_key(char *name)
 	return root_key;
 }
 
-void cifssrv_free_registry(void)
+void cifsd_free_registry(void)
 {
 	free_registry(reg_openhkcr);
 	free_registry(reg_openhkcu);
@@ -111,7 +111,7 @@ int init_predefined_registry(void)
 	return 0;
 }
 
-int winreg_open_root_key(struct cifssrv_pipe *pipe, int opnum,
+int winreg_open_root_key(struct cifsd_pipe *pipe, int opnum,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -147,12 +147,12 @@ int winreg_open_root_key(struct cifssrv_pipe *pipe, int opnum,
 	reg_openhkcr->open_status = 1;
 	winreg_rsp->key_handle.addr = (__u32)reg_openhkcr;
 	winreg_rsp->werror = cpu_to_le32(WERR_OK);
-	cifssrv_debug("open_key ptr to handle = %x\n",
+	cifsd_debug("open_key ptr to handle = %x\n",
 					winreg_rsp->key_handle.addr);
 	return 0;
 }
 
-int winreg_get_version(struct cifssrv_pipe *pipe,
+int winreg_get_version(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -170,12 +170,12 @@ int winreg_get_version(struct cifssrv_pipe *pipe,
 
 	winreg_rsp->version = cpu_to_le32(5);
 	winreg_rsp->werror = cpu_to_le32(WERR_OK);
-	cifssrv_debug("get_version version = %d\n",
+	cifsd_debug("get_version version = %d\n",
 					winreg_rsp->version);
 	return 0;
 }
 
-int winreg_delete_key(struct cifssrv_pipe *pipe,
+int winreg_delete_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -201,7 +201,7 @@ int winreg_delete_key(struct cifssrv_pipe *pipe,
 	name = malloc(sizeof(strlen(relative_name)));
 	strcpy(name, relative_name);
 	ret = search_registry(relative_name, (struct registry_node *)key_addr);
-	cifssrv_debug("ret %x\n", (__u32)ret);
+	cifsd_debug("ret %x\n", (__u32)ret);
 
 	winreg_rsp = malloc(sizeof(WINREG_COMMON_RSP) );
 	if (!winreg_rsp) {
@@ -246,11 +246,11 @@ int winreg_delete_key(struct cifssrv_pipe *pipe,
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 
 	free(relative_name);
-	cifssrv_debug("delete_key\n");
+	cifsd_debug("delete_key\n");
 	return 0;
 }
 
-int winreg_flush_key(struct cifssrv_pipe *pipe,
+int winreg_flush_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -266,12 +266,12 @@ int winreg_flush_key(struct cifssrv_pipe *pipe,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 	winreg_rsp->werror = cpu_to_le32(WERR_OK);
-	cifssrv_debug("flush_key\n");
+	cifsd_debug("flush_key\n");
 	return 0;
 
 }
 
-int winreg_create_key(struct cifssrv_pipe *pipe,
+int winreg_create_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -308,13 +308,13 @@ int winreg_create_key(struct cifssrv_pipe *pipe,
 	winreg_rsp->action_taken = cpu_to_le32(REG_CREATED_NEW_KEY);
 	winreg_rsp->werror = cpu_to_le32(WERR_OK);
 	free(relative_name);
-	cifssrv_debug("create_key ptr to handle = %x\n",
+	cifsd_debug("create_key ptr to handle = %x\n",
 					winreg_rsp->key_handle.addr);
 	return 0;
 }
 
 
-int winreg_open_key(struct cifssrv_pipe *pipe,
+int winreg_open_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -362,13 +362,13 @@ int winreg_open_key(struct cifssrv_pipe *pipe,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 	free(relative_name);
-	cifssrv_debug("open_key ptr to handle = %x\n",
+	cifsd_debug("open_key ptr to handle = %x\n",
 					winreg_rsp->key_handle.addr);
 
 	return 0;
 }
 
-int winreg_close_key(struct cifssrv_pipe *pipe,
+int winreg_close_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -398,12 +398,12 @@ int winreg_close_key(struct cifssrv_pipe *pipe,
 				RPC_FLAG_FIRST | RPC_FLAG_LAST,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
-	cifssrv_debug("close_key ptr to handle = %x\n",
+	cifsd_debug("close_key ptr to handle = %x\n",
 					winreg_rsp->key_handle.addr);
 	return 0;
 }
 
-int winreg_enum_key(struct cifssrv_pipe *pipe,
+int winreg_enum_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -424,11 +424,11 @@ int winreg_enum_key(struct cifssrv_pipe *pipe,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 	winreg_rsp->werror = cpu_to_le32(WERR_NO_MORE_DATA);
-	cifssrv_debug("enum_key\n");
+	cifsd_debug("enum_key\n");
 	return 0;
 }
 
-int winreg_query_info_key(struct cifssrv_pipe *pipe,
+int winreg_query_info_key(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -444,11 +444,11 @@ int winreg_query_info_key(struct cifssrv_pipe *pipe,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 	winreg_rsp->werror = cpu_to_le32(WERR_OK);
-	cifssrv_debug("flush_key\n");
+	cifsd_debug("flush_key\n");
 	return 0;
 }
 
-int winreg_notify_change_key_value(struct cifssrv_pipe *pipe,
+int winreg_notify_change_key_value(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -464,10 +464,10 @@ int winreg_notify_change_key_value(struct cifssrv_pipe *pipe,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 	winreg_rsp->werror = cpu_to_le32(WERR_NOT_SUPPORTED);
-	cifssrv_debug("flush_key\n");
+	cifsd_debug("flush_key\n");
 	return 0;
 }
-int winreg_set_value(struct cifssrv_pipe *pipe,
+int winreg_set_value(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -524,7 +524,7 @@ int winreg_set_value(struct cifssrv_pipe *pipe,
 	return 0;
 }
 
-int winreg_delete_value(struct cifssrv_pipe *pipe,
+int winreg_delete_value(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -590,11 +590,11 @@ int winreg_delete_value(struct cifssrv_pipe *pipe,
 		}
 	}
 	free(value_name);
-	cifssrv_debug("delete_value\n");
+	cifsd_debug("delete_value\n");
 	return 0;
 }
 
-int winreg_query_value(struct cifssrv_pipe *pipe,
+int winreg_query_value(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -632,7 +632,7 @@ int winreg_query_value(struct cifssrv_pipe *pipe,
 			name_info->key_packet_len, 1, pipe->codepage);
 	if (IS_ERR(value_name))
 		return PTR_ERR(value_name);
-	cifssrv_debug("base key addr %x, value name %s\n", key_addr,
+	cifsd_debug("base key addr %x, value name %s\n", key_addr,
 								value_name);
 
 	ret = search_value(value_name, (struct registry_node *)key_addr);
@@ -700,7 +700,7 @@ int winreg_query_value(struct cifssrv_pipe *pipe,
 
 	memcpy(query_info->Buffer, value->value_buffer, value->value_size);
 	if (buffer_info->ref_id != 0) {
-		cifssrv_debug("client buffer size %d value buffer size %d\n",
+		cifsd_debug("client buffer size %d value buffer size %d\n",
 			buffer_info->data_info.max_count, value->value_size);
 		if (buffer_info->data_info.max_count >= value->value_size)
 			winreg_rsp->werror = cpu_to_le32(WERR_OK);
@@ -724,7 +724,7 @@ err_bad_file:
 
 }
 
-int winreg_enum_value(struct cifssrv_pipe *pipe,
+int winreg_enum_value(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req, char *in_data)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp;
@@ -743,7 +743,7 @@ int winreg_enum_value(struct cifssrv_pipe *pipe,
 				rpc_request_req->hdr.call_id);
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 	winreg_rsp->werror = cpu_to_le32(WERR_NO_MORE_DATA);
-	cifssrv_debug("enum_value\n");
+	cifsd_debug("enum_value\n");
 	return 0;
 }
 
@@ -752,7 +752,7 @@ struct registry_value *search_value(char *name, struct registry_node *key_addr)
 	struct registry_node *base_key_addr =  (struct registry_node *)key_addr;
 	struct registry_value *value;
 
-	cifssrv_debug("value name %s\n", name);
+	cifsd_debug("value name %s\n", name);
 	if (strcmp(name, "") == 0)
 		strcpy(name, "Default");
 	if (base_key_addr->value_list == NULL)
@@ -785,7 +785,7 @@ struct registry_value *set_value(char *name, VALUE_BUFFER *buffer_info,
 		strcpy(value->value_name, name);
 		value->value_type = buffer_info->value_type;
 		value->value_size = buffer_info->buffer_count;
-		cifssrv_debug("type %d, size %d, name %s\n",
+		cifsd_debug("type %d, size %d, name %s\n",
 			value->value_type, value->value_size,
 				value->value_name);
 		value->value_buffer = malloc(value->value_size);
@@ -834,7 +834,7 @@ void free_registry(struct registry_node *key_addr)
 	struct registry_value *prev_value;
 
 	if (base_key_addr->child == NULL) {
-		cifssrv_debug("free address %x key name %s\n",
+		cifsd_debug("free address %x key name %s\n",
 			(__u32)base_key_addr, base_key_addr->key_name);
 		if (base_key_addr->value_list != NULL) {
 			value = base_key_addr->value_list;
@@ -842,7 +842,7 @@ void free_registry(struct registry_node *key_addr)
 				prev_value = value;
 				value = value->neighbour;
 				free(prev_value->value_buffer);
-				cifssrv_debug("free address %x value name %s\n",
+				cifsd_debug("free address %x value name %s\n",
 					(__u32)prev_value,
 					prev_value->value_name);
 				free(prev_value);
@@ -856,14 +856,14 @@ void free_registry(struct registry_node *key_addr)
 			key = key->neighbour;
 			free_registry(prev_key);
 		}
-		cifssrv_debug("free address %x key name%s\n",
+		cifsd_debug("free address %x key name%s\n",
 				(__u32)base_key_addr, base_key_addr->key_name);
 		if (base_key_addr->value_list != NULL) {
 			value = base_key_addr->value_list;
 			while (value != NULL) {
 				prev_value = value;
 				value = value->neighbour;
-				cifssrv_debug("free address %x value name %s\n",
+				cifsd_debug("free address %x value name %s\n",
 					(__u32)prev_value,
 					prev_value->value_name);
 				free(prev_value->value_buffer);
@@ -907,7 +907,7 @@ struct registry_node *create_key(char *key_name, struct registry_node *key_addr)
 	char *token;
 	char *name, *kname;
 
-	cifssrv_debug("key name %s\n", key_name);
+	cifsd_debug("key name %s\n", key_name);
 	name = kname = strdup(key_name);
 	if (!name)
 		return ERR_PTR(-ENOMEM);

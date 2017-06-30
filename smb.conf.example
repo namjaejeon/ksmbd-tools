@@ -1,5 +1,5 @@
 ;******************************************************************************
-; File to define cifssrv configuration parameters which are comparable with
+; File to define cifsd configuration parameters which are comparable with
 ; samba's ones
 ;
 ; Supported [global] level parameters list:
@@ -52,7 +52,7 @@
 ;******************************************************************************
 
 [global]
-	netbios name = CIFSSRV
+	netbios name = CIFSD
 
 [homes]
 	comment = content server share

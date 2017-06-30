@@ -1,7 +1,7 @@
 ## Makefile.am
 
-lib_LTLIBRARIES = libcifssrv.la
+lib_LTLIBRARIES = libcifsd.la
 
-libcifssrv_la_SOURCES = libcifssrv.c
-libcifssrv_la_CFLAGS = -Wall
-libcifssrv_la_CPPFLAGS = -I$(top_srcdir)/include
+libcifsd_la_SOURCES = libcifsd.c
+libcifsd_la_CFLAGS = -Wall
+libcifsd_la_CPPFLAGS = -I$(top_srcdir)/include

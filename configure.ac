@@ -4,30 +4,30 @@
 AC_PREREQ([2.68])
 
 # Get version from file VERSION
-m4_define([cifssrv_tools_version], m4_esyscmd([sed -n '1p' VERSION | tr -d '\n']))
-m4_define([cifssrv_tools_date], m4_esyscmd([sed -n '2p' VERSION | tr -d '\n']))
-m4_define([cifssrv_tools_gitdate],
+m4_define([cifsd_tools_version], m4_esyscmd([sed -n '1p' VERSION | tr -d '\n']))
+m4_define([cifsd_tools_date], m4_esyscmd([sed -n '2p' VERSION | tr -d '\n']))
+m4_define([cifsd_tools_gitdate],
                 m4_esyscmd([git log -1 --pretty=format:%ci 2> /dev/null]))
 
-AC_INIT([CIFSSRV tools], [cifssrv_tools_version],
+AC_INIT([CIFSD tools], [cifsd_tools_version],
                         [namjae.jeon@protocolfreedom.org])
 
-AC_DEFINE([CIFSSRV_TOOLS_VERSION], "cifssrv_tools_version", [cifssrv-tools version])
-AC_DEFINE([CIFSSRV_MAJOR_VERSION], m4_bpatsubst(cifssrv_tools_version,
+AC_DEFINE([CIFSD_TOOLS_VERSION], "cifsd_tools_version", [cifsd-tools version])
+AC_DEFINE([CIFSD_MAJOR_VERSION], m4_bpatsubst(cifsd_tools_version,
                                 [\([0-9]*\)\(\w\|\W\)*], [\1]),
-                                [Major version for cifssrv-tools])
-AC_DEFINE([CIFSSRV_MINOR_VERSION], m4_bpatsubst(cifssrv_tools_version,
+                                [Major version for cifsd-tools])
+AC_DEFINE([CIFSD_MINOR_VERSION], m4_bpatsubst(cifsd_tools_version,
                                 [\([0-9]*\).\([0-9]*\)\(\w\|\W\)*], [\2]),
-                                [Minor version for cifssrv-tools])
+                                [Minor version for cifsd-tools])
 
 AC_CHECK_FILE(.git,
-        AC_DEFINE([CIFSSRV_TOOLS_DATE],
-                "m4_bpatsubst(cifssrv_tools_gitdate,
+        AC_DEFINE([CIFSD_TOOLS_DATE],
+                "m4_bpatsubst(cifsd_tools_gitdate,
                 [\([0-9-]*\)\(\w\|\W\)*], [\1])",
-                [cifssrv-tools date based on Git commits]),
-        AC_DEFINE([CIFSSRV_TOOLS_DATE],
-                "cifssrv_tools_date",
-                [cifssrv-tools date based on Source releases]))
+                [cifsd-tools date based on Git commits]),
+        AC_DEFINE([CIFSD_TOOLS_DATE],
+                "cifsd_tools_date",
+                [cifsd-tools date based on Source releases]))
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
@@ -77,7 +77,7 @@ AS_IF([test "$ac_cv_header_byteswap_h" = "yes"],
 AC_CONFIG_FILES([
 	Makefile
 	lib/Makefile
-	cifssrvd/Makefile
+	cifsd/Makefile
 	cifsadmin/Makefile
 	cifsstat/Makefile
 ])

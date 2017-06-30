@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifsadmin/cifsadmin.h
+ *   cifsd-tools/cifsadmin/cifsadmin.h
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -21,7 +21,7 @@
 #ifndef _CIFSMGR_H
 #define _CIFSMGR_H
 
-#include "cifssrv.h"
+#include "cifsd.h"
 
 /* process flags */
 #define AM_ROOT 0x1

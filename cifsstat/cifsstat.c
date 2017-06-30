@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifsstat.c
+ *   cifsd-tools/cifsstat.c
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -30,7 +30,7 @@
 #include <errno.h>
 
 /* global definitions */
-#define PATH_STATS "/sys/fs/cifssrv/stat"
+#define PATH_STATS "/sys/fs/cifsd/stat"
 #define BUF_SIZE 4096
 
 #ifdef IPV6_SUPPORTED
@@ -46,7 +46,7 @@
 #define O_CLIENT 2
 
 /**
- * readstat() - reads data from cifssrv statistics control interface
+ * readstat() - reads data from cifsd statistics control interface
  * @buf:	destination buffer to copy statistics data
  * @size:	length of statistics data to read
  *
@@ -72,7 +72,7 @@ int readstat(char *buf, int size)
 }
 
 /**
- * setstatopt() - writes data to cifssrv statistics control interface
+ * setstatopt() - writes data to cifsd statistics control interface
  *	       Needed during read stat, to check if the request is
  *		for server stats or specific client stat
  * @opt:	buffer for setting stat option

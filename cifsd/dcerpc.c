@@ -1,5 +1,5 @@
 /*
- *   fs/cifssrv/dcerpc.c
+ *   fs/cifsd/dcerpc.c
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -23,7 +23,7 @@
 #include"winreg.h"
 #include"ntlmssp.h"
 
-struct cifssrv_pipe_table cifssrv_pipes[] = {
+struct cifsd_pipe_table cifsd_pipes[] = {
 	{"\\srvsvc", SRVSVC},
 	{"srvsvc", SRVSVC},
 	{"\\wkssvc", SRVSVC},
@@ -31,7 +31,7 @@ struct cifssrv_pipe_table cifssrv_pipes[] = {
 	{"\\winreg", WINREG},
 	{"winreg", WINREG},
 };
-unsigned int npipes = sizeof(cifssrv_pipes)/sizeof(cifssrv_pipes[0]);
+unsigned int npipes = sizeof(cifsd_pipes)/sizeof(cifsd_pipes[0]);
 
 /**
  * get_pipe_type() - get the type of the pipe from the string name
@@ -46,8 +46,8 @@ unsigned int get_pipe_type(char *pipename)
 	unsigned int pipetype = INVALID_PIPE;
 
 	for (i = 0; i < npipes; i++) {
-		if (!strcmp(cifssrv_pipes[i].pipename, pipename)) {
-			pipetype = cifssrv_pipes[i].pipetype;
+		if (!strcmp(cifsd_pipes[i].pipename, pipename)) {
+			pipetype = cifsd_pipes[i].pipetype;
 			break;
 		}
 	}
@@ -61,26 +61,26 @@ unsigned int get_pipe_type(char *pipename)
  *
  * Return:      0 on success, error number on error
  */
-int process_rpc(struct cifssrv_pipe *pipe, char *data)
+int process_rpc(struct cifsd_pipe *pipe, char *data)
 {
 	RPC_HDR *rpc_hdr;
 	int ret = 0;
 
 	rpc_hdr = (RPC_HDR *)data;
 
-	cifssrv_debug("DCERPC pktype = %u\n", rpc_hdr->pkt_type);
+	cifsd_debug("DCERPC pktype = %u\n", rpc_hdr->pkt_type);
 
 	switch (rpc_hdr->pkt_type) {
 	case RPC_REQUEST:
-		cifssrv_debug("GOT RPC_REQUEST\n");
+		cifsd_debug("GOT RPC_REQUEST\n");
 		ret = rpc_request(pipe, data);
 		break;
 	case RPC_BIND:
-		cifssrv_debug("GOT RPC_BIND\n");
+		cifsd_debug("GOT RPC_BIND\n");
 		ret = rpc_bind(pipe, data);
 		break;
 	default:
-		cifssrv_debug("rpc type = %d Not Implemented\n",
+		cifsd_debug("rpc type = %d Not Implemented\n",
 				rpc_hdr->pkt_type);
 		ret = -EOPNOTSUPP;
 	}
@@ -99,11 +99,11 @@ int process_rpc(struct cifssrv_pipe *pipe, char *data)
  *
  * Return:      response length on success, otherwise error number
  */
-int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size)
+int process_rpc_rsp(struct cifsd_pipe *pipe, char *data_buf, int size)
 {
 	int nbytes = 0;
 
-	cifssrv_debug("pipe %p, pipe->pkt_type = %d, pipe->pipe_type %d\n",
+	cifsd_debug("pipe %p, pipe->pkt_type = %d, pipe->pipe_type %d\n",
 			pipe, pipe->pkt_type, pipe->pipe_type);
 	switch (pipe->pkt_type) {
 	case RPC_REQUEST:
@@ -115,7 +115,7 @@ int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size)
 			nbytes = rpc_read_winreg_data(pipe, data_buf, size);
 			break;
 		default:
-			cifssrv_debug("rpc pipe = %d Not Implemented\n",
+			cifsd_debug("rpc pipe = %d Not Implemented\n",
 				pipe->pipe_type);
 			return -EINVAL;
 		}
@@ -124,7 +124,7 @@ int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size)
 		nbytes = rpc_read_bind_data(pipe, data_buf);
 		break;
 	default:
-		cifssrv_debug("rpc type = %d Not Implemented\n",
+		cifsd_debug("rpc type = %d Not Implemented\n",
 					pipe->pkt_type);
 		return -EINVAL;
 	}
@@ -134,7 +134,7 @@ int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size)
 
 
 
-int rpc_read_winreg_data(struct cifssrv_pipe *pipe, char *outdata, int buf_len)
+int rpc_read_winreg_data(struct cifsd_pipe *pipe, char *outdata, int buf_len)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp = (RPC_REQUEST_RSP *)outdata;
 	int offset = 0;
@@ -357,9 +357,9 @@ int rpc_read_winreg_data(struct cifssrv_pipe *pipe, char *outdata, int buf_len)
 	rpc_request_rsp->hdr.frag_len = offset;
 	rpc_request_rsp->alloc_hint = offset - sizeof(RPC_REQUEST_RSP);
 
-	cifssrv_debug("offset = %d size of RPC_REQUEST_RSP = %d\n",
+	cifsd_debug("offset = %d size of RPC_REQUEST_RSP = %d\n",
 	offset, sizeof(RPC_REQUEST_RSP));
-	cifssrv_debug("frag len = %d alloc_hint = %d\n",
+	cifsd_debug("frag len = %d alloc_hint = %d\n",
 	rpc_request_rsp->hdr.frag_len, rpc_request_rsp->alloc_hint);
 
 	return offset;
@@ -372,7 +372,7 @@ int rpc_read_winreg_data(struct cifssrv_pipe *pipe, char *outdata, int buf_len)
  *
  * Return:      response length on success, otherwise error number
  */
-int rpc_read_bind_data(struct cifssrv_pipe *pipe, char *out_data)
+int rpc_read_bind_data(struct cifsd_pipe *pipe, char *out_data)
 {
 	RPC_HDR *hdr = (RPC_HDR *)out_data;
 	int offset = 0;
@@ -432,7 +432,7 @@ int rpc_read_bind_data(struct cifssrv_pipe *pipe, char *out_data)
  *
  * Return:      response length on success, otherwise error number
  */
-int rpc_read_srvsvc_data(struct cifssrv_pipe *pipe, char *outdata, int buf_len)
+int rpc_read_srvsvc_data(struct cifsd_pipe *pipe, char *outdata, int buf_len)
 {
 	RPC_REQUEST_RSP *rpc_request_rsp = (RPC_REQUEST_RSP *)outdata;
 	int offset = 0, string_len = 0;
@@ -495,7 +495,7 @@ out:
 		rpc_request_rsp->hdr.frag_len = offset;
 		rpc_request_rsp->alloc_hint = offset - sizeof(RPC_REQUEST_RSP);
 
-		cifssrv_debug("frag len = %d alloc_hint = %d\n",
+		cifsd_debug("frag len = %d alloc_hint = %d\n",
 			       rpc_request_rsp->hdr.frag_len,
 			       rpc_request_rsp->alloc_hint);
 
@@ -511,7 +511,7 @@ out:
 		datasize = pipe->datasize;
 		resume_handle = sharectr->resume_handle;
 
-		cifssrv_debug("num entries = %d\n", sharectr->info.num_entries);
+		cifsd_debug("num entries = %d\n", sharectr->info.num_entries);
 		if (resume_handle) {
 			memcpy(outdata, pipe->buf + data_sent, resume_handle);
 			datasize = resume_handle;
@@ -530,12 +530,12 @@ out:
 		rpc_request_rsp->hdr.frag_len = datasize;
 		rpc_request_rsp->alloc_hint = datasize -
 					sizeof(RPC_REQUEST_RSP);
-		cifssrv_debug("frag len = %d alloc_hint = %d\n",
+		cifsd_debug("frag len = %d alloc_hint = %d\n",
 				       rpc_request_rsp->hdr.frag_len,
 				       rpc_request_rsp->alloc_hint);
 		if (resume_handle) {
 			pipe->sent = buf_len;
-			cifssrv_debug("Pipe data is outstanding, "
+			cifsd_debug("Pipe data is outstanding, "
 			"sent %d, remaining %d\n", buf_len, datasize - buf_len);
 			return datasize;
 		}
@@ -612,7 +612,7 @@ finish:
 		rpc_request_rsp->hdr.frag_len = offset;
 		rpc_request_rsp->alloc_hint = offset - sizeof(RPC_REQUEST_RSP);
 
-		cifssrv_debug("frag len = %d alloc_hint = %d\n",
+		cifsd_debug("frag len = %d alloc_hint = %d\n",
 		rpc_request_rsp->hdr.frag_len, rpc_request_rsp->alloc_hint);
 
 		free(wkssvc_info->shares);
@@ -630,7 +630,7 @@ finish:
  *
  * Return:      data size used for share enumeration so far
  */
-int pipe_data_size(struct cifssrv_pipe *pipe, void *data, int num_shares)
+int pipe_data_size(struct cifsd_pipe *pipe, void *data, int num_shares)
 {
 	int size = 0, i, string_len;
 	SRVSVC_SHARE_INFO_CTR *sharectr;
@@ -659,7 +659,7 @@ int pipe_data_size(struct cifssrv_pipe *pipe, void *data, int num_shares)
 		size += sizeof(sharectr->resume_handle);
 		size += sizeof(sharectr->status);
 	}
-	cifssrv_debug("Total data length in pipe %d\n", size);
+	cifsd_debug("Total data length in pipe %d\n", size);
 	return size;
 }
 
@@ -670,7 +670,7 @@ int pipe_data_size(struct cifssrv_pipe *pipe, void *data, int num_shares)
  *
  * Return:      data size copied on buffer
  */
-int pipe_data_copy(struct cifssrv_pipe *pipe, char *buf)
+int pipe_data_copy(struct cifsd_pipe *pipe, char *buf)
 {
 	int offset = 0, i, str_len, num_shares;
 	SRVSVC_SHARE_INFO_CTR *sharectr;
@@ -679,7 +679,7 @@ int pipe_data_copy(struct cifssrv_pipe *pipe, char *buf)
 		sharectr = (SRVSVC_SHARE_INFO_CTR *)pipe->data;
 		num_shares = sharectr->info.num_entries;
 
-		cifssrv_debug("num entries = %d\n", sharectr->info.num_entries);
+		cifsd_debug("num entries = %d\n", sharectr->info.num_entries);
 		memcpy(buf, &sharectr->rpc_request_rsp,
 						sizeof(RPC_REQUEST_RSP));
 		offset += sizeof(RPC_REQUEST_RSP);
@@ -761,13 +761,13 @@ void dcerpc_header_init(RPC_HDR *header, int packet_type,
  *
  * Return:      0 on success or error number
  */
-static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
+static int init_srvsvc_share_info1(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	int num_shares = 0, cnt = 0, len = 0, ret;
 	int total_pipe_data = 0, data_copied = 0;
 	struct list_head *tmp;
-	struct cifssrv_share *share;
+	struct cifsd_share *share;
 	SRVSVC_SHARE_INFO1 *share_info;
 	PTR_INFO1 *ptr_info;
 	int share_name_len, comment_len = 0;
@@ -775,7 +775,7 @@ static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
 	SRVSVC_SHARE_INFO_CTR *sharectr;
 	char *buf = NULL;
 
-	num_shares = cifssrv_num_shares; // TBD: cifssrv_num_shares;
+	num_shares = cifsd_num_shares; // TBD: cifsd_num_shares;
 	sharectr = (SRVSVC_SHARE_INFO_CTR *)
 			calloc(1, sizeof(SRVSVC_SHARE_INFO_CTR));
 	if (!sharectr) {
@@ -816,14 +816,14 @@ static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
  * need to decide complete logic to get this information
  */
 #if 1
-	list_for_each(tmp, &cifssrv_share_list) {
+	list_for_each(tmp, &cifsd_share_list) {
 		share_info = &sharectr->shares[cnt];
 		ptr_info = &sharectr->ptrs[cnt];
-		share = list_entry(tmp, struct cifssrv_share, list);
+		share = list_entry(tmp, struct cifsd_share, list);
 		share_name_len = strlen(share->sharename) + 1;
 
 		if (share_name_len > 13) {
-			cifssrv_debug("Not displaying share = %s",
+			cifsd_debug("Not displaying share = %s",
 					share->sharename);
 			continue;
 		}
@@ -839,7 +839,7 @@ static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
 				return -EINVAL;
 			}
 			comment_len = strlen("IPC SHARE") + 1;
-			cifssrv_debug("IPC share %s added len = %d\n",
+			cifsd_debug("IPC share %s added len = %d\n",
 				       share->sharename, len);
 		} else {
 			ptr_info->type = STYPE_DISKTREE;
@@ -867,10 +867,10 @@ static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
 				}
 				comment_len = strlen(share->sharename) + 1;
 			}
-			cifssrv_debug("share %s added\n", share->sharename);
+			cifsd_debug("share %s added\n", share->sharename);
 		}
 
-		cifssrv_debug("comment len = %d share len = %d uni len = %d\n",
+		cifsd_debug("comment len = %d share len = %d uni len = %d\n",
 				comment_len, share_name_len, len);
 
 		/* Since sharename and comment are non-null*/
@@ -909,7 +909,7 @@ static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
 	pipe->buf = buf;
 
 	data_copied = pipe_data_copy(pipe, buf);
-	cifssrv_debug("data_copied %d, total_pipe_data %d\n", data_copied,
+	cifsd_debug("data_copied %d, total_pipe_data %d\n", data_copied,
 							total_pipe_data);
 	pipe->datasize = data_copied;
 	return 0;
@@ -923,7 +923,7 @@ static int init_srvsvc_share_info1(struct cifssrv_pipe *pipe,
  *
  * Return:      0 on success or error number
  */
-static int srvsvc_net_share_enum_all(struct cifssrv_pipe *pipe, char *data,
+static int srvsvc_net_share_enum_all(struct cifsd_pipe *pipe, char *data,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	SRVSVC_REQ *req = (SRVSVC_REQ *)data;
@@ -940,7 +940,7 @@ static int srvsvc_net_share_enum_all(struct cifssrv_pipe *pipe, char *data,
 	if (IS_ERR(server_unc))
 		return PTR_ERR(server_unc);
 
-	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
+	cifsd_debug("server_unc = %s unc size = %d\n", server_unc,
 			handle.handle_info.actual_count);
 	free(server_unc);
 
@@ -952,14 +952,14 @@ static int srvsvc_net_share_enum_all(struct cifssrv_pipe *pipe, char *data,
 	switch (req->info_level) {
 
 	case INFO_1:
-		cifssrv_debug("GOT SRVSVC pipe info level %u\n",
+		cifsd_debug("GOT SRVSVC pipe info level %u\n",
 			       req->info_level);
 
 		ret = init_srvsvc_share_info1(pipe, rpc_request_req);
 		break;
 
 	default:
-		cifssrv_debug("SRVSVC pipe info level %u  not supported\n",
+		cifsd_debug("SRVSVC pipe info level %u  not supported\n",
 				req->info_level);
 		return -EOPNOTSUPP;
 	}
@@ -975,12 +975,12 @@ static int srvsvc_net_share_enum_all(struct cifssrv_pipe *pipe, char *data,
  *
  * Return:      0 on success or error number
  */
-int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
+int init_srvsvc_share_info2(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *share_name)
 {
 	int num_shares = 1, cnt = 0, len = 0;
 	struct list_head *tmp;
-	struct cifssrv_share *share;
+	struct cifsd_share *share;
 	SRVSVC_SHARE_INFO1 *share_info;
 	SRVSVC_SHARE_GETINFO *shareinfo;
 	PTR_INFO1 *ptr_info;
@@ -1023,14 +1023,14 @@ int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
  * need to decide complete logic to get this information
  */
 #if 1
-	list_for_each(tmp, &cifssrv_share_list) {
+	list_for_each(tmp, &cifsd_share_list) {
 		share_info = &shareinfo->shares[cnt];
 		ptr_info = &shareinfo->ptrs[cnt];
-		share = list_entry(tmp, struct cifssrv_share, list);
+		share = list_entry(tmp, struct cifsd_share, list);
 		share_name_len = strlen(share->sharename) + 1;
 
 		if (share_name_len > 13) {
-			cifssrv_err("Not displaying share = %s",
+			cifsd_err("Not displaying share = %s",
 					share->sharename);
 			continue;
 		}
@@ -1051,10 +1051,10 @@ int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
 				256, pipe->codepage);
 				comment_len = strlen(share->sharename) + 1;
 			}
-			cifssrv_debug("share %s added\n", share->sharename);
+			cifsd_debug("share %s added\n", share->sharename);
 
 			shareinfo->switch_value = cpu_to_le32(1);
-			cifssrv_debug("comment len = %d share len = %d uni len = %d\n",
+			cifsd_debug("comment len = %d share len = %d uni len = %d\n",
 				      comment_len, share_name_len, len);
 
 			/* Since sharename and comment are non-null*/
@@ -1090,7 +1090,7 @@ int init_srvsvc_share_info2(struct cifssrv_pipe *pipe,
  *
  * Return:      0 on success or error number
  */
-int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
+int srvsvc_net_share_info(struct cifsd_pipe *pipe, char *data,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	SRVSVC_REQ *req = (SRVSVC_REQ *)data;
@@ -1108,7 +1108,7 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 	if (IS_ERR(server_unc))
 		return PTR_ERR(server_unc);
 
-	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
+	cifsd_debug("server_unc = %s unc size = %d\n", server_unc,
 			req->server_unc_handle.handle_info.actual_count);
 	free(server_unc);
 
@@ -1120,7 +1120,7 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 	infolevel_len = 2 * istr_info->actual_count;
 	infolevel_len = ((infolevel_len + 3) & ~3);
 
-	cifssrv_debug("istr_info->max_count %u, offset %u, actual count %u\n",
+	cifsd_debug("istr_info->max_count %u, offset %u, actual count %u\n",
 	istr_info->max_count, istr_info->offset, istr_info->actual_count);
 	share_name_ptr = (char *)((char *)istr_info + sizeof(UNISTR_INFO));
 	share_name = smb_strndup_from_utf16(share_name_ptr,
@@ -1129,10 +1129,10 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 		return PTR_ERR(share_name);
 
 	ptr = (char *)((char *)istr_info + infolevel_len + sizeof(UNISTR_INFO));
-	cifssrv_debug("Share name is %s\n", share_name);
+	cifsd_debug("Share name is %s\n", share_name);
 	switch (le32_to_cpu(*(ptr))) {
 	case INFO_1:
-		cifssrv_debug("GOT SRVSVC pipe info level %u\n",
+		cifsd_debug("GOT SRVSVC pipe info level %u\n",
 			       req->info_level);
 		ret = init_srvsvc_share_info2(pipe, rpc_request_req,
 								share_name);
@@ -1140,7 +1140,7 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 		break;
 
 	default:
-		cifssrv_debug("SRVSVC pipe info level %u  not supported\n",
+		cifsd_debug("SRVSVC pipe info level %u  not supported\n",
 				req->info_level);
 		return -EOPNOTSUPP;
 	}
@@ -1156,7 +1156,7 @@ int srvsvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
  *
  * Return:      0 on success or error number
  */
-int init_wkssvc_share_info2(struct cifssrv_pipe *pipe,
+int init_wkssvc_share_info2(struct cifsd_pipe *pipe,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	WKSSVC_SHARE_INFO1 *share_info;
@@ -1203,7 +1203,7 @@ int init_wkssvc_share_info2(struct cifssrv_pipe *pipe,
 	comment_len = strlen(workgroup) + 1;
 
 	share_name_len = strlen(server_string) + 1;
-	cifssrv_debug("comment len = %d share len = %d \n",
+	cifsd_debug("comment len = %d share len = %d \n",
 			comment_len, share_name_len);
 
 	ret = smbConvertToUTF16((__le16 *)share_info->server_name,
@@ -1234,7 +1234,7 @@ int init_wkssvc_share_info2(struct cifssrv_pipe *pipe,
  *
  * Return:      0 on success or error number
  */
-int wkkssvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
+int wkkssvc_net_share_info(struct cifsd_pipe *pipe, char *data,
 				RPC_REQUEST_REQ *rpc_request_req)
 {
 	SRVSVC_REQ *req = (SRVSVC_REQ *)data;
@@ -1250,7 +1250,7 @@ int wkkssvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 	if (IS_ERR(server_unc))
 		return PTR_ERR(server_unc);
 
-	cifssrv_debug("server_unc = %s unc size = %d\n", server_unc,
+	cifsd_debug("server_unc = %s unc size = %d\n", server_unc,
 			req->server_unc_handle.handle_info.actual_count);
 	free(server_unc);
 
@@ -1261,14 +1261,14 @@ int wkkssvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
 
 	switch (le32_to_cpu(*info_level)) {
 	case INFO_100:
-		cifssrv_debug("GOT WKSSVC pipe info level %u\n",
+		cifsd_debug("GOT WKSSVC pipe info level %u\n",
 			       le32_to_cpu(*info_level));
 
 		ret = init_wkssvc_share_info2(pipe, rpc_request_req);
 		break;
 
 	default:
-		cifssrv_err("WKSSVC pipe info level %u  not supported\n",
+		cifsd_err("WKSSVC pipe info level %u  not supported\n",
 				req->info_level);
 		return -EOPNOTSUPP;
 	}
@@ -1286,7 +1286,7 @@ int wkkssvc_net_share_info(struct cifssrv_pipe *pipe, char *data,
  *
  * Return:      0 on success or error number
  */
-static int srvsvc_rpc_request(struct cifssrv_pipe *pipe, char *in_data)
+static int srvsvc_rpc_request(struct cifsd_pipe *pipe, char *in_data)
 {
 	RPC_REQUEST_REQ *rpc_request_req = (RPC_REQUEST_REQ *)in_data;
 	int opnum;
@@ -1297,28 +1297,28 @@ static int srvsvc_rpc_request(struct cifssrv_pipe *pipe, char *in_data)
 	pipe->opnum = opnum;
 	switch (opnum) {
 	case SRV_NET_SHARE_ENUM_ALL:
-		cifssrv_debug("Got SRV_NET_SHARE_ENUM_ALL\n");
+		cifsd_debug("Got SRV_NET_SHARE_ENUM_ALL\n");
 		data = in_data + sizeof(RPC_REQUEST_REQ);
 		ret = srvsvc_net_share_enum_all(pipe, data, rpc_request_req);
 		break;
 	case SRV_NET_SHARE_GETINFO:
-		cifssrv_debug("Got SRV_NET_SHARE_GETINFO\n");
+		cifsd_debug("Got SRV_NET_SHARE_GETINFO\n");
 		data = in_data + sizeof(RPC_REQUEST_REQ);
 		ret = srvsvc_net_share_info(pipe, data, rpc_request_req);
 		break;
 	case WKSSVC_NET_SHARE_GETINFO:
-		cifssrv_debug("Got WKSSVC_SHARE_GETINFO\n");
+		cifsd_debug("Got WKSSVC_SHARE_GETINFO\n");
 		data = in_data + sizeof(RPC_REQUEST_REQ);
 		ret = wkkssvc_net_share_info(pipe, data, rpc_request_req);
 		break;
 	default:
-		cifssrv_debug("WKSSVC pipe opnum not supported = %d\n", opnum);
+		cifsd_debug("WKSSVC pipe opnum not supported = %d\n", opnum);
 		return -EOPNOTSUPP;
 	}
 	return ret;
 }
 
-int winreg_rpc_request(struct cifssrv_pipe *pipe, char *in_data)
+int winreg_rpc_request(struct cifsd_pipe *pipe, char *in_data)
 {
 	RPC_REQUEST_REQ *rpc_request_req = (RPC_REQUEST_REQ *)in_data;
 	int opnum;
@@ -1328,94 +1328,94 @@ int winreg_rpc_request(struct cifssrv_pipe *pipe, char *in_data)
 	opnum = cpu_to_le16(rpc_request_req->opnum);
 	pipe->opnum = opnum;
 	data = in_data + sizeof(RPC_REQUEST_REQ);
-	cifssrv_debug("Opnum %d\n", opnum);
+	cifsd_debug("Opnum %d\n", opnum);
 
 	switch (opnum) {
 	case WINREG_OPENHKCR:
-		cifssrv_debug("Got WINREG_OPENHKCR\n");
+		cifsd_debug("Got WINREG_OPENHKCR\n");
 		/* fall through */
 	case WINREG_OPENHKCU:
-		cifssrv_debug("Got WINREG_OPENHKCU\n");
+		cifsd_debug("Got WINREG_OPENHKCU\n");
 		/* fall through */
 	case WINREG_OPENHKLM:
-		cifssrv_debug("Got WINREG_OPENHKLM\n");
+		cifsd_debug("Got WINREG_OPENHKLM\n");
 		/* fall through */
 	case WINREG_OPENHKU:
-		cifssrv_debug("Got WINREG_OPENHKU\n");
+		cifsd_debug("Got WINREG_OPENHKU\n");
 		ret = winreg_open_root_key(pipe,
 				opnum, rpc_request_req, data);
 		break;
 	case WINREG_GETVERSION:
-		cifssrv_debug("Got WINREG_GETVERSION\n");
+		cifsd_debug("Got WINREG_GETVERSION\n");
 		ret = winreg_get_version(pipe, rpc_request_req, data);
 		break;
 	case WINREG_DELETEKEY:
-		cifssrv_debug("Got WINREG_DELETEKEY\n");
+		cifsd_debug("Got WINREG_DELETEKEY\n");
 		ret = winreg_delete_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_FLUSHKEY:
-		cifssrv_debug("Got WINREG_FLUSHKEY\n");
+		cifsd_debug("Got WINREG_FLUSHKEY\n");
 		ret = winreg_flush_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_OPENKEY:
-		cifssrv_debug("Got WINREG_OPENKEY\n");
+		cifsd_debug("Got WINREG_OPENKEY\n");
 		ret = winreg_open_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_CREATEKEY:
-		cifssrv_debug("Got WINREG_CREATEKEY\n");
+		cifsd_debug("Got WINREG_CREATEKEY\n");
 		ret = winreg_create_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_CLOSEKEY:
-		cifssrv_debug("Got WINREG_CLOSEKEY\n");
+		cifsd_debug("Got WINREG_CLOSEKEY\n");
 		ret = winreg_close_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_ENUMKEY:
-		cifssrv_debug("Got WINREG_CLOSEKEY\n");
+		cifsd_debug("Got WINREG_CLOSEKEY\n");
 		ret = winreg_enum_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_ENUMVALUE:
-		cifssrv_debug("Got WINREG_ENUMVALUE\n");
+		cifsd_debug("Got WINREG_ENUMVALUE\n");
 		ret = winreg_enum_value(pipe, rpc_request_req, data);
 		break;
 	case WINREG_QUERYINFOKEY:
-		cifssrv_debug("Got WINREG_QUERYINFOKEY\n");
+		cifsd_debug("Got WINREG_QUERYINFOKEY\n");
 		ret = winreg_query_info_key(pipe, rpc_request_req, data);
 		break;
 	case WINREG_NOTIFYCHANGEKEYVALUE:
-		cifssrv_debug("Got WINREG_NOTIFYCHANGEKEYVALUE\n");
+		cifsd_debug("Got WINREG_NOTIFYCHANGEKEYVALUE\n");
 		ret = winreg_notify_change_key_value(pipe, rpc_request_req,
 									data);
 		break;
 	case WINREG_SETVALUE:
-		cifssrv_debug("Got WINREG_SETVALUE\n");
+		cifsd_debug("Got WINREG_SETVALUE\n");
 		ret = winreg_set_value(pipe, rpc_request_req, data);
 		break;
 	case WINREG_QUERYVALUE:
-		cifssrv_debug("Got WINREG_QUERYVALUE\n");
+		cifsd_debug("Got WINREG_QUERYVALUE\n");
 		ret = winreg_query_value(pipe, rpc_request_req, data);
 		break;
 	case WINREG_DELETEVALUE:
-		cifssrv_debug("Got WINREG_DELETEVALUE\n");
+		cifsd_debug("Got WINREG_DELETEVALUE\n");
 		ret = winreg_delete_value(pipe, rpc_request_req, data);
 		break;
 	default:
-		cifssrv_debug("WINREG pipe opnum not supported = %d\n", opnum);
+		cifsd_debug("WINREG pipe opnum not supported = %d\n", opnum);
 		return -EOPNOTSUPP;
 	}
 	return ret;
 }
 
-int rpc_request(struct cifssrv_pipe *pipe, char *in_data)
+int rpc_request(struct cifsd_pipe *pipe, char *in_data)
 {
 	int ret = 0;
-	cifssrv_debug("server pipe request %d\n", pipe->pipe_type);
+	cifsd_debug("server pipe request %d\n", pipe->pipe_type);
 	switch (pipe->pipe_type) {
 	case SRVSVC:
-		cifssrv_debug("SRVSVC pipe\n");
+		cifsd_debug("SRVSVC pipe\n");
 		ret = srvsvc_rpc_request(pipe, in_data);
 		break;
 	case WINREG:
-		cifssrv_debug("WINREG pipe\n");
+		cifsd_debug("WINREG pipe\n");
 #ifdef WINREG_SUPPORT
 		ret = winreg_rpc_request(pipe, in_data);
 		break;
@@ -1423,7 +1423,7 @@ int rpc_request(struct cifssrv_pipe *pipe, char *in_data)
 		return -EOPNOTSUPP;
 #endif
 	default:
-		cifssrv_debug("pipe not supported\n");
+		cifsd_debug("pipe not supported\n");
 		return -EOPNOTSUPP;
 	}
 	return ret;
@@ -1436,7 +1436,7 @@ int rpc_request(struct cifssrv_pipe *pipe, char *in_data)
  *
  * Return:      0 on success or error number
  */
-int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
+int rpc_bind(struct cifsd_pipe *pipe, char *in_data)
 {
 	RPC_BIND_REQ *rpc_bind_req = (RPC_BIND_REQ *)in_data;
 	char *pipe_name = NULL;
@@ -1472,7 +1472,7 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 	dcerpc_header_init(&rpc_bind_rsp->hdr, RPC_BINDACK,
 				RPC_FLAG_FIRST | RPC_FLAG_LAST,
 				rpc_bind_req->hdr.call_id);
-	cifssrv_debug("incoming call id = %u frag_len = %u\n",
+	cifsd_debug("incoming call id = %u frag_len = %u\n",
 		      rpc_bind_req->hdr.call_id, rpc_bind_req->hdr.frag_len);
 
 	/* Update bind info */
@@ -1483,9 +1483,9 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 
 	num_ctx = rpc_bind_req->num_contexts;
 
-	cifssrv_debug("max_tsize = %u max_rsize = %u\n",
+	cifsd_debug("max_tsize = %u max_rsize = %u\n",
 		       rpc_bind_req->max_tsize, rpc_bind_req->max_rsize);
-	cifssrv_debug("RPC authentication length %d\n",
+	cifsd_debug("RPC authentication length %d\n",
 						rpc_bind_req->hdr.auth_len);
 	/* Update pipe name*/
 	if (pipe_type == SRVSVC) {
@@ -1513,12 +1513,12 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 						sizeof(RPC_BIND_REQ) +
 						offset + sizeof(RPC_AUTH_INFO));
 			if (!memcmp(negblob->Signature, "NTLMSSP", 8))
-				cifssrv_debug("%s NTLMSSP present\n", __func__);
+				cifsd_debug("%s NTLMSSP present\n", __func__);
 			else
-				cifssrv_debug("%s NTLMSSP not present\n",
+				cifsd_debug("%s NTLMSSP not present\n",
 								__func__);
 			if (negblob->MessageType == NtLmNegotiate) {
-				cifssrv_debug("%s negotiate phase\n", __func__);
+				cifsd_debug("%s negotiate phase\n", __func__);
 				len = smbConvertToUTF16(name, netbios_name,
 							strlen(netbios_name),8,
 							pipe->codepage);
@@ -1535,7 +1535,7 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 		}
 
 	} else {
-		cifssrv_err("invalid version %d\n", version_maj);
+		cifsd_err("invalid version %d\n", version_maj);
 		free(rpc_bind_rsp->addr.sec_addr);
 		free(rpc_bind_rsp);
 		return -EINVAL;
@@ -1545,7 +1545,7 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 	len = strlen(pipe_name) + 1;
 	rpc_bind_rsp->addr.sec_addr[len - 1] = '\0';
 	rpc_bind_rsp->addr.sec_addr_len = len;
-	cifssrv_debug("pipe_name len = %d\n", len);
+	cifsd_debug("pipe_name len = %d\n", len);
 
 	/* Results */
 	rpc_bind_rsp->results.num_results = 1;
@@ -1562,7 +1562,7 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
 		return -ENOMEM;
 	}
 
-	cifssrv_debug("num syntaxes = %u\n",
+	cifsd_debug("num syntaxes = %u\n",
 		       rpc_context->num_transfer_syntaxes);
 
 	memcpy(rpc_bind_rsp->transfer, transfer, sizeof(RPC_IFACE));
@@ -1578,20 +1578,20 @@ int rpc_bind(struct cifssrv_pipe *pipe, char *in_data)
  *
  * Return:      response buffer size or error number
  */
-static int handle_netshareenum_info1(struct cifssrv_pipe *pipe,
+static int handle_netshareenum_info1(struct cifsd_pipe *pipe,
 				     LANMAN_PARAMS *in_params, char *out_data)
 {
 	LANMAN_NETSHAREENUM_RESP *resp;
 	NETSHAREINFO1 *info1;
 	struct list_head *tmp;
-	struct cifssrv_share *share;
+	struct cifsd_share *share;
 	int out_buffersize, comment_len = 0, comment_offset;
 	int num_shares = 0;
 	char *comment_buf;
 
 	resp = (LANMAN_NETSHAREENUM_RESP *)out_data;
 	info1 = (NETSHAREINFO1 *)resp->RAPOutData;
-	num_shares = cifssrv_num_shares;
+	num_shares = cifsd_num_shares;
 	comment_offset = num_shares * sizeof(NETSHAREINFO1);
 
 /*
@@ -1599,9 +1599,9 @@ static int handle_netshareenum_info1(struct cifssrv_pipe *pipe,
  * need to decide complete logic to get this information
  */
 #if 1
-	list_for_each(tmp, &cifssrv_share_list) {
+	list_for_each(tmp, &cifsd_share_list) {
 		memset(info1, 0, sizeof(NETSHAREINFO1));
-		share = list_entry(tmp, struct cifssrv_share, list);
+		share = list_entry(tmp, struct cifsd_share, list);
 		memcpy(info1->NetworkName, share->sharename,
 			strlen(share->sharename));
 
@@ -1633,7 +1633,7 @@ static int handle_netshareenum_info1(struct cifssrv_pipe *pipe,
 		comment_len++;
 		comment_offset += comment_len;
 
-		cifssrv_debug("share %s added comment_offset = %d\n",
+		cifsd_debug("share %s added comment_offset = %d\n",
 				share->sharename, comment_offset);
 		info1++;
 	}
@@ -1646,7 +1646,7 @@ static int handle_netshareenum_info1(struct cifssrv_pipe *pipe,
 	resp->EntriesReturned = num_shares;
 	resp->EntriesAvailable = num_shares;
 
-	cifssrv_debug("num_shares = %d out buffer size = %d\n",
+	cifsd_debug("num_shares = %d out buffer size = %d\n",
 			num_shares, out_buffersize);
 
 	return out_buffersize;
@@ -1660,7 +1660,7 @@ static int handle_netshareenum_info1(struct cifssrv_pipe *pipe,
  *
  * Return:      response buffer size or error number
  */
-static int handle_netshareenum(struct cifssrv_pipe *pipe, LANMAN_REQ *req,
+static int handle_netshareenum(struct cifsd_pipe *pipe, LANMAN_REQ *req,
 				char *out_data)
 {
 	char *paramdesc, *datadesc;
@@ -1672,7 +1672,7 @@ static int handle_netshareenum(struct cifssrv_pipe *pipe, LANMAN_REQ *req,
 	paramdesc = (char *)req->ParamDesc;
 
 	paramdesc_len = strlen("WrLeh") + 1;
-	cifssrv_debug("paramdesc = %s paramdesc_len = %d\n",
+	cifsd_debug("paramdesc = %s paramdesc_len = %d\n",
 			paramdesc, paramdesc_len);
 
 	if (strcmp(paramdesc, "WrLeh") != 0)
@@ -1682,22 +1682,22 @@ static int handle_netshareenum(struct cifssrv_pipe *pipe, LANMAN_REQ *req,
 
 	datadesc_len = strlen(datadesc) + 1;
 
-	cifssrv_debug("datadesc = %s datadesc_len = %d\n",
+	cifsd_debug("datadesc = %s datadesc_len = %d\n",
 			datadesc, datadesc_len);
 
 	in_params = (LANMAN_PARAMS *)(datadesc + datadesc_len);
 
 	info_level = le16_to_cpu(in_params->InfoLevel);
 
-	cifssrv_debug("info_level = %d\n", info_level);
+	cifsd_debug("info_level = %d\n", info_level);
 
 	switch (info_level) {
 	case INFO_1:
-		cifssrv_debug("GOT RAP_NetshareEnum Info1\n");
+		cifsd_debug("GOT RAP_NetshareEnum Info1\n");
 		ret = handle_netshareenum_info1(pipe, in_params, out_data);
 		break;
 	default:
-		cifssrv_debug("Info level = %d not supported\n", info_level);
+		cifsd_debug("Info level = %d not supported\n", info_level);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -1713,7 +1713,7 @@ static int handle_netshareenum(struct cifssrv_pipe *pipe, LANMAN_REQ *req,
  *
  * Return:      response buffer size or error number
  */
-int handle_wkstagetinfo_info10(struct cifssrv_pipe *pipe,
+int handle_wkstagetinfo_info10(struct cifsd_pipe *pipe,
 			       LANMAN_PARAMS *in_params, char *out_data)
 {
 	LANMAN_WKSTAGEINFO_RESP *resp;
@@ -1766,10 +1766,10 @@ int handle_wkstagetinfo_info10(struct cifssrv_pipe *pipe,
 	data += len + 1;
 
 	/* Add Major version*/
-	info10->VerMajor = CIFSSRV_MAJOR_VERSION;
+	info10->VerMajor = CIFSD_MAJOR_VERSION;
 
 	/* Add Minor Version */
-	info10->VerMinor = CIFSSRV_MINOR_VERSION;
+	info10->VerMinor = CIFSD_MINOR_VERSION;
 
 	/* User logged domain */
 	info10->LogonDomain = offset;
@@ -1804,7 +1804,7 @@ int handle_wkstagetinfo_info10(struct cifssrv_pipe *pipe,
  *
  * Return:      response buffer size or error number
  */
-int handle_wkstagetinfo(struct cifssrv_pipe *pipe,
+int handle_wkstagetinfo(struct cifsd_pipe *pipe,
 			LANMAN_REQ *req, char *out_data)
 {
 	char *paramdesc, *datadesc;
@@ -1816,7 +1816,7 @@ int handle_wkstagetinfo(struct cifssrv_pipe *pipe,
 	paramdesc = (char *)req->ParamDesc;
 
 	paramdesc_len = strlen("WrLh") + 1;
-	cifssrv_debug("paramdesc = %s paramdesc_len = %d\n",
+	cifsd_debug("paramdesc = %s paramdesc_len = %d\n",
 			paramdesc, paramdesc_len);
 
 	if (strcmp(paramdesc, "WrLh") != 0)
@@ -1826,22 +1826,22 @@ int handle_wkstagetinfo(struct cifssrv_pipe *pipe,
 
 	datadesc_len = strlen(datadesc) + 1;
 
-	cifssrv_debug("datadesc = %s datadesc_len = %d\n",
+	cifsd_debug("datadesc = %s datadesc_len = %d\n",
 			datadesc, datadesc_len);
 
 	in_params = (LANMAN_PARAMS *)(datadesc + datadesc_len);
 
 	info_level = le16_to_cpu(in_params->InfoLevel);
 
-	cifssrv_debug("info_level = %d\n", info_level);
+	cifsd_debug("info_level = %d\n", info_level);
 
 	switch (info_level) {
 	case INFO_10:
-		cifssrv_debug("GOT RAP_WkstaGetInfo Info10\n");
+		cifsd_debug("GOT RAP_WkstaGetInfo Info10\n");
 		ret = handle_wkstagetinfo_info10(pipe, in_params, out_data);
 		break;
 	default:
-		cifssrv_debug("Info level = %d not supported\n", info_level);
+		cifsd_debug("Info level = %d not supported\n", info_level);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -1857,7 +1857,7 @@ int handle_wkstagetinfo(struct cifssrv_pipe *pipe,
  *
  * Return:      response buffer size or error number
  */
-int handle_lanman_pipe(struct cifssrv_pipe *pipe, char *in_data,
+int handle_lanman_pipe(struct cifsd_pipe *pipe, char *in_data,
 		       char *out_data, int *param_len)
 {
 	LANMAN_REQ *req = (LANMAN_REQ *)in_data;
@@ -1868,7 +1868,7 @@ int handle_lanman_pipe(struct cifssrv_pipe *pipe, char *in_data,
 
 	switch (opcode) {
 	case RAP_NetshareEnum:
-		cifssrv_debug("GOT RAP_NetshareEnum\n");
+		cifsd_debug("GOT RAP_NetshareEnum\n");
 		ret = handle_netshareenum(pipe, req, out_data);
 		if (ret < 0)
 			ret = -EOPNOTSUPP;
@@ -1876,7 +1876,7 @@ int handle_lanman_pipe(struct cifssrv_pipe *pipe, char *in_data,
 			*param_len = 8;
 		break;
 	case RAP_WkstaGetInfo:
-		cifssrv_debug("GOT RAP_WkstaGetInfo\n");
+		cifsd_debug("GOT RAP_WkstaGetInfo\n");
 		ret = handle_wkstagetinfo(pipe, req, out_data);
 		if (ret < 0)
 			ret = -EOPNOTSUPP;
@@ -1884,7 +1884,7 @@ int handle_lanman_pipe(struct cifssrv_pipe *pipe, char *in_data,
 			*param_len = 6;
 		break;
 	default:
-		cifssrv_debug("opcode = %d not supported\n", opcode);
+		cifsd_debug("opcode = %d not supported\n", opcode);
 		ret = -EOPNOTSUPP;
 	}
 
