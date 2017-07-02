@@ -1,5 +1,5 @@
 /*
- *   fs/cifssrv/dcerpc.h
+ *   fs/cifsd/dcerpc.h
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -19,10 +19,10 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef __CIFSSRV_DCERPC_H
-#define __CIFSSRV_DCERPC_H
+#ifndef __CIFSD_DCERPC_H
+#define __CIFSD_DCERPC_H
 
-#include "cifssrv.h"
+#include "cifsd.h"
 #include "ntlmssp.h"
 
 /* these are win32 error codes. */
@@ -324,31 +324,31 @@ typedef struct netwkstageinfo10 {
 
 /* DCERPC Functions */
 
-int process_rpc(struct cifssrv_pipe *pipe, char *data);
-int process_rpc_rsp(struct cifssrv_pipe *pipe, char *data_buf, int size);
+int process_rpc(struct cifsd_pipe *pipe, char *data);
+int process_rpc_rsp(struct cifsd_pipe *pipe, char *data_buf, int size);
 
 void dcerpc_header_init(RPC_HDR *header, int packet_type,
 					int flags, int call_id);
-int rpc_bind(struct cifssrv_pipe *pipe, char *data);
-int rpc_request(struct cifssrv_pipe *pipe, char *data);
-int rpc_read_bind_data(struct cifssrv_pipe *pipe, char *data);
-int rpc_read_winreg_data(struct cifssrv_pipe *pipe, char *outdata,
+int rpc_bind(struct cifsd_pipe *pipe, char *data);
+int rpc_request(struct cifsd_pipe *pipe, char *data);
+int rpc_read_bind_data(struct cifsd_pipe *pipe, char *data);
+int rpc_read_winreg_data(struct cifsd_pipe *pipe, char *outdata,
 							int buf_len);
 
-int winreg_rpc_request(struct cifssrv_pipe *pipe, char *in_data);
+int winreg_rpc_request(struct cifsd_pipe *pipe, char *in_data);
 /* SRVSVC pipe function */
 
-int rpc_read_srvsvc_data(struct cifssrv_pipe *pipe,
+int rpc_read_srvsvc_data(struct cifsd_pipe *pipe,
 					char *data, int buf_len);
 
 /* LANMAN pipe function */
 
-int handle_lanman_pipe(struct cifssrv_pipe *pipe,
+int handle_lanman_pipe(struct cifsd_pipe *pipe,
 			char *in_data, char *out_data, int *param_len);
-int handle_wkstagetinfo(struct cifssrv_pipe *pipe,
+int handle_wkstagetinfo(struct cifsd_pipe *pipe,
 			LANMAN_REQ *req, char *out_data);
 
 extern char workgroup[MAX_SERVER_WRKGRP_LEN];
 extern char server_string[MAX_SERVER_NAME_LEN];
 
-#endif /* __CIFSSRV_DCERPC_H  */
+#endif /* __CIFSD_DCERPC_H  */

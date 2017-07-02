@@ -1,27 +1,27 @@
 ________________________
-BUILDING CIFSSRV TOOLS
+BUILDING CIFSD TOOLS
 ________________________
 
 Build steps:
-        - cd into the cifssrv-tools-v3 directory
+        - cd into the cifsd-tools-v3 directory
         - ./autogen.sh
         - ./configure
         - make
         - make install
 
 _____________________
-USING CIFSSRV TOOLS
+USING CIFSD TOOLS
 _____________________
 
 Setup steps:
-	- install cifssrv kernel driver
-		modprobe cifssrv
+	- install cifsd kernel driver
+		modprobe cifsd
 	- create user/password for SMB share
 		cifsadmin -a <Enter USERNAME for SMB share access>
 		Enter password for SMB share access
 	- create /etc/cifs/smb.conf file, add SMB share in smb.conf file
 		Refer smb.conf.example
-	- start cifssrv user space daemon
-		cifssrvd
+	- start cifsd user space daemon
+		cifsd
 	- access share from Windows or Linux using CIFS
 

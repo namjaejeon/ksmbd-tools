@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifssrvd/conv.c
+ *   cifsd-tools/cifsd/conv.c
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -20,7 +20,7 @@
  */
 
 #include <iconv.h>
-#include "cifssrv.h"
+#include "cifsd.h"
 #include "ntlmssp.h"
 #include <stdlib.h>
 #include <time.h>
@@ -72,13 +72,13 @@ static iconv_t init_conversion(const char *codepage, int fromUTF16)
 				conv = iconv_open("UCS-2LE", codepage);
 
 			if (conv == (iconv_t)-1) {
-				cifssrv_err("failed(%d) to open "
+				cifsd_err("failed(%d) to open "
 						"conversion for UCS-2LE to %s\n",
 						errno, codepage);
 				return (iconv_t) -1;
 			}
 		} else {
-			cifssrv_err("failed to open conversion for"
+			cifsd_err("failed to open conversion for"
 					" UTF16LE to %s\n", codepage);
 			return (iconv_t) -1;
 		}
@@ -115,7 +115,7 @@ char *smb_strndup_from_utf16(char *src, const int maxlen,
 		start_dst = dst;
 		ret = iconv(conv, &src, &srclen, &dst, &dstlen);
 		if (ret == -1) {
-			cifssrv_err("Error in conversion of string, errno %d\n",
+			cifsd_err("Error in conversion of string, errno %d\n",
 					errno);
 			free(start_dst);
 			close_conversion(conv);
@@ -151,7 +151,7 @@ int smbConvertToUTF16(__le16 *target, char *source, int slen,
 
 	ret = iconv(conv, &source, &srclen, &tmp, &dstlen);
 	if (ret == -1) {
-		cifssrv_err("Error in conversion of string\n");
+		cifsd_err("Error in conversion of string\n");
 		close_conversion(conv);
 		return -EINVAL;
 	}
@@ -228,6 +228,6 @@ unsigned int build_ntlmssp_challenge_blob(CHALLENGE_MESSAGE *chgblob, char *code
 	chgblob->TargetInfoArray.MaximumLength =
 		chgblob->TargetInfoArray.Length;
 	blob_len += chgblob->TargetInfoArray.Length;
-	cifssrv_debug("NTLMSSP SecurityBufferLength %d\n", blob_len);
+	cifsd_debug("NTLMSSP SecurityBufferLength %d\n", blob_len);
 	return blob_len;
 }

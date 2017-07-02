@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/lib/libcifssrv.c
+ *   cifsd-tools/lib/libcifsd.c
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "cifssrv.h"
+#include "cifsd.h"
 
 static const char FMTerr[] = "Format Err, expected single space around '='";
 
@@ -99,7 +99,7 @@ int readline(FILE *fp, char **buf, int *isEOF, int check)
 
 	fp = fdopen(fd, "r");
 	if (!fp) {
-		cifssrv_err("fdopen error %d, fd %d\n", errno, fd);
+		cifsd_err("fdopen error %d, fd %d\n", errno, fd);
 		exit(0);
 	}
 #endif
@@ -151,7 +151,7 @@ int get_entry(int fd, char **dst, int *isEOF)
 
 	buf = (char *)malloc(LINESZ + 1);
 	if (!buf) {
-		cifssrv_err("memory allocation failed\n");
+		cifsd_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -164,7 +164,7 @@ int get_entry(int fd, char **dst, int *isEOF)
 		if (c == ':') {
 			if (read(fd, &buf[cnt], CIFS_NTHASH_SIZE + 1) !=
 				CIFS_NTHASH_SIZE + 1) {
-				cifssrv_err("file operation is failed"
+				cifsd_err("file operation is failed"
 					", errno(%d)\n", errno);
 				return -1;
 			}

@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifssrvd/winreg.h
+ *   cifsd-tools/cifsd/winreg.h
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -19,8 +19,8 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  021111307 USA
  */
 
-#ifndef __CIFSSRV_WINREG_H
-#define __CIFSSRV_WINREG_H
+#ifndef __CIFSD_WINREG_H
+#define __CIFSD_WINREG_H
 
 #include "dcerpc.h"
 
@@ -197,35 +197,35 @@ typedef struct create_key_rsp {
 #define WINREG_KEY_SET_VALUE		0x00000002
 #define WINREG_KEY_QUERY_VALUE		0x00000001
 
-int winreg_open_root_key(struct cifssrv_pipe *pipe, int opnum,
+int winreg_open_root_key(struct cifsd_pipe *pipe, int opnum,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_open_key(struct cifssrv_pipe *pipe,
+int winreg_open_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_get_version(struct cifssrv_pipe *pipe,
+int winreg_get_version(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_delete_key(struct cifssrv_pipe *pipe,
+int winreg_delete_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_create_key(struct cifssrv_pipe *pipe,
+int winreg_create_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_close_key(struct cifssrv_pipe *pipe,
+int winreg_close_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_open_key(struct cifssrv_pipe *pipe,
+int winreg_open_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_flush_key(struct cifssrv_pipe *pipe,
+int winreg_flush_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_set_value(struct cifssrv_pipe *pipe,
+int winreg_set_value(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_delete_value(struct cifssrv_pipe *pipe,
+int winreg_delete_value(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_query_value(struct cifssrv_pipe *pipe,
+int winreg_query_value(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_query_info_key(struct cifssrv_pipe *pipe,
+int winreg_query_info_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_notify_change_key_value(struct cifssrv_pipe *pipe,
+int winreg_notify_change_key_value(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_enum_key(struct cifssrv_pipe *pipe,
+int winreg_enum_key(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
-int winreg_enum_value(struct cifssrv_pipe *pipe,
+int winreg_enum_value(struct cifsd_pipe *pipe,
 			RPC_REQUEST_REQ *rpc_request_req, char *in_data);
 
 struct registry_node *init_root_key(char *name);
@@ -237,4 +237,4 @@ struct registry_node *create_key(char *name, struct registry_node *key_addr);
 struct registry_value *search_value(char *name, struct registry_node *key_addr);
 struct registry_value *set_value(char *name, VALUE_BUFFER *buffer_info,
 					struct registry_node *key_addr);
-#endif /* __CIFSSRV_WINREG_H  */
+#endif /* __CIFSD_WINREG_H  */

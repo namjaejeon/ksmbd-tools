@@ -1,5 +1,5 @@
 /*
- *   cifssrv-tools/cifsadmin/cifsadmin.c
+ *   cifsd-tools/cifsadmin/cifsadmin.c
  *
  *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
  *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
@@ -47,16 +47,16 @@ static void term_toggle_echo(int on_off)
 static void handle_sigint(int signum, siginfo_t *siginfo, void *message)
 {
 	if (signum == SIGINT) {
-		cifssrv_debug("Received [Signo:%d] [SigCode:%d]\n",
+		cifsd_debug("Received [Signo:%d] [SigCode:%d]\n",
 			siginfo->si_signo, siginfo->si_code);
 
 		/* code added to suppress warning*/
 		if (!(int *)message)
-			cifssrv_debug("Message field empty\n");
+			cifsd_debug("Message field empty\n");
 
 		term_toggle_echo(1);
 
-		cifssrv_debug("Terminating program\n");
+		cifsd_debug("Terminating program\n");
 		exit(0);
 	}
 }
@@ -101,13 +101,13 @@ int convert_nthash(unsigned char *dst, char *pwd)
 		if (errno == EINVAL) {
 			conv = iconv_open("UCS-2LE", "UTF-8");
 			if (conv == (iconv_t)-1) {
-				cifssrv_err("failed to open conversion"
+				cifsd_err("failed to open conversion"
 					" for UCS-2LE to UTF-8\n");
 				perror("iconv_open");
 				return -1;
 			}
 		} else {
-			cifssrv_err("failed to open conversion for"
+			cifsd_err("failed to open conversion for"
 					" UTF16LE to UTF-8\n");
 			return -1;
 		}
@@ -150,7 +150,7 @@ retry:
 
 	len = strlen(password);
 	if (len < 0 && len > MAX_NT_PWD_LEN) {
-		cifssrv_err("Password length(%d) invalid!"
+		cifsd_err("Password length(%d) invalid!"
 				" allowed length 1 ~ %d\n",
 				len, MAX_NT_PWD_LEN - 1);
 		goto retry;
@@ -178,18 +178,18 @@ unsigned char *get_enc_pwd()
 
 	new_pwd = get_pwd_prompt("New Password:\n");
 	if (!new_pwd) {
-		cifssrv_err("Error while setting password.\n");
+		cifsd_err("Error while setting password.\n");
 		goto out;
 	}
 
 	re_pwd = get_pwd_prompt("Retype Password:\n");
 	if (!re_pwd) {
-		cifssrv_err("Error while setting password.\n");
+		cifsd_err("Error while setting password.\n");
 		goto out;
 	}
 
 	if (strcmp(new_pwd, re_pwd)) {
-		cifssrv_err("Passwords mismatch.\n");
+		cifsd_err("Passwords mismatch.\n");
 		goto out;
 	}
 
@@ -287,7 +287,7 @@ int update_current_user_entry(int fd, char *username, unsigned char *password,
 
 		old_pwd = get_pwd_prompt("Old Password:\n");
 		if (!old_pwd) {
-			cifssrv_err("Error while setting password.\n");
+			cifsd_err("Error while setting password.\n");
 			ret = CIFS_FAIL;
 			goto out;
 		}
@@ -300,7 +300,7 @@ int update_current_user_entry(int fd, char *username, unsigned char *password,
 
 		if (strcmp((const char *)password,
 				(const char *)enc_pwd)) {
-			cifssrv_err(
+			cifsd_err(
 				"Password authentication failed\n");
 			goto out;
 		}
@@ -367,7 +367,7 @@ int add_new_user_entry(int fd, char *username)
 		memcpy(construct + val + 1 + 16, "\n", 1);
 
 		if (write(fd, construct, sz - 1) != sz - 1) {
-			cifssrv_debug("%d: file operation failed\n",
+			cifsd_debug("%d: file operation failed\n",
 					__LINE__);
 			return CIFS_FAIL;
 		}
@@ -438,7 +438,7 @@ out:
 
 /**
  * remove_user_entry() - function to delete user account from local database
- *		file and running cifssrv if available
+ *		file and running cifsd if available
  * @usrname:	user name to be removed
  * @lno:	line number of user entry in local database file
  *
@@ -457,7 +457,7 @@ int remove_user_entry(int fd, char *usrname, int lno)
 	int cnt = 1;
 
 	if (lseek(fd, 0, SEEK_SET) == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		return 0;
 	}
 
@@ -468,7 +468,7 @@ int remove_user_entry(int fd, char *usrname, int lno)
 
 	pos1 = lseek(fd, 0, SEEK_CUR);
 	if (pos1 == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		return 0;
 	}
 
@@ -479,56 +479,56 @@ int remove_user_entry(int fd, char *usrname, int lno)
 	len += 1; /* add '\n' to length */
 	pos2 = pos1 + len;
 	if (lseek(fd, 0, SEEK_END) == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		return 0;
 	}
 
 	pos3 = lseek(fd, 0, SEEK_CUR);
 	if (pos3 == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		return 0;
 	}
 
 	rem = pos3 - pos2;
 	data = (char *)malloc(rem);
 	if (!data) {
-		cifssrv_debug("%d: memory allocation failed\n", __LINE__);
+		cifsd_debug("%d: memory allocation failed\n", __LINE__);
 		return 0;
 	}
 
 	if (lseek(fd, pos2, SEEK_SET) == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		free(data);
 		return 0;
 	}
 
 	if (read(fd, data, rem) != rem) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		free(data);
 		return 0;
 	}
 
 	if (lseek(fd, pos1, SEEK_SET) == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		free(data);
 		return 0;
 	}
 
 	if (write(fd, data, rem) != rem) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		free(data);
 		return 0;
 	}
 
 	if (ftruncate(fd, pos3 - len) == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		free(data);
 		return 0;
 	}
 
 	free(data);
 
-	fd_usr = open(PATH_CIFSSRV_USR, O_WRONLY);
+	fd_usr = open(PATH_CIFSD_USR, O_WRONLY);
 	if (fd_usr) {
 		len = strlen(usrname) + 2;
 		construct = (char *)malloc(len);
@@ -540,7 +540,7 @@ int remove_user_entry(int fd, char *usrname, int lno)
 		memset(construct, 0, len);
 		snprintf(construct, len, "%s:", usrname);
 		if (write(fd_usr, construct, len-1) != len-1) {
-			cifssrv_debug("cifssrv not available\n");
+			cifsd_debug("cifsd not available\n");
 			free(construct);
 			close(fd_usr);
 			return 0;
@@ -564,7 +564,7 @@ int remove_user_account(int fd, char *username)
 	int iseof = 0, lcnt = 0, removed = 0, len;
 
 	if (lseek(fd, 0, SEEK_SET) == -1) {
-		cifssrv_debug("%d: file operation failed\n", __LINE__);
+		cifsd_debug("%d: file operation failed\n", __LINE__);
 		return CIFS_FAIL;
 	}
 
@@ -582,7 +582,7 @@ int remove_user_account(int fd, char *username)
 		name = strtok(line, ":");
 		if (name && !strcmp(name, username)) {
 			if (remove_user_entry(fd, username, lcnt)) {
-				cifssrv_debug("[%s] remove success\n",
+				cifsd_debug("[%s] remove success\n",
 					username);
 				removed = 1;
 			}
@@ -596,12 +596,12 @@ int remove_user_account(int fd, char *username)
 }
 
 /**
- * query_user_account() - function to check user account status in cifssrv
+ * query_user_account() - function to check user account status in cifsd
  * @usrname:	user name for the account under query
  *
- * Return:	success: CIFS_SUCCESS (user configured with cifssrv)
- *		fail: CIFS_NONE_USR (user not configured with cifssrv)
- *		fail: CIFS_FAIL (cifssrv not available)
+ * Return:	success: CIFS_SUCCESS (user configured with cifsd)
+ *		fail: CIFS_NONE_USR (user not configured with cifsd)
+ *		fail: CIFS_FAIL (cifsd not available)
  */
 int query_user_account(char *username)
 {
@@ -609,9 +609,9 @@ int query_user_account(char *username)
 	int eof = 0, len, ret;
 	FILE *fp;
 
-	fp = fopen(PATH_CIFSSRV_USR, "r");
+	fp = fopen(PATH_CIFSD_USR, "r");
 	if (!fp) {
-		cifssrv_debug("cifssrv is not available, error %d\n", errno);
+		cifsd_debug("cifsd is not available, error %d\n", errno);
 		return -errno;
 	}
 
@@ -624,14 +624,14 @@ retry:
 			ret = strncmp(q_usrname, username, strlen(username));
 
 		if (!ret) {
-			cifssrv_err("[%s] is configured with cifssrv\n",
+			cifsd_err("[%s] is configured with cifsd\n",
 				username);
 		} else {
 			free(q_usrname);
 			goto retry;
 		}
 	} else
-		cifssrv_err("[%s] is not configured with cifssrv\n",
+		cifsd_err("[%s] is not configured with cifsd\n",
 				username);
 
 	fclose(fp);
@@ -651,7 +651,7 @@ void usage(void)
 			"	-v verbose\n"
 			"	-a <username> add/update user account\n"
 			"	-d <username> delete user account\n"
-			"	-q <username> query user exists in cifssrv\n");
+			"	-q <username> query user exists in cifsd\n");
 
 	exit(0);
 }
@@ -671,7 +671,7 @@ int parse_options(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "a:d:q:hv")) != EOF) {
 		if (ch == 'a' || ch == 'd' || ch == 'q') {
 			if (!optarg) {
-				cifssrv_debug("option [value] missing\n");
+				cifsd_debug("option [value] missing\n");
 				usage();
 			}
 			if (dup_optarg)
@@ -681,7 +681,7 @@ int parse_options(int argc, char **argv)
 
 		if (ch == 'a' || ch == 'd' || ch == 'q') {
 			if (s_flags && s_flags != F_VERBOSE) {
-				cifssrv_err("Try with single flag at a time\n");
+				cifsd_err("Try with single flag at a time\n");
 				usage();
 			}
 		}
@@ -698,7 +698,7 @@ int parse_options(int argc, char **argv)
 		break;
 		case 'v':
 			if (argc <= 2) {
-				cifssrv_debug(
+				cifsd_debug(
 					"[option] needed with verbose\n");
 				usage();
 			}
@@ -753,7 +753,7 @@ int main(int argc, char *argv[])
 		/* file not existing, create it now */
 		fd_db = open(PATH_PWDDB, O_CREAT | O_RDWR, 0666);
 		if (fd_db < 0) {
-			cifssrv_err("[%s] open failed\n", PATH_PWDDB);
+			cifsd_err("[%s] open failed\n", PATH_PWDDB);
 			return 0;
 		}
 	}
