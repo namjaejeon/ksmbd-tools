@@ -44,8 +44,6 @@ enum cifsd_uevent_e {
 	CIFSD_UEVENT_WRITE_PIPE_RSP,
 	CIFSD_UEVENT_IOCTL_PIPE_RSP,
 	CIFSD_UEVENT_LANMAN_PIPE_RSP,
-	CIFSD_UEVENT_START_SMBPORT,
-	CIFSD_UEVENT_STOP_SMBPORT,
 	CIFSD_UEVENT_EXIT_CONNECTION,
 
 	/* up events: kernel space to userspace */
@@ -122,8 +120,6 @@ struct cifsd_uevent {
 struct list_head cifsd_clients;
 int connection;
 int failed_connection;
-int cifsd_start_smbport(void);
-int cifsd_stop_smbport(void);
 int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
 		unsigned int buflen);
 int cifsd_netlink_setup(void);

@@ -247,24 +247,6 @@ int cifsd_nl_exit(void)
 	return 0;
 }
 
-int cifsd_start_smbport(void)
-{
-	struct cifsd_uevent ev;
-
-	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSD_UEVENT_START_SMBPORT;
-	return cifsd_common_sendmsg(&ev, NULL, 0);
-}
-
-int cifsd_stop_smbport(void)
-{
-	struct cifsd_uevent ev;
-
-	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSD_UEVENT_STOP_SMBPORT;
-	return cifsd_common_sendmsg(&ev, NULL, 0);
-}
-
 static void termination_handler(int signum)
 {
 	int err = 0;
@@ -278,7 +260,7 @@ static void termination_handler(int signum)
 	do {
 		connection += failed_connection;
 		failed_connection = 0;
-		err = cifsd_stop_smbport();
+		err = handle_exit_event();
 		if (err < 0) {
 			cifsd_err("cifsd stop smbport failed\n");
 			return;
@@ -313,11 +295,9 @@ int cifsd_netlink_setup(void)
 	initialize();
 	handle_init_event();
 
-	cifsd_start_smbport();
 	cifsd_sighandler();
 	cifsd_nl_loop();
 
-	cifsd_stop_smbport();
 	handle_exit_event();
 	cifsd_nl_exit();
 	return 0;
