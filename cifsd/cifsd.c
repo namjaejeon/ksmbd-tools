@@ -53,14 +53,14 @@ int config_users(char *dbpath)
 	int fd_usr, fd_db;
 
 	fd_db = open(dbpath, O_RDONLY);
-	if (!fd_db) {
+	if (fd_db < 0) {
 		cifsd_err("[%s] open failed\n", dbpath);
 		perror("Error");
 		return CIFS_FAIL;
 	}
 
 	fd_usr = open(PATH_CIFSD_USR, O_WRONLY);
-	if (!fd_usr) {
+	if (fd_usr < 0) {
 		cifsd_err("cifsd is not available\n");
 		return CIFS_FAIL;
 	}
@@ -453,7 +453,7 @@ int config_shares(char *conf_path)
 	FILE *fd_share;
 
 	fd_share = fopen(conf_path, "r");
-	if (!fd_share) {
+	if (fd_share < 0) {
 		cifsd_err("[%s] is not existing, installing, err %d\n",
 				conf_path, errno);
 		return CIFS_FAIL;
