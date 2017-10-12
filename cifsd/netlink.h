@@ -53,8 +53,7 @@ enum cifsd_uevent_e {
 	CIFSD_KEVENT_IOCTL_PIPE,
 	CIFSD_KEVENT_LANMAN_PIPE,
 	CIFSD_KEVENT_DESTROY_PIPE,
-	CIFSD_KEVENT_SMBPORT_CLOSE_FAIL,
-	CIFSD_KEVENT_SMBPORT_CLOSE_PASS,
+	CFISD_KEVENT_USER_DAEMON_EXIST,
 };
 
 struct cifsd_uevent {
@@ -118,8 +117,6 @@ struct cifsd_uevent {
 
 /* List of connected clients */
 struct list_head cifsd_clients;
-int connection;
-int failed_connection;
 int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
 		unsigned int buflen);
 int cifsd_netlink_setup(void);

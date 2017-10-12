@@ -247,46 +247,6 @@ int cifsd_nl_exit(void)
 	return 0;
 }
 
-static void termination_handler(int signum)
-{
-	int err = 0;
-	struct cifsd_client_info *client;
-
-	failed_connection = 0;
-
-	list_for_each_entry(client, &cifsd_clients, list) {
-		++connection;
-	}
-	do {
-		connection += failed_connection;
-		failed_connection = 0;
-		err = handle_exit_event();
-		if (err < 0) {
-			cifsd_err("cifsd stop smbport failed\n");
-			return;
-		}
-		while (connection)
-			cifsd_handle_event();
-
-	} while (failed_connection);
-	exit(1);
-}
-
-static void cifsd_sighandler(void)
-{
-	struct sigaction sa;
-
-	sa.sa_handler = &termination_handler;
-	sigfillset(&sa.sa_mask);
-
-	if (sigaction(SIGINT, &sa, NULL) == -1)
-		perror("Failed to catch SIGINT\n");
-	if (sigaction(SIGABRT, &sa, NULL) == -1)
-		perror("Failed to catch SIGABORT\n");
-	if (sigaction(SIGBUS, &sa, NULL) == -1)
-		perror("Failed to catch SIGBUS\n");
-}
-
 int cifsd_netlink_setup(void)
 {
 	if (cifsd_nl_init())
@@ -295,7 +255,6 @@ int cifsd_netlink_setup(void)
 	initialize();
 	handle_init_event();
 
-	cifsd_sighandler();
 	cifsd_nl_loop();
 
 	handle_exit_event();

@@ -426,13 +426,9 @@ int request_handler(void *msg)
 		ret = handle_lanman_pipe_event(msg);
 		break;
 
-	case CIFSD_KEVENT_SMBPORT_CLOSE_FAIL:
-		--connection;
-		++failed_connection;
-		break;
-
-	case CIFSD_KEVENT_SMBPORT_CLOSE_PASS:
-		--connection;
+	case CFISD_KEVENT_USER_DAEMON_EXIST:
+		cifsd_err("cifsd already exist!\n");
+		exit(1);
 		break;
 
 	default:
