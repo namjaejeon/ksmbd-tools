@@ -206,6 +206,7 @@ int winreg_delete_key(struct cifsd_pipe *pipe,
 	winreg_rsp = malloc(sizeof(WINREG_COMMON_RSP) );
 	if (!winreg_rsp) {
 		free(relative_name);
+		free(name);
 		return -ENOMEM;
 	}
 
@@ -246,6 +247,7 @@ int winreg_delete_key(struct cifsd_pipe *pipe,
 	rpc_request_rsp->context_id = rpc_request_req->context_id;
 
 	free(relative_name);
+	free(name);
 	cifsd_debug("delete_key\n");
 	return 0;
 }
