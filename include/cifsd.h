@@ -36,6 +36,10 @@
 #include <iconv.h>
 #include <errno.h>
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "list.h"
 #include "nterr.h"
 #include "error.h"
@@ -67,10 +71,6 @@
 #define CIFS_MAX_MSGSIZE 65536
 #define MAX_CIFS_HDR_SIZE 0x78 //default for SMB2, SMB limit is 0x58
 #define RESP_BUF_SIZE (CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE)
-
-
-#define CIFSD_MAJOR_VERSION 1
-#define CIFSD_MINOR_VERSION 0
 
 #define CIFSD_CODEPAGE_LEN    32
 #define CIFSD_USERNAME_LEN	33

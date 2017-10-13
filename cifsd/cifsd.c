@@ -32,8 +32,9 @@ char server_string[MAX_SERVER_NAME_LEN];
 void usage(void)
 {
 	fprintf(stderr,
+		"cifsd-tools version : %s, date : %s\n"
 		"Usage: cifsd [-h|--help] [-v|--version] [-d |--debug]\n"
-		"       [-c smb.conf|--configure=smb.conf] [-i usrs-db|--import-users=cifspwd.db\n");
+		"       [-c smb.conf|--configure=smb.conf] [-i usrs-db|--import-users=cifspwd.db\n", CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 	exit(0);
 }
 
@@ -632,6 +633,9 @@ int main(int argc, char**argv)
 			usage();
 	}
 
+	cifsd_info("starting work (vers : %s, date : %s)\n",
+		CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
+
 	init_share_config();
 
 	/* import user account */
@@ -644,15 +648,13 @@ int main(int argc, char**argv)
 	if (ret != CIFS_SUCCESS)
 		goto out;
 
-	//cifsd_debug("cifsd version : %d\n", cifsd_version);
-
 	/* netlink communication loop */
 	cifsd_netlink_setup();
 
 	exit_share_config();
 
 out:
-	cifsd_debug("cifsd terminated\n");
+	cifsd_info("terminated\n");
 	
 	exit(1);
 }

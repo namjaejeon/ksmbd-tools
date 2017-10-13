@@ -14,11 +14,11 @@ AC_INIT([CIFSD tools], [cifsd_tools_version],
 
 AC_DEFINE([CIFSD_TOOLS_VERSION], "cifsd_tools_version", [cifsd-tools version])
 AC_DEFINE([CIFSD_MAJOR_VERSION], m4_bpatsubst(cifsd_tools_version,
-                                [\([0-9]*\)\(\w\|\W\)*], [\1]),
-                                [Major version for cifsd-tools])
+				 [\([0-9]*\)\(\w\|\W\)*], [\1]),
+				 [Major version for cifsd-tools])
 AC_DEFINE([CIFSD_MINOR_VERSION], m4_bpatsubst(cifsd_tools_version,
-                                [\([0-9]*\).\([0-9]*\)\(\w\|\W\)*], [\2]),
-                                [Minor version for cifsd-tools])
+				 [\([0-9]*\).\([0-9]*\)\(\w\|\W\)*], [\2]),
+				 [Minor version for cifsd-tools])
 
 AC_CHECK_FILE(.git,
         AC_DEFINE([CIFSD_TOOLS_DATE],

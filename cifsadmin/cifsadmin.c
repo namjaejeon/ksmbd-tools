@@ -645,13 +645,15 @@ retry:
  */
 void usage(void)
 {
-	fprintf(stdout, "Usage: cifsadmin [option]\n"
+	fprintf(stdout, "cifsd-tools version : %s, date : %s\n"
+			"Usage: cifsadmin [option]\n"
 			"option:\n"
 			"	-h help\n"
 			"	-v verbose\n"
 			"	-a <username> add/update user account\n"
 			"	-d <username> delete user account\n"
-			"	-q <username> query user exists in cifsd\n");
+			"	-q <username> query user exists in cifsd\n",
+			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 
 	exit(0);
 }

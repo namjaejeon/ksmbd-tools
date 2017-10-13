@@ -29,6 +29,8 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
+#include "cifsd.h"
+
 /* global definitions */
 #define PATH_STATS "/sys/fs/cifsd/stat"
 #define BUF_SIZE 4096
@@ -191,11 +193,13 @@ int process_args(int flags, char *client, int size)
  */
 void usage(void)
 {
-	fprintf(stdout, "Usage: cifsstat [options]\n"
+	fprintf(stdout, "cifsd-tools version : %s, date : %s\n"
+			"Usage: cifsstat [options]\n"
 			"options:\n"
 			"	-h help\n"
 			"	-s show server stat\n"
-			"	-c <client IP> show client stat\n");
+			"	-c <client IP> show client stat\n",
+			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 }
 
 /**
