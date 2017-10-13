@@ -45,88 +45,96 @@ void usage(void)
  *
  * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
  */
-int config_users(char *dbpath)
+int config_users(char *db_path)
 {
-	int eof = 0;
-	char *lstr, *usr, *pwd, *construct = NULL;
-	int len;
-	int fd_usr, fd_db;
+	int eof = 0, usr_fd, db_fd;
+	char *entry, *user_account, *dummy, *user_entry = NULL;
 
-	fd_db = open(dbpath, O_RDONLY);
-	if (fd_db < 0) {
-		cifsd_err("[%s] open failed\n", dbpath);
-		perror("Error");
+	db_fd = open(db_path, O_RDONLY);
+	if (db_fd < 0) {
+		cifsd_err("[%s] open failed(errno : %d)\n", db_path, errno);
 		return CIFS_FAIL;
 	}
 
-	fd_usr = open(PATH_CIFSD_USR, O_WRONLY);
-	if (fd_usr < 0) {
-		cifsd_err("cifsd is not available\n");
+	usr_fd = open(PATH_CIFSD_USR, O_WRONLY);
+	if (usr_fd < 0) {
+		cifsd_err("[%s] open failed(errno : %d)\n", PATH_CIFSD_USR,
+				errno);
 		return CIFS_FAIL;
 	}
 
 	while (!eof) {
-		size_t c_len;
+		int ent_len;
 
-		len = get_entry(fd_db, &lstr, &eof);
-		if (len < 0)
+		ent_len = get_entry(db_fd, &entry, &eof);
+		if (ent_len < 0) {
+			cifsd_err("get_entry failed : %d\n", ent_len);
 			goto out2;
+		}
 
-		init_2_strings(lstr, &usr, &pwd, len);
-		if (usr && pwd) {
+		init_2_strings(entry, &user_account, &dummy, ent_len);
+		if (user_account) {
 			struct passwd *passwd = NULL;
 			char *id_buf = NULL;
+			int alloc_size;
+#define UID_BUF_SIZE 14
 
-			len = strlen(usr);
-			c_len = len + CIFS_NTHASH_SIZE + 2;
+			alloc_size = ent_len + UID_BUF_SIZE;
 
-			construct = (char *)malloc(c_len + 12);
-			if (!construct)
+			user_entry = (char *)calloc(1, alloc_size);
+			if (!user_entry) {
+				cifsd_err("entry allocation failed\n");
 				goto out;
+			}
 
-			memset(construct, 0, c_len);
-			memcpy(construct, usr, len);
-			memcpy(construct + len, ":", 1);
-			memcpy(construct + len + 1, pwd, 16);
-
-			passwd = getpwnam(usr);
+			memcpy(user_entry, entry, ent_len);
+			passwd = getpwnam(user_account);
 			if (passwd) {
 				int id_len;
 
-				id_buf = (char *)malloc(12);
+				id_buf = (char *)malloc(UID_BUF_SIZE);
+				if (!id_buf)
+					goto out;
+
+				if (passwd->pw_uid > 65535 ||
+						passwd->pw_gid > 65535) {
+					cifsd_err("over limit uid : %d, gid : %d\n",
+						passwd->pw_uid, passwd->pw_gid);
+					goto out;
+				}
+
 				id_len = sprintf(id_buf, ":%u:%u\n",
-					passwd->pw_uid, passwd->pw_gid);
-				memcpy(construct + len + 1 + 16, id_buf,
-					id_len);
-				c_len += id_len;
+						passwd->pw_uid, passwd->pw_gid);
+				memcpy(user_entry + ent_len, id_buf,
+						id_len);
+				ent_len += id_len;
+				free(id_buf);
 			}
 
-			if (write(fd_usr, construct,  c_len - 1) !=
-					c_len - 1) {
-				cifsd_err("cifsd is not available\n");
+			if (write(usr_fd, user_entry, ent_len) != ent_len) {
+				cifsd_err("cifsd is not available : %d\n",
+					errno);
 				goto out;
 			}
-			free(usr);
-			free(pwd);
-			free(construct);
-			if (id_buf)
-				free(id_buf);
+			free(user_account);
+			free(dummy);
+			free(user_entry);
 		}
-		free(lstr);
+		free(entry);
 	}
 
-	close(fd_usr);
-	close(fd_db);
+	close(usr_fd);
+	close(db_fd);
 	return CIFS_SUCCESS;
 
 out:
-	free(lstr);
-	free(usr);
-	free(pwd);
-	free(construct);
+	free(entry);
+	free(user_account);
+	free(dummy);
+	free(user_entry);
 out2:
-	close(fd_usr);
-	close(fd_db);
+	close(usr_fd);
+	close(db_fd);
 
 	return CIFS_FAIL;
 }
