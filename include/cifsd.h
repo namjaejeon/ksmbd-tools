@@ -171,18 +171,17 @@ struct cifsd_usr {
 
 int vflags;
 
-#define cifsd_debug(fmt, ...)                         \
-	do {                                                    \
-		if (vflags)					\
-			printf("%s:%d: " fmt,                           \
-				__func__, __LINE__, ##__VA_ARGS__);     \
+#define cifsd_debug(fmt, ...)						\
+	do {								\
+		if (vflags)						\
+			printf("cifsd: %s:%d: " fmt,			\
+				__func__, __LINE__, ##__VA_ARGS__);	\
 	} while (0)
 
-#define cifsd_err(fmt, ...)                                   \
-	do {                                                    \
-		printf("%s:%d: " fmt,                           \
-				__func__, __LINE__, ##__VA_ARGS__);     \
-	} while (0)
+#define cifsd_info(fmt, ...) printf("cifsd: " fmt, ##__VA_ARGS__)
+
+#define cifsd_err(fmt, ...) printf("cifsd: %s:%d: " fmt,	\
+			__func__, __LINE__, ##__VA_ARGS__)
 
 int init_2_strings(const char *src, char **str1, char **str2, int len);
 int readline(FILE *fp, char **buf, int *isEOF, int check);

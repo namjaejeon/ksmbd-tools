@@ -432,9 +432,8 @@ void getfchar(char *LINE, int sz, char *c, char *dst, int *ssz)
 	cnt == sz ? (*c = ' ') : (*c = LINE[cnt]);
 
 	if ((LINE[cnt] != ';') && (LINE[cnt] != '#')) {
-		while ((cnt < sz) &&
-				(LINE[cnt] != ';') &&
-				(LINE[cnt] != '#')) {
+		while ((cnt < sz) && (LINE[cnt] != ';') &&
+			(LINE[cnt] != '#')) {
 			dst[i++] = LINE[cnt++];
 			len++;
 		}
@@ -452,24 +451,21 @@ void getfchar(char *LINE, int sz, char *c, char *dst, int *ssz)
  */
 int config_shares(char *conf_path)
 {
-	char lshare[PAGE_SZ] = "";
-	char sharepath[PAGE_SZ] = "";
-	char tbuf[PAGE_SZ];
-	int sharepath_len = 0;
-	int cnt = 0, lssz = 0, limit = 0, eof = 0, sz;
+	char lshare[PAGE_SZ] = "", sharepath[PAGE_SZ] = "", tbuf[PAGE_SZ];
+	int sharepath_len = 0, cnt = 0, lssz = 0, limit = 0, eof = 0, sz;
 	int fd_conf;
 	FILE *fd_share;
 
 	fd_share = fopen(conf_path, "r");
-	if (fd_share < 0) {
-		cifsd_err("[%s] is not existing, installing, err %d\n",
-				conf_path, errno);
+	if (fd_share == NULL) {
+		cifsd_err("[%s] is not existing, err %d\n", conf_path, errno);
 		return CIFS_FAIL;
 	}
 
 	fd_conf = open(PATH_CIFSD_CONFIG, O_WRONLY);
 	if (fd_conf < 0) {
-		cifsd_err("cifsd is not available, err %d\n", errno);
+		cifsd_err("[%s] open failed, err %d\n", PATH_CIFSD_CONFIG,
+			errno);
 		fclose(fd_share);
 		return CIFS_FAIL;
 	}
