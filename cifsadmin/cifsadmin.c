@@ -367,8 +367,8 @@ int add_new_user_entry(int fd, char *username)
 		memcpy(construct + val + 1 + 16, "\n", 1);
 
 		if (write(fd, construct, sz - 1) != sz - 1) {
-			cifsd_debug("%d: file operation failed\n",
-					__LINE__);
+			cifsd_err("%d: file operation failed, errno : %d\n",
+					__LINE__, errno);
 			return CIFS_FAIL;
 		}
 
@@ -540,7 +540,8 @@ int remove_user_entry(int fd, char *usrname, int lno)
 		memset(construct, 0, len);
 		snprintf(construct, len, "%s:", usrname);
 		if (write(fd_usr, construct, len-1) != len-1) {
-			cifsd_debug("cifsd not available\n");
+			cifsd_err("%s write failed, errno : %d\n",
+				PATH_CIFSD_USR, errno);
 			free(construct);
 			close(fd_usr);
 			return 0;
@@ -611,7 +612,7 @@ int query_user_account(char *username)
 
 	fp = fopen(PATH_CIFSD_USR, "r");
 	if (!fp) {
-		cifsd_debug("cifsd is not available, error %d\n", errno);
+		cifsd_err("%s open failed, error : %d\n", PATH_CIFSD_USR, errno);
 		return -errno;
 	}
 

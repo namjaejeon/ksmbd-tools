@@ -113,8 +113,8 @@ int config_users(char *db_path)
 			}
 
 			if (write(usr_fd, user_entry, ent_len) != ent_len) {
-				cifsd_err("cifsd is not available : %d\n",
-					errno);
+				cifsd_err("%s write failed, errno : %d\n",
+					PATH_CIFSD_USR, errno);
 				goto out;
 			}
 			free(user_account);
