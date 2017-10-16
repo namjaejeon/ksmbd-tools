@@ -35,14 +35,6 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign tar-pax dist-xz])
 
-AC_CHECK_HEADERS_ONCE([
-	fcntl.h
-	stdlib.h
-	string.h
-	unistd.h
-	sys/ioctl.h
-])
-
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_LIBTOOL
@@ -51,8 +43,8 @@ AC_PATH_PROG([LDCONFIG], [ldconfig],
        [$PATH:/sbin])
 
 # Checks for header files.
-AC_CHECK_HEADERS([linux/fs.h fcntl.h stdlib.h string.h \
-		sys/ioctl.h unistd.h])
+AC_CHECK_HEADERS([linux/netlink.h fcntl.h stdlib.h string.h \
+		  unistd.h sys/socket.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -61,13 +53,13 @@ AC_TYPE_INT8_T
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
-AC_FUNC_GETMNTENT
 AC_CHECK_FUNCS_ONCE([
 	memset
+	memcpy
+	getpwnam
+	sendmsg
+	recvmsg
 ])
-
-AS_IF([test "$ac_cv_header_byteswap_h" = "yes"],
-      [AC_CHECK_DECLS([bswap_64],,,[#include <byteswap.h>])])
 
 # Install directories
 #AC_PREFIX_DEFAULT([/usr])
