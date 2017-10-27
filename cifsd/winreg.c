@@ -922,7 +922,8 @@ struct registry_node *create_key(char *key_name, struct registry_node *key_addr)
 				free(kname);
 				return ERR_PTR(-ENOMEM);
 			}
-			strcpy(child->key_name, token);
+			strncpy(child->key_name, token,
+					sizeof(child->key_name));
 			child->value_list = NULL;
 			child->child = NULL;
 			child->neighbour = NULL;
@@ -941,7 +942,8 @@ struct registry_node *create_key(char *key_name, struct registry_node *key_addr)
 					free(kname);
 					return ERR_PTR(-ENOMEM);
 				}
-				strcpy(child->key_name, token);
+				strncpy(child->key_name, token,
+						sizeof(child->key_name));
 				child->value_list = NULL;
 				child->child = NULL;
 				child->open_status = 1;
