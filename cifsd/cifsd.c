@@ -162,8 +162,8 @@ static struct cifsd_share *alloc_new_share(void)
 
 	share->config.comment = (char *) calloc(1, SHARE_MAX_COMMENT_LEN);
 	if (!share->config.comment) {
-		free(share);
 		free(share->sharename);
+		free(share);
 		return NULL;
 	}
 
