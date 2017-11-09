@@ -102,11 +102,13 @@ int config_users(char *db_path)
 						passwd->pw_gid > 65535) {
 					cifsd_err("over limit uid : %d, gid : %d\n",
 						passwd->pw_uid, passwd->pw_gid);
+					free(id_buf);
 					goto out;
 				}
 
-				id_len = sprintf(id_buf, ":%u:%u\n",
-						passwd->pw_uid, passwd->pw_gid);
+				id_len = snprintf(id_buf, UID_BUF_SIZE,
+						":%u:%u\n", passwd->pw_uid,
+						passwd->pw_gid);
 				memcpy(user_entry + ent_len, id_buf,
 						id_len);
 				ent_len += id_len;
