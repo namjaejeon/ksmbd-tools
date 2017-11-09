@@ -369,6 +369,7 @@ int add_new_user_entry(int fd, char *username)
 		if (write(fd, construct, sz - 1) != sz - 1) {
 			cifsd_err("%d: file operation failed, errno : %d\n",
 					__LINE__, errno);
+			free(construct);
 			return CIFS_FAIL;
 		}
 
