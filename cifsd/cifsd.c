@@ -61,6 +61,7 @@ int config_users(char *db_path)
 	if (usr_fd < 0) {
 		cifsd_err("[%s] open failed(errno : %d)\n", PATH_CIFSD_USR,
 				errno);
+		close(db_fd);
 		return CIFS_FAIL;
 	}
 
