@@ -370,6 +370,7 @@ int add_new_user_entry(int fd, char *username)
 			cifsd_err("%d: file operation failed, errno : %d\n",
 					__LINE__, errno);
 			free(construct);
+			free(newpwd);
 			return CIFS_FAIL;
 		}
 
