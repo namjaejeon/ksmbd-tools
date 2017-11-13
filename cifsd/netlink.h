@@ -35,6 +35,32 @@
 #define NETLINK_REQ_RECV        0x02
 #define NETLINK_REQ_COMPLETED   0x04
 
+/* Completion Filter flags for Notify */
+#define FILE_NOTIFY_CHANGE_FILE_NAME	0x00000001
+#define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
+#define FILE_NOTIFY_CHANGE_NAME			0x00000003
+#define FILE_NOTIFY_CHANGE_ATTRIBUTES	0x00000004
+#define FILE_NOTIFY_CHANGE_SIZE			0x00000008
+#define FILE_NOTIFY_CHANGE_LAST_WRITE	0x00000010
+#define FILE_NOTIFY_CHANGE_LAST_ACCESS	0x00000020
+#define FILE_NOTIFY_CHANGE_CREATION		0x00000040
+#define FILE_NOTIFY_CHANGE_EA			0x00000080
+#define FILE_NOTIFY_CHANGE_SECURITY		0x00000100
+#define FILE_NOTIFY_CHANGE_STREAM_NAME	0x00000200
+#define FILE_NOTIFY_CHANGE_STREAM_SIZE	0x00000400
+#define FILE_NOTIFY_CHANGE_STREAM_WRITE	0x00000800
+
+/* SMB2 Notify Action Flags */
+#define FILE_ACTION_ADDED				0x00000001
+#define FILE_ACTION_REMOVED				0x00000002
+#define FILE_ACTION_MODIFIED			0x00000003
+#define FILE_ACTION_RENAMED_OLD_NAME	0x00000004
+#define FILE_ACTION_RENAMED_NEW_NAME	0x00000005
+#define FILE_ACTION_ADDED_STREAM		0x00000006
+#define FILE_ACTION_REMOVED_STREAM		0x00000007
+#define FILE_ACTION_MODIFIED_STREAM		0x00000008
+#define FILE_ACTION_REMOVED_BY_DELETE	0x00000009
+
 enum cifsd_uevent_e {
 	CIFSD_UEVENT_UNKNOWN		= 0,
 
@@ -45,6 +71,7 @@ enum cifsd_uevent_e {
 	CIFSD_UEVENT_IOCTL_PIPE_RSP,
 	CIFSD_UEVENT_LANMAN_PIPE_RSP,
 	CIFSD_UEVENT_EXIT_CONNECTION,
+	CIFSD_UEVENT_INOTIFY_RESPONSE,
 
 	/* up events: kernel space to userspace */
 	CIFSD_KEVENT_CREATE_PIPE	= 100,
@@ -54,6 +81,7 @@ enum cifsd_uevent_e {
 	CIFSD_KEVENT_LANMAN_PIPE,
 	CIFSD_KEVENT_DESTROY_PIPE,
 	CFISD_KEVENT_USER_DAEMON_EXIST,
+	CIFSD_KEVENT_INOTIFY_REQUEST,
 };
 
 struct cifsd_uevent {
@@ -62,6 +90,7 @@ struct cifsd_uevent {
 	__u64		server_handle;
 	unsigned int	buflen;
 	unsigned int	pipe_type;
+	char   codepage[CIFSD_CODEPAGE_LEN];
 	union {
 		/* messages u -> k */
 		unsigned int	nt_status;
@@ -113,6 +142,25 @@ struct cifsd_uevent {
 		} l_pipe;
 	} k;
 	char buffer[0];
+};
+
+struct smb2_inotify_req_info {
+	__le16 watch_tree_flag;
+	__le32 CompletionFilter;
+	__u32 path_len;
+	char dir_path[];
+};
+
+struct FileNotifyInformation {
+	__le32 NextEntryOffset;
+	__le32 Action;
+	__le32 FileNameLength;
+	__le16 FileName[];
+};
+
+struct smb2_inotify_res_info {
+	__u32 output_buffer_length;
+	struct FileNotifyInformation file_notify_info[];
 };
 
 /* List of connected clients */
