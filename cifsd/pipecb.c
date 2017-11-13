@@ -22,6 +22,9 @@
 #include "cifsd.h"
 #include "list.h"
 #include "netlink.h"
+#include <sys/inotify.h>
+#include <limits.h>
+#include <pthread.h>
 
 #define CREATE	0x1
 #define REMOVE	0x2
@@ -388,6 +391,187 @@ out:
 	return ret;
 }
 
+/* convert completion filter into inotify mask  */
+static unsigned int convert_completion_filter(unsigned int completion_filter)
+{
+	unsigned int mask = 0;
+
+	/* CHANGE_NOTIFY is only for a directory. */
+	mask |= IN_MASK_ADD | IN_ONLYDIR;
+
+	if (completion_filter & FILE_NOTIFY_CHANGE_NAME)
+		mask |= IN_CREATE|IN_DELETE|IN_MOVED_FROM|IN_MOVED_TO;
+	if (completion_filter & FILE_NOTIFY_CHANGE_ATTRIBUTES)
+		mask |= IN_ATTRIB|IN_MOVED_TO|IN_MOVED_FROM|IN_MODIFY;
+	if (completion_filter & FILE_NOTIFY_CHANGE_LAST_WRITE)
+		mask |= IN_ATTRIB;
+	if (completion_filter & FILE_NOTIFY_CHANGE_LAST_ACCESS)
+		mask |= IN_ATTRIB;
+	if (completion_filter & FILE_NOTIFY_CHANGE_EA)
+		mask |= IN_ATTRIB;
+	if (completion_filter & FILE_NOTIFY_CHANGE_SECURITY)
+		mask |= IN_ATTRIB;
+
+	return mask;
+}
+
+static void fill_noti_info_res(struct cifsd_uevent *ev,
+	char inotify_event_buf[],
+	struct smb2_inotify_res_info *noti_info_res_buf)
+{
+	struct inotify_event *event;
+
+	event = (struct inotify_event *) inotify_event_buf;
+	cifsd_debug("event mask : %u, event file name : %s\n",
+		event->mask, event->name);
+
+	noti_info_res_buf->file_notify_info[0].NextEntryOffset = 0;
+
+	if (event->mask & IN_CREATE)
+		noti_info_res_buf->file_notify_info[0].Action =
+			FILE_ACTION_ADDED;
+	else if (event->mask & IN_DELETE)
+		noti_info_res_buf->file_notify_info[0].Action =
+			FILE_ACTION_REMOVED;
+	else if (event->mask & IN_MOVED_FROM)
+		noti_info_res_buf->file_notify_info[0].Action =
+			FILE_ACTION_REMOVED;
+		/* TODO : add RENAME case */
+	else if (event->mask & IN_MOVED_TO)
+		noti_info_res_buf->file_notify_info[0].Action =
+			FILE_ACTION_ADDED;
+		/* TODO : add RENAME case */
+	else
+		noti_info_res_buf->file_notify_info[0].Action =
+			FILE_ACTION_MODIFIED;
+
+	noti_info_res_buf->file_notify_info[0].FileNameLength =
+		strlen(event->name) * 2;
+
+	smbConvertToUTF16(noti_info_res_buf->file_notify_info[0].FileName,
+		event->name, event->len, (event->len)*2, ev->codepage);
+
+	cifsd_debug("noti_info_res_buf->file_notify_info[0].Action : %d\n",
+		noti_info_res_buf->file_notify_info[0].Action);
+}
+
+static void send_rsp_ev(struct cifsd_uevent *ev,
+	struct smb2_inotify_res_info *noti_info_res_buf)
+{
+	struct cifsd_uevent rsp_ev;
+
+	memset(&rsp_ev, 0, sizeof(rsp_ev));
+	rsp_ev.type = CIFSD_UEVENT_INOTIFY_RESPONSE;
+	rsp_ev.server_handle = ev->server_handle;
+
+	cifsd_common_sendmsg(&rsp_ev, (char *)noti_info_res_buf,
+		sizeof(struct smb2_inotify_res_info) +
+		sizeof(struct FileNotifyInformation) + NAME_MAX);
+}
+
+static int handle_inotify_request_event(void *msg)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	struct smb2_inotify_req_info *inotify_req_info;
+	struct smb2_inotify_res_info *noti_info_res_buf;
+	int fd;
+	unsigned int mask;
+	int wd;
+	int num_event;
+	const int event_size = (sizeof(struct inotify_event) + NAME_MAX + 1);
+	const int BUF_LEN = (10 * event_size);
+	char inotify_event_buf[BUF_LEN];
+
+	fd = inotify_init();
+	if (fd == -1) {
+		cifsd_err("inotify_init failed!\n");
+		return -ENOENT;
+	}
+
+	inotify_req_info = (struct inotify_req_info *)ev->buffer;
+	mask = convert_completion_filter(inotify_req_info->CompletionFilter);
+
+	wd = inotify_add_watch(fd, inotify_req_info->dir_path, mask);
+	if (wd == -1) {
+		cifsd_err("inotify_add_watch failed!\n");
+		return -ENOENT;
+	}
+
+	cifsd_debug("%s is being watched with wd[%d]\n",
+		inotify_req_info->dir_path, wd);
+
+	for (;;) {
+		num_event = read(fd, inotify_event_buf, BUF_LEN);
+		if (num_event == 0)
+			cifsd_err("num_event is zero\n");
+		else if (num_event == -1)
+			cifsd_err("inotify read failure\n");
+		cifsd_debug("%ld bytes read from inodify fd(%d)\n",
+			(long)num_event, fd);
+
+		/*
+		 * len == 0 means event occurred on the base directory.
+		 * just ignore the event in that case.
+		 */
+		if (((struct inotify_event *)inotify_event_buf)->len == 0)
+			continue;
+
+		noti_info_res_buf = (struct smb2_inotify_res_info *)malloc(
+			sizeof(struct smb2_inotify_res_info) +
+			sizeof(struct FileNotifyInformation) + NAME_MAX);
+		if (!noti_info_res_buf)
+			return -ENOMEM;
+
+		fill_noti_info_res(ev, inotify_event_buf, noti_info_res_buf);
+		noti_info_res_buf->output_buffer_length =
+			sizeof(struct FileNotifyInformation)
+			+ noti_info_res_buf->file_notify_info[0].FileNameLength;
+		cifsd_debug("noti_info_res_buf->output_buffer_length : %d\n",
+			noti_info_res_buf->output_buffer_length);
+		send_rsp_ev(ev, noti_info_res_buf);
+		inotify_rm_watch(fd, wd);
+		free(noti_info_res_buf);
+		break;
+	}
+
+	return 0;
+}
+
+static int make_inotify_handler_thread(struct nlmsghdr *msg)
+{
+	pthread_t th;
+	pthread_attr_t attr;
+	int ret = 0;
+
+	ret = pthread_attr_init(&attr);
+	if (ret) {
+		cifsd_err("pthread_attr_init failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (ret) {
+		cifsd_err("pthread_attr_setdetachstate failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_create(&th, &attr, handle_inotify_request_event, msg);
+	if (ret) {
+		cifsd_err("pthread_attr_create failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_attr_destroy(&attr);
+	if (ret) {
+		cifsd_err("pthread_attr_destroy failed : %d\n", ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
 /*
  * once the pipe is available, utilize the code from process_rpc/process_rpc_rsp
  * modify the rpc request/response to use the pipe from above methods
@@ -429,6 +613,10 @@ int request_handler(void *msg)
 	case CFISD_KEVENT_USER_DAEMON_EXIST:
 		cifsd_err("cifsd already exist!\n");
 		exit(1);
+		break;
+
+	case CIFSD_KEVENT_INOTIFY_REQUEST:
+		ret = make_inotify_handler_thread(msg);
 		break;
 
 	default:
