@@ -25,12 +25,17 @@
 #include <sys/inotify.h>
 #include <limits.h>
 #include <pthread.h>
+#include <sys/prctl.h>
 
 #define CREATE	0x1
 #define REMOVE	0x2
 #define READ	0x4
 #define WRITE	0x8
 #define TRANS	0x10
+
+static int notid_exist;
+static int inotify_fd;
+static int notifyd_pid;
 
 void initialize(void)
 {
@@ -469,46 +474,38 @@ static void send_rsp_ev(struct cifsd_uevent *ev,
 		sizeof(struct FileNotifyInformation) + NAME_MAX);
 }
 
-static int handle_inotify_request_event(void *msg)
+static void handle_sigchld(int sig)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
-	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int status;
+	int child_pid;
+	int errno_save = errno;
+
+	child_pid = waitpid(-1, &status, WNOHANG);
+	if (child_pid == notifyd_pid) {
+		notid_exist = 0;
+		close(inotify_fd);
+	}
+
+	errno = errno_save;
+}
+
+static int read_inotify_event(struct cifsd_uevent *ev, int wd)
+{
 	struct smb2_inotify_req_info *inotify_req_info;
 	struct smb2_inotify_res_info *noti_info_res_buf;
-	int fd;
-	unsigned int mask;
-	int wd;
 	int num_event;
 	const int event_size = (sizeof(struct inotify_event) + NAME_MAX + 1);
 	const int BUF_LEN = (10 * event_size);
 	char inotify_event_buf[BUF_LEN];
 
-	fd = inotify_init();
-	if (fd == -1) {
-		cifsd_err("inotify_init failed!\n");
-		return -ENOENT;
-	}
-
-	inotify_req_info = (struct inotify_req_info *)ev->buffer;
-	mask = convert_completion_filter(inotify_req_info->CompletionFilter);
-
-	wd = inotify_add_watch(fd, inotify_req_info->dir_path, mask);
-	if (wd == -1) {
-		cifsd_err("inotify_add_watch failed!\n");
-		return -ENOENT;
-	}
-
-	cifsd_debug("%s is being watched with wd[%d]\n",
-		inotify_req_info->dir_path, wd);
-
 	for (;;) {
-		num_event = read(fd, inotify_event_buf, BUF_LEN);
+		num_event = read(inotify_fd, inotify_event_buf, BUF_LEN);
 		if (num_event == 0)
 			cifsd_err("num_event is zero\n");
 		else if (num_event == -1)
 			cifsd_err("inotify read failure\n");
 		cifsd_debug("%ld bytes read from inodify fd(%d)\n",
-			(long)num_event, fd);
+			(long)num_event, inotify_fd);
 
 		/*
 		 * len == 0 means event occurred on the base directory.
@@ -521,7 +518,7 @@ static int handle_inotify_request_event(void *msg)
 			sizeof(struct smb2_inotify_res_info) +
 			sizeof(struct FileNotifyInformation) + NAME_MAX);
 		if (!noti_info_res_buf)
-			return -ENOMEM;
+			_exit(EXIT_FAILURE);
 
 		fill_noti_info_res(ev, inotify_event_buf, noti_info_res_buf);
 		noti_info_res_buf->output_buffer_length =
@@ -530,45 +527,72 @@ static int handle_inotify_request_event(void *msg)
 		cifsd_debug("noti_info_res_buf->output_buffer_length : %d\n",
 			noti_info_res_buf->output_buffer_length);
 		send_rsp_ev(ev, noti_info_res_buf);
-		inotify_rm_watch(fd, wd);
+		inotify_rm_watch(inotify_fd, wd);
+		close(inotify_fd);
 		free(noti_info_res_buf);
 		break;
 	}
 
-	return 0;
+	_exit(EXIT_SUCCESS);
 }
 
-static int make_inotify_handler_thread(struct nlmsghdr *msg)
+static int handle_inotify_request_event(struct nlmsghdr *msg)
 {
-	pthread_t th;
-	pthread_attr_t attr;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	struct smb2_inotify_req_info *inotify_req_info;
+	unsigned int mask;
+	int wd;
+	struct sigaction sa;
 	int ret = 0;
 
-	ret = pthread_attr_init(&attr);
-	if (ret) {
-		cifsd_err("pthread_attr_init failed : %d\n", ret);
-		goto out;
+	inotify_req_info = (struct inotify_req_info *)ev->buffer;
+	mask = convert_completion_filter(inotify_req_info->CompletionFilter);
+
+	if (!notid_exist) {
+		inotify_fd = inotify_init();
+		if (inotify_fd == -1) {
+			cifsd_err("inotify_init failed!\n");
+			return -ENOENT;
+		}
+
+		wd = inotify_add_watch(inotify_fd,
+			inotify_req_info->dir_path, mask);
+		if (wd == -1) {
+			cifsd_err("inotify_add_watch failed!\n");
+			return -ENOENT;
+		}
+
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sa.sa_handler = handle_sigchld;
+		if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+			cifsd_err("sigaction failed\n");
+			return -1;
+		}
+
+		switch (notifyd_pid = fork()) {
+		case -1:
+			cifsd_err("fail to fork notid process\n");
+			return -1;
+		case 0:
+			/* child : cifsd_notid */
+			prctl(PR_SET_NAME, "cifsd_notid\0", NULL, NULL, NULL);
+			ret = read_inotify_event(ev, wd);
+		default:
+			/* parent : cifsd */
+			notid_exist = 1;
+		}
+	} else {
+		wd = inotify_add_watch(inotify_fd,
+			inotify_req_info->dir_path, mask);
+		if (wd == -1) {
+			cifsd_err("inotify_add_watch failed! : inotify_fd : %d, pathname : %s, mask : %u\n",
+				inotify_fd, inotify_req_info->dir_path, mask);
+			return -ENOENT;
+		}
 	}
 
-	ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ret) {
-		cifsd_err("pthread_attr_setdetachstate failed : %d\n", ret);
-		goto out;
-	}
-
-	ret = pthread_create(&th, &attr, handle_inotify_request_event, msg);
-	if (ret) {
-		cifsd_err("pthread_attr_create failed : %d\n", ret);
-		goto out;
-	}
-
-	ret = pthread_attr_destroy(&attr);
-	if (ret) {
-		cifsd_err("pthread_attr_destroy failed : %d\n", ret);
-		goto out;
-	}
-
-out:
 	return ret;
 }
 
@@ -616,7 +640,7 @@ int request_handler(void *msg)
 		break;
 
 	case CIFSD_KEVENT_INOTIFY_REQUEST:
-		ret = make_inotify_handler_thread(msg);
+		ret = handle_inotify_request_event(msg);
 		break;
 
 	default:

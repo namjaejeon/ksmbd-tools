@@ -180,7 +180,7 @@ static void cifsd_nl_loop(void)
 		FD_SET(nlsk_fd, &readfds);
 
 		ret = select(nlsk_fd + 1, &readfds, NULL, NULL, NULL);
-		if (ret == -1) {
+		if (ret == -1 && errno != EINTR) {
 			perror("select");
 		}
 		else {
