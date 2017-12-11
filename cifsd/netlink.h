@@ -165,6 +165,7 @@ struct smb2_inotify_res_info {
 
 /* List of connected clients */
 struct list_head cifsd_clients;
+struct list_head cifsd_notify_clients;
 int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
 		unsigned int buflen);
 int cifsd_netlink_setup(void);

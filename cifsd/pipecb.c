@@ -18,6 +18,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#define _GNU_SOURCE
 #include <assert.h>
 #include "cifsd.h"
 #include "list.h"
@@ -33,13 +34,16 @@
 #define WRITE	0x8
 #define TRANS	0x10
 
-static int notid_exist;
-static int inotify_fd;
-static int notifyd_pid;
+static int notifyd_exist;
+static int fd;
+static pthread_mutex_t mtx_notifyd_exist = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mtx_fd = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mtx_cifsd_notify_clients =  PTHREAD_MUTEX_INITIALIZER;
 
 void initialize(void)
 {
 	INIT_LIST_HEAD(&cifsd_clients);
+	INIT_LIST_HEAD(&cifsd_notify_clients);
 }
 
 struct cifsd_client_info *head;
@@ -420,7 +424,7 @@ static unsigned int convert_completion_filter(unsigned int completion_filter)
 	return mask;
 }
 
-static void fill_noti_info_res(struct cifsd_uevent *ev,
+static void fill_noti_info_res(struct cifsd_notify_client_info *notify_client,
 	char inotify_event_buf[],
 	struct smb2_inotify_res_info *noti_info_res_buf)
 {
@@ -454,49 +458,42 @@ static void fill_noti_info_res(struct cifsd_uevent *ev,
 		strlen(event->name) * 2;
 
 	smbConvertToUTF16(noti_info_res_buf->file_notify_info[0].FileName,
-		event->name, event->len, (event->len)*2, ev->codepage);
+		event->name, event->len,
+		(event->len)*2, notify_client->codepage);
 
 	cifsd_debug("noti_info_res_buf->file_notify_info[0].Action : %d\n",
 		noti_info_res_buf->file_notify_info[0].Action);
 }
 
-static void send_rsp_ev(struct cifsd_uevent *ev,
+static void send_rsp_ev(struct cifsd_notify_client_info *notify_client,
 	struct smb2_inotify_res_info *noti_info_res_buf)
 {
 	struct cifsd_uevent rsp_ev;
 
 	memset(&rsp_ev, 0, sizeof(rsp_ev));
 	rsp_ev.type = CIFSD_UEVENT_INOTIFY_RESPONSE;
-	rsp_ev.server_handle = ev->server_handle;
+	rsp_ev.server_handle = notify_client->hash;
 
 	cifsd_common_sendmsg(&rsp_ev, (char *)noti_info_res_buf,
 		sizeof(struct smb2_inotify_res_info) +
 		sizeof(struct FileNotifyInformation) + NAME_MAX);
 }
 
-static void handle_sigchld(int sig)
+static void *read_inotify_event(void)
 {
-	int status;
-	int child_pid;
-	int errno_save = errno;
-
-	child_pid = waitpid(-1, &status, WNOHANG);
-	if (child_pid == notifyd_pid) {
-		notid_exist = 0;
-		close(inotify_fd);
-	}
-
-	errno = errno_save;
-}
-
-static int read_inotify_event(struct cifsd_uevent *ev, int wd)
-{
-	struct smb2_inotify_req_info *inotify_req_info;
 	struct smb2_inotify_res_info *noti_info_res_buf;
+	struct cifsd_notify_client_info *notify_client = NULL;
+	struct list_head *tmp;
 	int num_event;
+	int wd;
 	const int event_size = (sizeof(struct inotify_event) + NAME_MAX + 1);
 	const int BUF_LEN = (10 * event_size);
 	char inotify_event_buf[BUF_LEN];
+	int inotify_fd;
+
+	pthread_mutex_lock(&mtx_fd);
+	inotify_fd = fd;
+	pthread_mutex_unlock(&mtx_fd);
 
 	for (;;) {
 		num_event = read(inotify_fd, inotify_event_buf, BUF_LEN);
@@ -504,7 +501,7 @@ static int read_inotify_event(struct cifsd_uevent *ev, int wd)
 			cifsd_err("num_event is zero\n");
 		else if (num_event == -1)
 			cifsd_err("inotify read failure\n");
-		cifsd_debug("%ld bytes read from inodify fd(%d)\n",
+		cifsd_debug("%ld bytes read from inodify inotify_fd(%d)\n",
 			(long)num_event, inotify_fd);
 
 		/*
@@ -517,23 +514,148 @@ static int read_inotify_event(struct cifsd_uevent *ev, int wd)
 		noti_info_res_buf = (struct smb2_inotify_res_info *)malloc(
 			sizeof(struct smb2_inotify_res_info) +
 			sizeof(struct FileNotifyInformation) + NAME_MAX);
-		if (!noti_info_res_buf)
-			_exit(EXIT_FAILURE);
+		if (!noti_info_res_buf) {
+			pthread_mutex_lock(&mtx_fd);
+			close(fd);
+			pthread_mutex_unlock(&mtx_fd);
+			pthread_mutex_lock(&mtx_notifyd_exist);
+			notifyd_exist = 0;
+			pthread_mutex_unlock(&mtx_notifyd_exist);
+			return;
+		}
 
-		fill_noti_info_res(ev, inotify_event_buf, noti_info_res_buf);
+		pthread_mutex_lock(&mtx_cifsd_notify_clients);
+		list_for_each(tmp, &cifsd_notify_clients) {
+			notify_client = list_entry(tmp,
+				struct cifsd_notify_client_info, list);
+			wd = ((struct inotify_event *)inotify_event_buf)->wd;
+			if (notify_client->wd == wd) {
+				cifsd_debug("netlink event target : notify_client->hash %llu\n",
+					notify_client->hash);
+				pthread_mutex_unlock(&mtx_cifsd_notify_clients);
+				break;
+			}
+		}
+		pthread_mutex_unlock(&mtx_cifsd_notify_clients);
+
+		fill_noti_info_res(notify_client,
+			inotify_event_buf, noti_info_res_buf);
+		/* TODO : handle multiple inotify events */
 		noti_info_res_buf->output_buffer_length =
 			sizeof(struct FileNotifyInformation)
 			+ noti_info_res_buf->file_notify_info[0].FileNameLength;
 		cifsd_debug("noti_info_res_buf->output_buffer_length : %d\n",
 			noti_info_res_buf->output_buffer_length);
-		send_rsp_ev(ev, noti_info_res_buf);
-		inotify_rm_watch(inotify_fd, wd);
-		close(inotify_fd);
+		send_rsp_ev(notify_client, noti_info_res_buf);
 		free(noti_info_res_buf);
+		list_del(&notify_client->list);
+		free(notify_client);
+		pthread_mutex_lock(&mtx_fd);
+		close(fd);
+		pthread_mutex_unlock(&mtx_fd);
+
 		break;
 	}
 
-	_exit(EXIT_SUCCESS);
+	pthread_mutex_lock(&mtx_notifyd_exist);
+	notifyd_exist = 0;
+	pthread_mutex_unlock(&mtx_notifyd_exist);
+	return 0;
+}
+
+struct cifsd_notify_client_info *lookup_notify_client(struct cifsd_uevent *ev)
+{
+	struct cifsd_notify_client_info *notify_client;
+	struct list_head *tmp;
+	int i;
+
+	pthread_mutex_lock(&mtx_cifsd_notify_clients);
+	if (!list_empty(&cifsd_notify_clients)) {
+		list_for_each(tmp, &cifsd_notify_clients) {
+			notify_client = list_entry(tmp,
+				struct cifsd_notify_client_info, list);
+			cifsd_debug("notify_client->hash : %llu, ev->server_handle : %llu\n",
+				notify_client->hash, ev->server_handle);
+			if (notify_client->hash == ev->server_handle) {
+				cifsd_debug("found matching ev->server_handle %llu, client %p\n",
+					ev->server_handle, notify_client);
+				pthread_mutex_unlock(&mtx_cifsd_notify_clients);
+				return notify_client;
+			}
+		}
+	}
+	pthread_mutex_unlock(&mtx_cifsd_notify_clients);
+
+	/* no notify_client matched */
+	notify_client = calloc(1, sizeof(struct cifsd_notify_client_info));
+	if (notify_client) {
+		INIT_LIST_HEAD(&notify_client->list);
+		notify_client->hash = ev->server_handle;
+		for (i = 0; i < CIFSD_CODEPAGE_LEN; i++)
+			notify_client->codepage[i] = ev->codepage[i];
+		pthread_mutex_lock(&mtx_cifsd_notify_clients);
+		list_add(&notify_client->list, &cifsd_notify_clients);
+		pthread_mutex_unlock(&mtx_cifsd_notify_clients);
+		cifsd_debug("added ev->server_handle : %llu\n",
+			ev->server_handle);
+	}
+
+	return notify_client;
+}
+
+static int cifsd_set_wd(struct cifsd_uevent *ev, int wd)
+{
+	struct cifsd_notify_client_info *notify_client = NULL;
+
+	notify_client = lookup_notify_client(ev);
+	if (!notify_client) {
+		cifsd_err("Failed to allocate memory for notify_client\n");
+		return -ENOMEM;
+	}
+
+	notify_client->wd = wd;
+	return 0;
+}
+
+static int make_inotify_handler_thread(void)
+{
+	pthread_t th;
+	pthread_attr_t attr;
+	const char th_name[] = "cifsd_notifyd";
+	int ret = 0;
+
+	ret = pthread_attr_init(&attr);
+	if (ret) {
+		cifsd_err("pthread_attr_init failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (ret) {
+		cifsd_err("pthread_attr_setdetachstate failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_create(&th, &attr, read_inotify_event, NULL);
+	if (ret) {
+		cifsd_err("pthread_attr_create failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_setname_np(th, th_name);
+	if (ret) {
+		cifsd_err("pthread_setname_np failed : %d\n", ret);
+		goto out;
+	}
+
+	ret = pthread_attr_destroy(&attr);
+	if (ret) {
+		cifsd_err("pthread_attr_destroy failed : %d\n", ret);
+		goto out;
+	}
+
+out:
+	return ret;
 }
 
 static int handle_inotify_request_event(struct nlmsghdr *msg)
@@ -543,55 +665,44 @@ static int handle_inotify_request_event(struct nlmsghdr *msg)
 	struct smb2_inotify_req_info *inotify_req_info;
 	unsigned int mask;
 	int wd;
-	struct sigaction sa;
 	int ret = 0;
 
 	inotify_req_info = (struct inotify_req_info *)ev->buffer;
 	mask = convert_completion_filter(inotify_req_info->CompletionFilter);
 
-	if (!notid_exist) {
-		inotify_fd = inotify_init();
-		if (inotify_fd == -1) {
+	pthread_mutex_lock(&mtx_notifyd_exist);
+	if (!notifyd_exist) {
+		pthread_mutex_lock(&mtx_fd);
+		fd = inotify_init();
+		if (fd == -1) {
 			cifsd_err("inotify_init failed!\n");
-			return -ENOENT;
-		}
-
-		wd = inotify_add_watch(inotify_fd,
-			inotify_req_info->dir_path, mask);
-		if (wd == -1) {
-			cifsd_err("inotify_add_watch failed!\n");
-			return -ENOENT;
-		}
-
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		sa.sa_handler = handle_sigchld;
-		if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-			cifsd_err("sigaction failed\n");
-			return -1;
-		}
-
-		switch (notifyd_pid = fork()) {
-		case -1:
-			cifsd_err("fail to fork notid process\n");
-			return -1;
-		case 0:
-			/* child : cifsd_notid */
-			prctl(PR_SET_NAME, "cifsd_notid\0", NULL, NULL, NULL);
-			ret = read_inotify_event(ev, wd);
-		default:
-			/* parent : cifsd */
-			notid_exist = 1;
-		}
-	} else {
-		wd = inotify_add_watch(inotify_fd,
-			inotify_req_info->dir_path, mask);
-		if (wd == -1) {
-			cifsd_err("inotify_add_watch failed! : inotify_fd : %d, pathname : %s, mask : %u\n",
-				inotify_fd, inotify_req_info->dir_path, mask);
+			pthread_mutex_unlock(&mtx_fd);
+			pthread_mutex_unlock(&mtx_notifyd_exist);
 			return -ENOENT;
 		}
 	}
+	pthread_mutex_unlock(&mtx_fd);
+	pthread_mutex_unlock(&mtx_notifyd_exist);
+
+	pthread_mutex_lock(&mtx_fd);
+	wd = inotify_add_watch(fd,
+		inotify_req_info->dir_path, mask);
+	pthread_mutex_unlock(&mtx_fd);
+	if (wd == -1) {
+		cifsd_err("inotify_add_watch failed!\n");
+		return -ENOENT;
+	}
+
+	ret = cifsd_set_wd(ev, wd);
+	if (ret) {
+		cifsd_err("failed to add a wd_node to list\n");
+		return ret;
+	}
+
+	pthread_mutex_lock(&mtx_notifyd_exist);
+	if (!notifyd_exist)
+		ret = make_inotify_handler_thread();
+	pthread_mutex_unlock(&mtx_notifyd_exist);
 
 	return ret;
 }
