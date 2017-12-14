@@ -30,17 +30,11 @@
 #include <errno.h>
 
 #include "cifsd.h"
+#include "netlink.h"
 
 /* global definitions */
 #define PATH_STATS "/sys/fs/cifsd/stat"
 #define BUF_SIZE 4096
-
-#ifdef IPV6_SUPPORTED
-#define MAX_IPLEN 128
-#else
-#define MAX_IPLEN 16
-#endif
-
 
 #define OPT_SERVER "1"
 
@@ -160,6 +154,86 @@ int is_validIP(char *ipaddr)
 }
 
 /**
+ * handle_cifsstat_read_event() - get server/client stats using
+ *				netlink socket
+ * @nlsock:	netlink socket for cifsstat connection
+ *
+ * Return:	0 on success, otherwise error
+ */
+static int handle_cifsstat_read_event(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int flag = ev->k.r_stat.flag;
+	int err = ev->error;
+
+	if (err < 0) {
+		if (flag & O_SERVER)
+			cifsd_err("Server stat info: failed, err %d\n", err);
+
+		if (flag & O_CLIENT)
+			cifsd_err("CLient stat info: failed, err %d\n", err);
+		goto out;
+	}
+
+	if (ev->buflen) {
+		if (flag & O_SERVER)
+			fprintf(stdout, "Server stats:\n%s", ev->buffer);
+
+		if (flag & O_CLIENT)
+			fprintf(stdout, "Client stats:\n%s", ev->buffer);
+	}
+
+out:
+	return err;
+}
+
+/**
+ * cifsstat_request_handler() - cifsstat netlink command handler
+ * @nlsock:	netlink socket for cifsstat connection
+ *
+ * Return:	0 on success, otherwise error
+ */
+int cifsstat_request_handler(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int ret = 0;
+
+	cifsd_debug("start cifsstat event\n");
+	switch (nlh->nlmsg_type) {
+	case CIFSSTAT_UEVENT_READ_STAT_RSP:
+		ret = handle_cifsstat_read_event(nlsock);
+		break;
+
+	default:
+		cifsd_err("unknown event %u\n", ev->type);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+/**
+ * cifsstat_process_args() - helper function to process cifsd events
+ * @nlsock:	for netlink socket communication
+ * @ev:		cifsd_uevent for sending request with event type
+ * @buf:	containing message to send over netlink socket
+ * @buflen:	length of buf
+ *
+ * Return:	success: 0; fail: -1
+ */
+int cifsstat_process_args(struct nl_sock *nlsock, struct cifsd_uevent *ev,
+	char *buf, int buflen)
+{
+	if (cifsd_common_sendmsg(nlsock, ev, buf, buflen) < 0) {
+		cifsd_err("cifsd event sending failed\n");
+		return -1;
+	}
+	nlsock->event_handle_cb = cifsstat_request_handler;
+	return nl_handle_event(nlsock);
+}
+/**
  * process_args() - helper function to process commandline arguments
  * @flags:	user selected option to process
  * @client:	client IP under request
@@ -169,23 +243,39 @@ int is_validIP(char *ipaddr)
  */
 int process_args(int flags, char *client, int size)
 {
+	struct cifsd_uevent ev;
+	struct nl_sock *nlsock = nl_init();
+	int ret = 0;
+
+	if (!nlsock) {
+		cifsd_err("Failed to allocate memory for netlink socket\n");
+		return -ENOMEM;
+	}
+
+	nl_handle_init_cifsstat(nlsock);
+	memset(&ev, 0, sizeof(ev));
+
 	if (flags & O_SERVER) {
-		if (setstatopt(OPT_SERVER, strlen(OPT_SERVER)))
-			return -1;
-		if (getstats("Server"))
-			return -1;
+		ev.type = CIFSSTAT_UEVENT_READ_STAT;
+		ev.k.r_stat.flag = O_SERVER;
+		ret = cifsstat_process_args(nlsock, &ev, NULL, 0);
+		if (ret < 0)
+			cifsd_err("server stat info: failed\n");
 		flags &= ~O_SERVER;
 	}
 
 	if (flags & O_CLIENT) {
-		if (setstatopt(client, size))
-			return -1;
-		if (getstats("Client"))
-			return -1;
+		ev.type = CIFSSTAT_UEVENT_READ_STAT;
+		ev.k.r_stat.flag = O_CLIENT;
+		strncpy(ev.k.r_stat.statip, client, strlen(client));
+		ret = cifsstat_process_args(nlsock, &ev, NULL, 0);
+		if (ret < 0)
+			cifsd_err("client stat info: failed\n");
 		flags &= ~O_CLIENT;
 	}
 
-	return 0;
+	nl_exit(nlsock);
+	return ret;
 }
 
 /**
@@ -237,7 +327,7 @@ int main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 		}
 	}
-	if (process_args(flags, client, strlen(client)))
+	if (process_args(flags, client, strlen(client)) < 0)
 		fprintf(stdout, "Unable to process request, try again\n");
 
 	return 0;

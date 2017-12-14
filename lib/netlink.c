@@ -106,6 +106,15 @@ int nl_handle_exit_cifsd(struct nl_sock *nlsock)
 	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
 }
 
+int nl_handle_init_cifsstat(struct nl_sock *nlsock)
+{
+	struct cifsd_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSSTAT_UEVENT_INIT_CONNECTION;
+	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
+}
+
 static int cifsd_nl_read(struct nl_sock *nlsock,
 		char *buf, unsigned int buflen, int flags)
 {

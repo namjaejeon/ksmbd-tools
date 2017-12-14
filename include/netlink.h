@@ -24,6 +24,12 @@
 #include <linux/netlink.h>
 #include "cifsd.h"
 
+#ifdef IPV6_SUPPORTED
+#define MAX_IPLEN 128
+#else
+#define MAX_IPLEN 16
+#endif
+
 #define NETLINK_CIFSD		31
 #define NETLINK_CIFSD_MAX_PAYLOAD	4096
 #define NETLINK_CIFSD_MAX_BUF         (sizeof(struct nlmsghdr) +      \
@@ -37,28 +43,28 @@
 
 /* Completion Filter flags for Notify */
 #define FILE_NOTIFY_CHANGE_FILE_NAME	0x00000001
-#define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
-#define FILE_NOTIFY_CHANGE_NAME			0x00000003
+#define FILE_NOTIFY_CHANGE_DIR_NAME	0x00000002
+#define FILE_NOTIFY_CHANGE_NAME		0x00000003
 #define FILE_NOTIFY_CHANGE_ATTRIBUTES	0x00000004
-#define FILE_NOTIFY_CHANGE_SIZE			0x00000008
+#define FILE_NOTIFY_CHANGE_SIZE		0x00000008
 #define FILE_NOTIFY_CHANGE_LAST_WRITE	0x00000010
 #define FILE_NOTIFY_CHANGE_LAST_ACCESS	0x00000020
-#define FILE_NOTIFY_CHANGE_CREATION		0x00000040
-#define FILE_NOTIFY_CHANGE_EA			0x00000080
-#define FILE_NOTIFY_CHANGE_SECURITY		0x00000100
+#define FILE_NOTIFY_CHANGE_CREATION	0x00000040
+#define FILE_NOTIFY_CHANGE_EA		0x00000080
+#define FILE_NOTIFY_CHANGE_SECURITY	0x00000100
 #define FILE_NOTIFY_CHANGE_STREAM_NAME	0x00000200
 #define FILE_NOTIFY_CHANGE_STREAM_SIZE	0x00000400
 #define FILE_NOTIFY_CHANGE_STREAM_WRITE	0x00000800
 
 /* SMB2 Notify Action Flags */
-#define FILE_ACTION_ADDED				0x00000001
-#define FILE_ACTION_REMOVED				0x00000002
-#define FILE_ACTION_MODIFIED			0x00000003
+#define FILE_ACTION_ADDED		0x00000001
+#define FILE_ACTION_REMOVED		0x00000002
+#define FILE_ACTION_MODIFIED		0x00000003
 #define FILE_ACTION_RENAMED_OLD_NAME	0x00000004
 #define FILE_ACTION_RENAMED_NEW_NAME	0x00000005
-#define FILE_ACTION_ADDED_STREAM		0x00000006
-#define FILE_ACTION_REMOVED_STREAM		0x00000007
-#define FILE_ACTION_MODIFIED_STREAM		0x00000008
+#define FILE_ACTION_ADDED_STREAM	0x00000006
+#define FILE_ACTION_REMOVED_STREAM	0x00000007
+#define FILE_ACTION_MODIFIED_STREAM	0x00000008
 #define FILE_ACTION_REMOVED_BY_DELETE	0x00000009
 
 enum cifsd_uevent_e {
@@ -72,6 +78,10 @@ enum cifsd_uevent_e {
 	CIFSD_UEVENT_LANMAN_PIPE_RSP,
 	CIFSD_UEVENT_EXIT_CONNECTION,
 	CIFSD_UEVENT_INOTIFY_RESPONSE,
+
+	CIFSSTAT_UEVENT_INIT_CONNECTION,
+	CIFSSTAT_UEVENT_READ_STAT,
+	CIFSSTAT_UEVENT_READ_STAT_RSP,
 
 	/* up events: kernel space to userspace */
 	CIFSD_KEVENT_CREATE_PIPE	= 100,
@@ -113,6 +123,9 @@ struct cifsd_uevent {
 			unsigned int    data_count;
 			unsigned int    param_count;
 		} l_pipe_rsp;
+		struct msg_read_stat_response {
+			unsigned int    unused;
+		} r_stat_rsp;
 	} u;
 
 	union {
@@ -140,6 +153,10 @@ struct cifsd_uevent {
 			char    codepage[CIFSD_CODEPAGE_LEN];
 			char    username[CIFSD_USERNAME_LEN];
 		} l_pipe;
+		struct msg_read_stat {
+			__u64		flag;
+			char		statip[MAX_IPLEN];
+		} r_stat;
 	} k;
 	char buffer[0];
 };
@@ -187,5 +204,6 @@ int nl_exit(struct nl_sock *nlsock);
 
 int nl_handle_init_cifsd(struct nl_sock *nlsock);
 int nl_handle_exit_cifsd(struct nl_sock *nlsock);
+int nl_handle_init_cifsstat(struct nl_sock *nlsock);
 
 #endif /* __CIFSD_TOOLS_NETLINK_H */
