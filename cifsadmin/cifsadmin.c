@@ -20,6 +20,7 @@
  */
 
 #include "cifsadmin.h"
+#include "netlink.h"
 
 /* global variables */
 static char *dup_optarg;
@@ -452,8 +453,6 @@ int remove_user_entry(int fd, char *usrname, int lno)
 	char *data;
 	size_t rem;
 	char *line = NULL;
-	char *construct;
-	int fd_usr;
 	int eof = 0;
 	int len;
 	int cnt = 1;
@@ -530,42 +529,23 @@ int remove_user_entry(int fd, char *usrname, int lno)
 
 	free(data);
 
-	fd_usr = open(PATH_CIFSD_USR, O_WRONLY);
-	if (fd_usr) {
-		len = strlen(usrname) + 2;
-		construct = (char *)malloc(len);
-		if (!construct) {
-			close(fd_usr);
-			return 0;
-		}
-
-		memset(construct, 0, len);
-		snprintf(construct, len, "%s:", usrname);
-		if (write(fd_usr, construct, len-1) != len-1) {
-			cifsd_err("%s write failed, errno : %d\n",
-				PATH_CIFSD_USR, errno);
-			free(construct);
-			close(fd_usr);
-			return 0;
-		}
-		free(construct);
-		close(fd_usr);
-	}
-
 	return 1;
 }
 
 /**
  * remove_user_account() - function to remove user account
+ * @nlsock:	netlink socket
+ * @fd:		user db file descriptor
  * @username:	account for username to be removed
  *
  * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
  */
-int remove_user_account(int fd, char *username)
+int remove_user_account(struct nl_sock *nlsock, int fd, char *username)
 {
+	struct cifsd_uevent ev;
 	char *line, *name;
 	int iseof = 0, lcnt = 0, removed = 0, len;
-
+	int ret;
 	if (lseek(fd, 0, SEEK_SET) == -1) {
 		cifsd_debug("%d: file operation failed\n", __LINE__);
 		return CIFS_FAIL;
@@ -594,53 +574,112 @@ int remove_user_account(int fd, char *username)
 
 	} while (!iseof && !removed);
 
+	ret = removed ? CIFS_SUCCESS : CIFS_FAIL;
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSADMIN_KEVENT_REMOVE_USER;
+	ev.error = ret;
+	strncpy(ev.k.u_del.username, username, strlen(username));
 
-	return removed ? CIFS_SUCCESS : CIFS_FAIL;
+	if (cifsd_common_sendmsg(nlsock, &ev, NULL, 0) < 0)
+		return CIFS_FAIL;
+
+	return ret;
 }
 
 /**
- * query_user_account() - function to check user account status in cifsd
+ * query_user_account() - function to check cifsd user account status
+ * @nlsock:	netlink socket
  * @usrname:	user name for the account under query
  *
  * Return:	success: CIFS_SUCCESS (user configured with cifsd)
- *		fail: CIFS_NONE_USR (user not configured with cifsd)
  *		fail: CIFS_FAIL (cifsd not available)
  */
-int query_user_account(char *username)
+int query_user_account(struct nl_sock *nlsock, char *username)
 {
-	char *q_usrname;
-	int eof = 0, len, ret;
-	FILE *fp;
+	struct cifsd_uevent ev;
 
-	fp = fopen(PATH_CIFSD_USR, "r");
-	if (!fp) {
-		cifsd_err("%s open failed, error : %d\n", PATH_CIFSD_USR, errno);
-		return -errno;
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSADMIN_KEVENT_QUERY_USER;
+	strncpy(ev.k.u_query.username, username, strlen(username));
+
+	if (cifsd_common_sendmsg(nlsock, &ev, NULL, 0) < 0)
+		return CIFS_FAIL;
+
+	return CIFS_SUCCESS;
+}
+
+/**
+ * handle_query_user_account() - handler for cifsd query user account
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: CIFS_SUCCESS (user configured with cifsd)
+ *		fail: CIFS_NONE_USR (user not configured with cifsd)
+ */
+static int handle_query_user_account(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	char *username = ev->k.u_query.username;
+
+	if (ev->error) {
+		cifsd_err("[%s] is not configured with cifsd\n", username);
+		return CIFS_NONE_USR;
 	}
 
-retry:
-	len = readline(fp, &q_usrname, &eof, 0);
-	if (len > 0) {
-		if (*q_usrname == '\0') /* skip NULL in read from sysfs */
-			ret = strncmp(q_usrname+1, username, strlen(username));
-		else
-			ret = strncmp(q_usrname, username, strlen(username));
+	cifsd_err("[%s] is configured with cifsd\n", username);
+	return CIFS_SUCCESS;
+}
 
-		if (!ret) {
-			cifsd_err("[%s] is configured with cifsd\n",
-				username);
-		} else {
-			free(q_usrname);
-			goto retry;
-		}
-	} else
-		cifsd_err("[%s] is not configured with cifsd\n",
-				username);
+/**
+ * handle_remove_user_account() - handler for cifsd remove user account
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: CIFS_SUCCESS (user configured with cifsd)
+ *		fail: CIFS_NONE_USR (user not configured with cifsd)
+ */
+static int handle_remove_user_account(struct nl_sock *nlsock)
+{
 
-	fclose(fp);
-	free(q_usrname);
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	char *username = ev->k.u_query.username;
 
-	return ((len > 0) ? CIFS_SUCCESS : CIFS_NONE_USR);
+	if (ev->error) {
+		cifsd_err("[%s] is not present\n", username);
+		return CIFS_NONE_USR;
+	}
+	return CIFS_SUCCESS;
+}
+
+/**
+ * cifsadmin_request_handler() - to handle cifsd events
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	0: on success or error code on fail
+ *		error code: on fail
+ */
+
+int cifsadmin_request_handler(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int ret = 0;
+
+	cifsd_debug("start cifsadmin event\n");
+
+	switch (nlh->nlmsg_type) {
+	case CIFSADMIN_UEVENT_QUERY_USER_RSP:
+		ret = handle_query_user_account(nlsock);
+		break;
+	case CIFSADMIN_UEVENT_REMOVE_USER_RSP:
+		ret = handle_remove_user_account(nlsock);
+		break;
+	default:
+		cifsd_err("unknown event %u\n", ev->type);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
 }
 
 /**
@@ -742,6 +781,7 @@ void sigcatcher_setup(void)
  */
 int main(int argc, char *argv[])
 {
+	struct nl_sock *nlsock = NULL;
 	int options = 0, ret = 0;
 	int fd_db;
 
@@ -766,18 +806,41 @@ int main(int argc, char *argv[])
 	if (getuid() == 0)
 		options |= AM_ROOT;
 
+	if ((options & F_QUERY_USER) || (options & F_REMOVE_USER)) {
+		nlsock = nl_init();
+		if (!nlsock) {
+			cifsd_err("Failed to allocate memory"
+					" for netlink socket\n");
+			return -ENOMEM;
+		}
+
+		nl_handle_init_cifsadmin(nlsock);
+	}
+
 	if ((options & F_QUERY_USER) && dup_optarg)
-		ret = query_user_account(dup_optarg);
-	else if (((options & F_ADD_USER) || (options & F_REMOVE_USER)) && dup_optarg) {
+		ret = query_user_account(nlsock, dup_optarg);
+	else if (((options & F_ADD_USER) || (options & F_REMOVE_USER))
+		&& dup_optarg) {
 		struct passwd *p = getpwuid(getuid());
 		if ((options & AM_ROOT) || !strcmp(p->pw_name, dup_optarg)) {
-			if (options & F_ADD_USER)
-				ret = add_user_account(fd_db, dup_optarg, options);
+			if (options & F_ADD_USER) {
+				ret = add_user_account(fd_db, dup_optarg,
+							 options);
+				goto out;
+			}
 			else if (options & F_REMOVE_USER)
-				ret = remove_user_account(fd_db, dup_optarg);
+				ret = remove_user_account(nlsock, fd_db,
+							dup_optarg);
 		}
 	}
 
+	if (nlsock) {
+		nlsock->event_handle_cb = cifsadmin_request_handler;
+		nl_handle_event(nlsock);
+		nl_exit(nlsock);
+	}
+
+out:
 	close(fd_db);
 	if (dup_optarg)
 		free(dup_optarg);

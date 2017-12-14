@@ -106,6 +106,16 @@ int nl_handle_exit_cifsd(struct nl_sock *nlsock)
 	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
 }
 
+int nl_handle_init_cifsadmin(struct nl_sock *nlsock)
+{
+	struct cifsd_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSADMIN_UEVENT_INIT_CONNECTION;
+
+	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
+}
+
 int nl_handle_init_cifsstat(struct nl_sock *nlsock)
 {
 	struct cifsd_uevent ev;

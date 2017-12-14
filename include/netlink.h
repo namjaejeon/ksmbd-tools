@@ -79,6 +79,10 @@ enum cifsd_uevent_e {
 	CIFSD_UEVENT_EXIT_CONNECTION,
 	CIFSD_UEVENT_INOTIFY_RESPONSE,
 
+	CIFSADMIN_UEVENT_INIT_CONNECTION,
+	CIFSADMIN_UEVENT_QUERY_USER_RSP,
+	CIFSADMIN_UEVENT_REMOVE_USER_RSP,
+
 	CIFSSTAT_UEVENT_INIT_CONNECTION,
 	CIFSSTAT_UEVENT_READ_STAT,
 	CIFSSTAT_UEVENT_READ_STAT_RSP,
@@ -92,6 +96,9 @@ enum cifsd_uevent_e {
 	CIFSD_KEVENT_DESTROY_PIPE,
 	CFISD_KEVENT_USER_DAEMON_EXIST,
 	CIFSD_KEVENT_INOTIFY_REQUEST,
+
+	CIFSADMIN_KEVENT_QUERY_USER,
+	CIFSADMIN_KEVENT_REMOVE_USER,
 };
 
 struct cifsd_uevent {
@@ -126,6 +133,12 @@ struct cifsd_uevent {
 		struct msg_read_stat_response {
 			unsigned int    unused;
 		} r_stat_rsp;
+		struct msg_user_query_response {
+			unsigned int    unused;
+		} u_query_rsp;
+		struct msg_user_del_response {
+			unsigned int    unused;
+		} u_del_rsp;
 	} u;
 
 	union {
@@ -157,6 +170,12 @@ struct cifsd_uevent {
 			__u64		flag;
 			char		statip[MAX_IPLEN];
 		} r_stat;
+		struct msg_user_query {
+			char		username[CIFSD_USERNAME_LEN];
+		} u_query;
+		struct msg_user_del {
+			char		username[CIFSD_USERNAME_LEN];
+		} u_del;
 	} k;
 	char buffer[0];
 };
@@ -205,5 +224,6 @@ int nl_exit(struct nl_sock *nlsock);
 int nl_handle_init_cifsd(struct nl_sock *nlsock);
 int nl_handle_exit_cifsd(struct nl_sock *nlsock);
 int nl_handle_init_cifsstat(struct nl_sock *nlsock);
+int nl_handle_init_cifsadmin(struct nl_sock *nlsock);
 
 #endif /* __CIFSD_TOOLS_NETLINK_H */
