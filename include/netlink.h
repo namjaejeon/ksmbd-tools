@@ -163,11 +163,29 @@ struct smb2_inotify_res_info {
 	struct FileNotifyInformation file_notify_info[];
 };
 
+struct nl_sock {
+	char *nlsk_rcv_buf;
+	char *nlsk_send_buf;
+	int nlsk_fd;
+	struct sockaddr_nl src_addr;
+	struct sockaddr_nl dest_addr;
+	int (*event_handle_cb)(struct nl_sock *nlsock);
+};
+
 /* List of connected clients */
 struct list_head cifsd_clients;
 struct list_head cifsd_notify_clients;
-int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
-		unsigned int buflen);
+int cifsd_common_sendmsg(struct nl_sock *nlsock, struct cifsd_uevent *ev,
+		char *buf, unsigned int buflen);
 int cifsd_netlink_setup(void);
+
+/* Netlink Interface*/
+struct nl_sock *nl_init();
+int nl_handle_event(struct nl_sock *nlsock);
+void nl_loop(struct nl_sock *nlsock);
+int nl_exit(struct nl_sock *nlsock);
+
+int nl_handle_init_cifsd(struct nl_sock *nlsock);
+int nl_handle_exit_cifsd(struct nl_sock *nlsock);
 
 #endif /* __CIFSD_TOOLS_NETLINK_H */

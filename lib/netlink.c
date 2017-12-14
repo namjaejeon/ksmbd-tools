@@ -28,16 +28,8 @@
 
 #include "netlink.h"
 
-static char *nlsk_rcv_buf = NULL;
-static char *nlsk_send_buf = NULL;
-static int nlsk_fd = -1;
-static struct sockaddr_nl src_addr, dest_addr;
-
-extern int request_handler(void *msg);
-extern void initialize(void);
-
-static int cifsd_sendmsg(struct cifsd_uevent *eev, unsigned int dlen,
-		char *data)
+static int cifsd_sendmsg(struct nl_sock *nlsock, struct cifsd_uevent *eev,
+		unsigned int dlen, char *data)
 {
 	struct nlmsghdr *nlh;
 	struct cifsd_uevent *ev;
@@ -46,7 +38,7 @@ static int cifsd_sendmsg(struct cifsd_uevent *eev, unsigned int dlen,
 	int len;
 
 	cifsd_debug("sending %u event\n", eev->type);
-	nlh = (struct nlmsghdr *)nlsk_send_buf;
+	nlh = (struct nlmsghdr *)nlsock->nlsk_send_buf;
 	memset(nlh, 0, NETLINK_CIFSD_MAX_BUF);
 	nlh->nlmsg_len = NLMSG_SPACE(sizeof(*ev));
 	nlh->nlmsg_type = eev->type;
@@ -63,12 +55,12 @@ static int cifsd_sendmsg(struct cifsd_uevent *eev, unsigned int dlen,
 	iov.iov_len = nlh->nlmsg_len;
 
 	memset(&msg, 0, sizeof(msg));
-	msg.msg_name= (void*)&dest_addr;
-	msg.msg_namelen = sizeof(dest_addr);
+	msg.msg_name = (void *)&nlsock->dest_addr;
+	msg.msg_namelen = sizeof(nlsock->dest_addr);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	len = sendmsg(nlsk_fd, &msg, 0);
+	len = sendmsg(nlsock->nlsk_fd, &msg, 0);
 	if (len == -1)
 		perror("sendmsg");
 	else if (len != nlh->nlmsg_len)
@@ -77,8 +69,8 @@ static int cifsd_sendmsg(struct cifsd_uevent *eev, unsigned int dlen,
 	return len;
 }
 
-int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
-		unsigned int buflen)
+int cifsd_common_sendmsg(struct nl_sock *nlsock, struct cifsd_uevent *ev,
+		char *buf, unsigned int buflen)
 {
 	int ret;
 
@@ -87,34 +79,35 @@ int cifsd_common_sendmsg(struct cifsd_uevent *ev, char *buf,
 		return -1;
 	}
 
-	ret = cifsd_sendmsg(ev, buflen, buf);
+	ret = cifsd_sendmsg(nlsock, ev, buflen, buf);
 	if (ret < 0)
 		cifsd_err("failed to send event %u\n", ev->type);
 
 	return ret;
 }
 
-static int handle_init_event(void)
+int nl_handle_init_cifsd(struct nl_sock *nlsock)
 {
 	struct cifsd_uevent ev;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = CIFSD_UEVENT_INIT_CONNECTION;
 
-	return cifsd_common_sendmsg(&ev, NULL, 0);
+	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
 }
 
-static int handle_exit_event(void)
+int nl_handle_exit_cifsd(struct nl_sock *nlsock)
 {
 	struct cifsd_uevent ev;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = CIFSD_UEVENT_EXIT_CONNECTION;
 
-	return cifsd_common_sendmsg(&ev, NULL, 0);
+	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
 }
 
-static int cifsd_nl_read(char *buf, unsigned int buflen, int flags)
+static int cifsd_nl_read(struct nl_sock *nlsock,
+		char *buf, unsigned int buflen, int flags)
 {
 	int len;
 	struct iovec iov;
@@ -124,52 +117,97 @@ static int cifsd_nl_read(char *buf, unsigned int buflen, int flags)
 	iov.iov_len = buflen;
 
 	memset(&msg, 0, sizeof(msg));
-	msg.msg_name= (void*)&src_addr;
-	msg.msg_namelen = sizeof(src_addr);
+	msg.msg_name = (void *)&nlsock->src_addr;
+	msg.msg_namelen = sizeof(nlsock->src_addr);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	len = recvmsg(nlsk_fd, &msg, flags);
+	len = recvmsg(nlsock->nlsk_fd, &msg, flags);
 	if (len == -1)
 		perror("recvmsg");
 	else if (len != buflen)
 		cifsd_err("partial data read, expected %u, actual %u\n",
 				buflen, len);
-
 	return len;
 }
 
-static int cifsd_handle_event(void)
+int nl_handle_event(struct nl_sock *nlsock)
 {
 	int len;
 	struct cifsd_uevent *ev;
 	struct nlmsghdr *nlh;
 
-	len = cifsd_nl_read(nlsk_rcv_buf,
+	len = cifsd_nl_read(nlsock, nlsock->nlsk_rcv_buf,
 			NLMSG_SPACE(sizeof(struct cifsd_uevent)),
 			MSG_PEEK);
 	if (len != NLMSG_SPACE(sizeof(struct cifsd_uevent)))
 		return -1;
-
-	nlh = (struct nlmsghdr *)nlsk_rcv_buf;
-	ev = (struct cifsd_uevent *)NLMSG_DATA(nlsk_rcv_buf);
+	nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	ev = (struct cifsd_uevent *)NLMSG_DATA(nlsock->nlsk_rcv_buf);
 	if (len != nlh->nlmsg_len && ev->buflen) {
-		len = cifsd_nl_read(nlsk_rcv_buf, nlh->nlmsg_len, MSG_PEEK);
+		len = cifsd_nl_read(nlsock, nlsock->nlsk_rcv_buf,
+					nlh->nlmsg_len, MSG_PEEK);
 		if (len != nlh->nlmsg_len)
 			return -1;
 	}
 
-	len = cifsd_nl_read(nlsk_rcv_buf, nlh->nlmsg_len, 0);
-	if (len != nlh->nlmsg_len)
-	{
+	len = cifsd_nl_read(nlsock, nlsock->nlsk_rcv_buf, nlh->nlmsg_len, 0);
+	if (len != nlh->nlmsg_len) {
 		cifsd_err("failed to remove data\n");
 		return -1;
 	}
 
-	return request_handler(nlh);
+	return (int)(nlsock->event_handle_cb)(nlsock);
 }
 
-static void cifsd_nl_loop(void)
+struct nl_sock *nl_init()
+{
+	struct nl_sock *nlsock;
+
+	nlsock = malloc(sizeof(struct nl_sock));
+	nlsock->nlsk_rcv_buf = malloc(NETLINK_CIFSD_MAX_BUF);
+	if (!nlsock->nlsk_rcv_buf) {
+		perror("can't alloc netlink buffer\n");
+		return NULL;
+	}
+
+	nlsock->nlsk_send_buf = malloc(NETLINK_CIFSD_MAX_BUF);
+	if (!nlsock->nlsk_send_buf) {
+		perror("can't alloc netlink buffer\n");
+		goto free_rcv_buf;
+	}
+
+	nlsock->nlsk_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_CIFSD);
+	if (nlsock->nlsk_fd < 0) {
+		perror("Failed to create netlink socket\n");
+		goto free_send_buf;
+	}
+
+	memset(&nlsock->src_addr, 0, sizeof(nlsock->src_addr));
+	nlsock->src_addr.nl_family = AF_NETLINK;
+	nlsock->src_addr.nl_pid = getpid();
+
+	if (bind(nlsock->nlsk_fd, (struct sockaddr *)&nlsock->src_addr,
+		sizeof(nlsock->src_addr))) {
+		perror("Failed to bind netlink socket\n");
+		goto close_sock;
+	}
+
+	memset(&nlsock->dest_addr, 0, sizeof(nlsock->dest_addr));
+	nlsock->dest_addr.nl_family = AF_NETLINK;
+	nlsock->dest_addr.nl_pid = 0; /* kernel */
+	return nlsock;
+
+close_sock:
+	close(nlsock->nlsk_fd);
+free_send_buf:
+	free(nlsock->nlsk_send_buf);
+free_rcv_buf:
+	free(nlsock->nlsk_rcv_buf);
+	return NULL;
+}
+
+void nl_loop(struct nl_sock *nlsock)
 {
 	fd_set readfds;
 	int ret;
@@ -177,87 +215,28 @@ static void cifsd_nl_loop(void)
 	for (;;) {
 		/* add cifsd netlink socket fd to read fd list*/
 		FD_ZERO(&readfds);
-		FD_SET(nlsk_fd, &readfds);
+		FD_SET(nlsock->nlsk_fd, &readfds);
 
-		ret = select(nlsk_fd + 1, &readfds, NULL, NULL, NULL);
-		if (ret == -1 && errno != EINTR) {
+		ret = select(nlsock->nlsk_fd + 1, &readfds, NULL, NULL, NULL);
+		if (ret == -1) {
 			perror("select");
-		}
-		else {
-			if (FD_ISSET(nlsk_fd, &readfds)) {
-				cifsd_handle_event();
-			}
+		} else {
+			if (FD_ISSET(nlsock->nlsk_fd, &readfds))
+				nl_handle_event(nlsock);
 		}
 	}
 }
 
-int cifsd_nl_init(void)
+int nl_exit(struct nl_sock *nlsock)
 {
-	nlsk_rcv_buf = malloc(NETLINK_CIFSD_MAX_BUF);
-	if (!nlsk_rcv_buf) {
-		perror("can't alloc netlink buffer\n");
-		return -1;
-	}
+	if (nlsock->nlsk_fd >= 0)
+		close(nlsock->nlsk_fd);
 
-	nlsk_send_buf = malloc(NETLINK_CIFSD_MAX_BUF);
-	if (!nlsk_send_buf) {
-		perror("can't alloc netlink buffer\n");
-		goto free_rcv_buf;
-	}
+	if (nlsock->nlsk_send_buf)
+		free(nlsock->nlsk_send_buf);
 
-	nlsk_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_CIFSD);
-	if (nlsk_fd < 0) {
-		perror("Failed to create netlink socket\n");
-		goto free_send_buf;
-	}
-
-	memset(&src_addr, 0, sizeof(src_addr));
-	src_addr.nl_family = AF_NETLINK;
-	src_addr.nl_pid = getpid();
-
-	if (bind(nlsk_fd, (struct sockaddr *)&src_addr, sizeof(src_addr))) {
-		perror("Failed to bind netlink socket\n");
-		goto close_sock;
-	}
-
-	memset(&dest_addr, 0, sizeof(dest_addr));
-	dest_addr.nl_family = AF_NETLINK;
-	dest_addr.nl_pid = 0; /* kernel */
+	if (nlsock->nlsk_rcv_buf)
+		free(nlsock->nlsk_rcv_buf);
 	return 0;
 
-close_sock:
-	close(nlsk_fd);
-free_send_buf:
-	free(nlsk_send_buf);
-free_rcv_buf:
-	free(nlsk_rcv_buf);
-	return -1;
-}
-
-int cifsd_nl_exit(void)
-{
-	if (nlsk_fd >= 0)
-		close(nlsk_fd);
-
-	if (nlsk_send_buf)
-		free(nlsk_send_buf);
-
-	if (nlsk_rcv_buf)
-		free(nlsk_rcv_buf);
-	return 0;
-}
-
-int cifsd_netlink_setup(void)
-{
-	if (cifsd_nl_init())
-		return -1;
-
-	initialize();
-	handle_init_event();
-
-	cifsd_nl_loop();
-
-	handle_exit_event();
-	cifsd_nl_exit();
-	return 0;
 }
