@@ -86,6 +86,16 @@ int cifsd_common_sendmsg(struct nl_sock *nlsock, struct cifsd_uevent *ev,
 	return ret;
 }
 
+int nl_handle_early_init_cifsd(struct nl_sock *nlsock)
+{
+	struct cifsd_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSD_KEVENT_EARLY_INIT;
+
+	return cifsd_common_sendmsg(nlsock, &ev, NULL, 0);
+}
+
 int nl_handle_init_cifsd(struct nl_sock *nlsock)
 {
 	struct cifsd_uevent ev;

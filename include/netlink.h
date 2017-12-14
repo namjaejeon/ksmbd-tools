@@ -78,6 +78,8 @@ enum cifsd_uevent_e {
 	CIFSD_UEVENT_LANMAN_PIPE_RSP,
 	CIFSD_UEVENT_EXIT_CONNECTION,
 	CIFSD_UEVENT_INOTIFY_RESPONSE,
+	CIFSD_UEVENT_CONFIG_USER_RSP,
+	CIFSD_UEVENT_CONFIG_SHARE_RSP,
 
 	CIFSADMIN_UEVENT_INIT_CONNECTION,
 	CIFSADMIN_UEVENT_QUERY_USER_RSP,
@@ -96,6 +98,9 @@ enum cifsd_uevent_e {
 	CIFSD_KEVENT_DESTROY_PIPE,
 	CFISD_KEVENT_USER_DAEMON_EXIST,
 	CIFSD_KEVENT_INOTIFY_REQUEST,
+	CIFSD_KEVENT_EARLY_INIT,
+	CIFSD_KEVENT_CONFIG_USER,
+	CIFSD_KEVENT_CONFIG_SHARE,
 
 	CIFSADMIN_KEVENT_QUERY_USER,
 	CIFSADMIN_KEVENT_REMOVE_USER,
@@ -213,7 +218,7 @@ struct list_head cifsd_clients;
 struct list_head cifsd_notify_clients;
 int cifsd_common_sendmsg(struct nl_sock *nlsock, struct cifsd_uevent *ev,
 		char *buf, unsigned int buflen);
-int cifsd_netlink_setup(void);
+int cifsd_netlink_setup(struct nl_sock *nlsock);
 
 /* Netlink Interface*/
 struct nl_sock *nl_init();
@@ -221,6 +226,7 @@ int nl_handle_event(struct nl_sock *nlsock);
 void nl_loop(struct nl_sock *nlsock);
 int nl_exit(struct nl_sock *nlsock);
 
+int nl_handle_early_init_cifsd(struct nl_sock *nlsock);
 int nl_handle_init_cifsd(struct nl_sock *nlsock);
 int nl_handle_exit_cifsd(struct nl_sock *nlsock);
 int nl_handle_init_cifsstat(struct nl_sock *nlsock);

@@ -39,29 +39,52 @@ void usage(void)
 }
 
 /**
+ * cifsd_request_handler() - cifsd netlink request handler
+ * @nlsock:	netlink socket
+ *
+ * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
+ */
+int cifsd_request_handler(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int ret = 0;
+
+	cifsd_debug("start cifsd event[%d]\n", nlh->nlmsg_type);
+
+	switch (nlh->nlmsg_type) {
+	case CIFSD_UEVENT_CONFIG_USER_RSP:
+	case CIFSD_UEVENT_CONFIG_SHARE_RSP:
+		ret = ev->error;
+		break;
+	default:
+		cifsd_err("unknown event %u\n", ev->type);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+/**
  * config_users() - function to configure cifsd with user accounts from
  *		local database file. cifsd should be live in kernel
  *		else this function fails and displays user message
  *		"cifsd is not available"
+ * @nlsock:	netlink socket
+ * @db_path:	username db file path
  *
  * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
  */
-int config_users(char *db_path)
+int config_users(struct nl_sock *nlsock, char *db_path)
 {
-	int eof = 0, usr_fd, db_fd;
+	int eof = 0, db_fd;
 	char *entry, *user_account, *dummy, *user_entry = NULL;
+	struct cifsd_uevent ev;
+	int user_len;
 
 	db_fd = open(db_path, O_RDONLY);
 	if (db_fd < 0) {
 		cifsd_err("[%s] open failed(errno : %d)\n", db_path, errno);
-		return CIFS_FAIL;
-	}
-
-	usr_fd = open(PATH_CIFSD_USR, O_WRONLY);
-	if (usr_fd < 0) {
-		cifsd_err("[%s] open failed(errno : %d)\n", PATH_CIFSD_USR,
-				errno);
-		close(db_fd);
 		return CIFS_FAIL;
 	}
 
@@ -115,11 +138,21 @@ int config_users(char *db_path)
 				free(id_buf);
 			}
 
-			if (write(usr_fd, user_entry, ent_len) != ent_len) {
-				cifsd_err("%s write failed, errno : %d\n",
-					PATH_CIFSD_USR, errno);
-				goto out;
+			memset(&ev, 0, sizeof(ev));
+			ev.type = CIFSD_KEVENT_CONFIG_USER;
+			user_len = strlen(user_entry);
+			ev.buflen = user_len;
+			if (cifsd_common_sendmsg(nlsock, &ev, user_entry,
+				user_len + 1) < 0) {
+				cifsd_err("cifsd event sending failed\n");
+				return -1;
 			}
+			nlsock->event_handle_cb = cifsd_request_handler;
+			if (nl_handle_event(nlsock) < 0) {
+				cifsd_err("user[%s] configuration failed\n",
+					user_account);
+			}
+
 			free(user_account);
 			free(dummy);
 			free(user_entry);
@@ -127,7 +160,6 @@ int config_users(char *db_path)
 		free(entry);
 	}
 
-	close(usr_fd);
 	close(db_fd);
 	return CIFS_SUCCESS;
 
@@ -137,7 +169,6 @@ out:
 	free(dummy);
 	free(user_entry);
 out2:
-	close(usr_fd);
 	close(db_fd);
 
 	return CIFS_FAIL;
@@ -453,24 +484,19 @@ void getfchar(char *LINE, int sz, char *c, char *dst, int *ssz)
  *
  * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
  */
-int config_shares(char *conf_path)
+int config_shares(struct nl_sock *nlsock, char *conf_path)
 {
 	char lshare[PAGE_SZ] = "", sharepath[PAGE_SZ] = "", tbuf[PAGE_SZ];
-	int sharepath_len = 0, cnt = 0, lssz = 0, limit = 0, eof = 0, sz;
-	int fd_conf;
+	int sharepath_len = 0, cnt = 0, lssz = 0, limit = 0, eof = 0;
 	FILE *fd_share;
+	struct cifsd_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSD_KEVENT_CONFIG_SHARE;
 
 	fd_share = fopen(conf_path, "r");
 	if (fd_share == NULL) {
 		cifsd_err("[%s] is not existing, err %d\n", conf_path, errno);
-		return CIFS_FAIL;
-	}
-
-	fd_conf = open(PATH_CIFSD_CONFIG, O_WRONLY);
-	if (fd_conf < 0) {
-		cifsd_err("[%s] open failed, err %d\n", PATH_CIFSD_CONFIG,
-			errno);
-		fclose(fd_share);
 		return CIFS_FAIL;
 	}
 
@@ -521,13 +547,18 @@ int config_shares(char *conf_path)
 				if (sharepath_len >= 0) {
 					tbuf[limit] = '\0';
 					limit += 1;
-					lseek(fd_conf, 0, SEEK_SET);
-					sz = write(fd_conf, tbuf,
-							limit);
-					if (sz != limit)
-						perror("config error");
-					else
-						parse_share_config(tbuf);
+					ev.buflen = limit;
+					if (cifsd_common_sendmsg(nlsock, &ev,
+						tbuf, limit) < 0) {
+						cifsd_err("cifsd event sending"
+								" failed\n");
+						return -1;
+					}
+					nlsock->event_handle_cb =
+							cifsd_request_handler;
+					if (nl_handle_event(nlsock) < 0)
+						cifsd_err("config share failed\n");
+					parse_share_config(tbuf);
 				}
 
 				memset(tbuf, 0, PAGE_SZ);
@@ -554,11 +585,17 @@ again:
 				if (sharepath_len >= 0) {
 					tbuf[limit] = '\0';
 					limit += 1;
-					lseek(fd_conf, 0, SEEK_SET);
-					sz = write(fd_conf, tbuf,
-							limit);
-					if (sz != limit)
-						perror("config error");
+					ev.buflen = limit;
+					if (cifsd_common_sendmsg(nlsock, &ev,
+						tbuf, limit) < 0) {
+						cifsd_err("cifsd event sending"
+								" failed\n");
+						return -1;
+					}
+					nlsock->event_handle_cb =
+							cifsd_request_handler;
+					if (nl_handle_event(nlsock) < 0)
+						cifsd_err("config share failed\n");
 				}
 
 				memset(tbuf, 0, PAGE_SZ);
@@ -581,29 +618,46 @@ out:
 	if (sharepath_len >= 0 && limit > 0) {
 		tbuf[limit] = '\0';
 		limit += 1;
-
-		lseek(fd_conf, 0, SEEK_SET);
-		sz = write(fd_conf, tbuf, limit);
-		if (sz != limit) {
-			/* retry once again */
-			sleep(1);
-			lseek(fd_conf, 0, SEEK_SET);
-			sz = write(fd_conf, tbuf, limit);
-			if (sz != limit) {
-				perror("write error");
-				cifsd_err(": <write=%d> <req=%d>\n", sz, limit);
-			}
+		ev.buflen = limit;
+		if (cifsd_common_sendmsg(nlsock, &ev, tbuf, limit) < 0) {
+			cifsd_err("cifsd event sending failed\n");
+			return -1;
 		}
-		else
-			parse_share_config(tbuf);
-
+		nlsock->event_handle_cb = cifsd_request_handler;
+		if (nl_handle_event(nlsock) < 0)
+			cifsd_err("config share failed\n");
+		parse_share_config(tbuf);
 		sharepath_len = 0;
 	}
 
 	fclose(fd_share);
-	close(fd_conf);
 
 	return CIFS_SUCCESS;
+}
+
+/**
+ * cifsd_early_setup - function to early setup before cifsd start
+ * @nlsock:	netlink structure for socket communication
+ * @cifspwd:	conataining cifsd pwd .db file path
+ * @cifsconf:	conataining cifsd .conf file path
+ *
+ * Return:	CIFS_SUCCESS: on success
+ *		CIFS_FAIL: on fail
+ */
+int cifsd_early_setup(struct nl_sock *nlsock, char *cifspwd, char *cifsconf)
+{
+	int ret;
+	/* import user account */
+	nl_handle_early_init_cifsd(nlsock);
+	ret = config_users(nlsock, cifspwd);
+	if (ret != CIFS_SUCCESS)
+		return ret;
+
+	/* import shares info */
+	ret = config_shares(nlsock, cifsconf);
+	if (ret != CIFS_SUCCESS)
+		return ret;
+	return ret;
 }
 
 int main(int argc, char**argv)
@@ -612,6 +666,12 @@ int main(int argc, char**argv)
 	char *cifsconf = PATH_SHARECONF;
 	int c;
 	int ret;
+	struct nl_sock *nlsock = nl_init();
+
+	if (!nlsock) {
+		cifsd_err("Failed to allocate memory for netlink socket\n");
+		return -ENOMEM;
+	}
 
 	/* Parse the command line options and arguments. */
 	opterr = 0;
@@ -641,22 +701,18 @@ int main(int argc, char**argv)
 
 	init_share_config();
 
-	/* import user account */
-	ret = config_users(cifspwd);
-	if (ret != CIFS_SUCCESS)
-		goto out;
-
-	/* import shares info */
-	ret = config_shares(cifsconf);
+	/* cifsd early setup */
+	ret = cifsd_early_setup(nlsock, cifspwd, cifsconf);
 	if (ret != CIFS_SUCCESS)
 		goto out;
 
 	/* netlink communication loop */
-	cifsd_netlink_setup();
+	cifsd_netlink_setup(nlsock);
 
 	exit_share_config();
 
 out:
+	nl_exit(nlsock);
 	cifsd_info("terminated\n");
 	
 	exit(1);

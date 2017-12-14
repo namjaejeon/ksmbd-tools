@@ -765,15 +765,8 @@ int request_handler(struct nl_sock *nlsock)
 	return ret;
 }
 
-int cifsd_netlink_setup(void)
+int cifsd_netlink_setup(struct nl_sock *nlsock)
 {
-	struct nl_sock *nlsock = nl_init();
-
-	if (!nlsock) {
-		cifsd_err("Failed to allocate memory for netlink socket\n");
-		return -ENOMEM;
-	}
-
 	initialize();
 	nl_handle_init_cifsd(nlsock);
 
@@ -781,7 +774,6 @@ int cifsd_netlink_setup(void)
 	nl_loop(nlsock);
 
 	nl_handle_exit_cifsd(nlsock);
-	nl_exit(nlsock);
 
 	return 0;
 }
