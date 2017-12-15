@@ -209,7 +209,7 @@ static int handle_cifsstat_list_user(struct nl_sock *nlsock)
 	}
 
 	if (ev->buflen)
-		fprintf(stdout, "Cifsd user list:%s\n", ev->buffer);
+		fprintf(stdout, "Cifsd user list:\n%s", ev->buffer);
 
 out:
 	return err;
@@ -234,7 +234,7 @@ static int handle_cifsstat_list_share(struct nl_sock *nlsock)
 	}
 
 	if (ev->buflen)
-		fprintf(stdout, "Cifsd share list:%s\n", ev->buffer);
+		fprintf(stdout, "Cifsd share list:\n%s", ev->buffer);
 
 out:
 	return err;
@@ -359,10 +359,10 @@ void usage(void)
 	fprintf(stdout, "cifsd-tools version : %s, date : %s\n"
 			"Usage: cifsstat [options]\n"
 			"options:\n"
+			"	-c <client IP> show client stat\n"
 			"	-h help\n"
 			"	-s show server stat\n"
 			"	-S show share list\n"
-			"	-c <client IP> show client stat\n"
 			"	-U show configured user list\n",
 			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 }

@@ -622,11 +622,12 @@ static int handle_query_user_account(struct nl_sock *nlsock)
 	char *username = ev->k.u_query.username;
 
 	if (ev->error) {
-		cifsd_err("[%s] is not configured with cifsd\n", username);
+		fprintf(stdout, "[%s] is not configured with cifsd\n",
+				username);
 		return CIFS_NONE_USR;
 	}
 
-	cifsd_err("[%s] is configured with cifsd\n", username);
+	fprintf(stdout, "[%s] is configured with cifsd\n", username);
 	return CIFS_SUCCESS;
 }
 
@@ -645,7 +646,7 @@ static int handle_remove_user_account(struct nl_sock *nlsock)
 	char *username = ev->k.u_query.username;
 
 	if (ev->error) {
-		cifsd_err("[%s] is not present\n", username);
+		fprintf(stdout, "[%s] is not present\n", username);
 		return CIFS_NONE_USR;
 	}
 	return CIFS_SUCCESS;
@@ -664,7 +665,26 @@ static int handle_cifsd_kernel_debug(struct nl_sock *nlsock)
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 
 	if (ev->error) {
-		cifsd_err("cifsd kernel debug setting failed\n");
+		fprintf(stdout, "cifsd kernel debug setting failed\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * handle_cifsd_caseless_search() - handler for cifsd caseless search setting
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: 0
+ *		fail: -EINVAL
+ */
+static int handle_cifsd_caseless_search(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+
+	if (ev->error) {
+		fprintf(stdout, "cifsd kernel caseless search failed\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -696,6 +716,9 @@ int cifsadmin_request_handler(struct nl_sock *nlsock)
 	case CIFSADMIN_UEVENT_KERNEL_DEBUG_RSP:
 		ret = handle_cifsd_kernel_debug(nlsock);
 		break;
+	case CIFSADMIN_UEVENT_CASELESS_SEARCH_RSP:
+		ret = handle_cifsd_caseless_search(nlsock);
+		break;
 	default:
 		cifsd_err("unknown event %u\n", ev->type);
 		ret = -EINVAL;
@@ -725,6 +748,25 @@ int cifsd_kernel_debug(struct nl_sock *nlsock, char *arg)
 }
 
 /**
+ * cifsd_caseless_search() - function to enable cifsd caseless search
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: CIFS_SUCCESS
+ *		fail: CIFS_FAIL (cifsd not available)
+ */
+int cifsd_caseless_search(struct nl_sock *nlsock, char *arg)
+{
+	struct cifsd_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSADMIN_KEVENT_CASELESS_SEARCH;
+
+	if (cifsd_common_sendmsg(nlsock, &ev, arg, (strlen(arg) + 1)) < 0)
+		return CIFS_FAIL;
+
+	return CIFS_SUCCESS;
+}
+/**
  * usage() - utility function to show usage details
  */
 void usage(void)
@@ -732,12 +774,13 @@ void usage(void)
 	fprintf(stdout, "cifsd-tools version : %s, date : %s\n"
 			"Usage: cifsadmin [option]\n"
 			"option:\n"
-			"	-h help\n"
-			"	-v verbose\n"
 			"	-a <username> add/update user account\n"
 			"	-d <username> delete user account\n"
-			"	-q <username> query user exists in cifsd\n",
-			"	-D <debug> enable debug mode\n"
+			"	-D <0 or 1> enable Kernel space debug print\n"
+			"	-h help\n"
+			"	-i <0 or 1> enable caseless search\n"
+			"	-q <username> query user exists in cifsd\n"
+			"	-v verbose\n",
 			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 
 	exit(0);
@@ -755,8 +798,9 @@ int parse_options(int argc, char **argv)
 	int ch;
 	int s_flags = 0;
 
-	while ((ch = getopt(argc, argv, "a:d:D:q:hv")) != EOF) {
-		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D') {
+	while ((ch = getopt(argc, argv, "a:d:D:i:q:hv")) != EOF) {
+		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D'
+			|| ch == 'i') {
 			if (!optarg) {
 				cifsd_debug("option [value] missing\n");
 				usage();
@@ -766,7 +810,8 @@ int parse_options(int argc, char **argv)
 			dup_optarg = strdup(optarg);
 		}
 
-		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D') {
+		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D'
+			|| ch == 'i') {
 			if (s_flags && s_flags != F_VERBOSE) {
 				cifsd_err("Try with single flag at a time\n");
 				usage();
@@ -782,6 +827,9 @@ int parse_options(int argc, char **argv)
 		break;
 		case 'D':
 			s_flags |= F_DEBUG;
+		break;
+		case 'i':
+			s_flags |= F_CASELESS_SEARCH;
 		break;
 		case 'q':
 			s_flags |= F_QUERY_USER;
@@ -853,7 +901,7 @@ int main(int argc, char *argv[])
 		options |= AM_ROOT;
 
 	if ((options & F_QUERY_USER) || (options & F_REMOVE_USER)
-		|| (options & F_DEBUG)) {
+		|| (options & F_DEBUG) || (options & F_CASELESS_SEARCH)) {
 		nlsock = nl_init();
 		if (!nlsock) {
 			cifsd_err("Failed to allocate memory"
@@ -881,6 +929,8 @@ int main(int argc, char *argv[])
 		}
 	} else if ((options & F_DEBUG) && dup_optarg)
 		ret = cifsd_kernel_debug(nlsock, dup_optarg);
+	else if ((options & F_CASELESS_SEARCH) && dup_optarg)
+		ret = cifsd_caseless_search(nlsock, dup_optarg);
 
 	if (nlsock) {
 		nlsock->event_handle_cb = cifsadmin_request_handler;
