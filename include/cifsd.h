@@ -56,10 +56,6 @@
 #define PATH_PWDDB "/etc/cifs/cifspwd.db"
 #define PATH_SHARECONF "/etc/cifs/smb.conf"
 
-#define PATH_CIFSD_CONFIG "/sys/fs/cifsd/config"
-#define PATH_CIFSD_SHARE "/sys/fs/cifsd/share"
-#define PATH_CIFSD_USR "/sys/fs/cifsd/user"
-
 #define UNICODE_LEN(x) (x * 2)
 
 #define CIFS_NTHASH_SIZE 16

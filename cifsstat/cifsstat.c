@@ -33,108 +33,10 @@
 #include "netlink.h"
 
 /* global definitions */
-#define PATH_STATS "/sys/fs/cifsd/stat"
-#define BUF_SIZE 4096
-
-#define OPT_SERVER "1"
-
 #define O_SERVER 1
 #define O_CLIENT 2
 #define O_USER   4
 #define O_SHARE  8
-
-/**
- * readstat() - reads data from cifsd statistics control interface
- * @buf:	destination buffer to copy statistics data
- * @size:	length of statistics data to read
- *
- * Return:	success: length of data copied to dst buffer; fail: -1
- */
-int readstat(char *buf, int size)
-{
-	FILE *fp;
-	int rc;
-
-	fp = fopen(PATH_STATS, "r");
-	if (!fp) {
-		fprintf(stdout, "Not able to open (%s) for read, err(%d)\n",
-					PATH_STATS, errno);
-		return -1;
-	}
-
-	rc = fread(buf, sizeof(char), size, fp);
-
-	fclose(fp);
-
-	return rc;
-}
-
-/**
- * setstatopt() - writes data to cifsd statistics control interface
- *	       Needed during read stat, to check if the request is
- *		for server stats or specific client stat
- * @opt:	buffer for setting stat option
- *		"1" in case of server and
- *		valid ip address in case of client
- * @size:	bytes to write as per option
- *
- * Return:	success: 0; fail: -1
- */
-int setstatopt(char *opt, int size)
-{
-	FILE *fp;
-	int rc = 0;
-
-	fp = fopen(PATH_STATS, "w");
-	if (!fp) {
-		fprintf(stdout, "Not able to open (%s) for write, err(%d)\n",
-					PATH_STATS, errno);
-		return -1;
-	}
-
-	if (fwrite(opt, sizeof(char), size, fp) != size) {
-		fprintf(stdout, "Failed to set stat (%s) on %s\n",
-				opt, PATH_STATS);
-		rc = -1;
-	}
-
-	fclose(fp);
-
-	return rc;
-}
-
-/**
- * getstats() - reads stats from CIFSSRSV sysfs interface
- * @node:    either server/client which object to consider for reading stats
- *
- * Return:	0 on success and -1 on failure
- */
-
-int getstats(char *node)
-{
-	char *buffer;
-	int rc;
-
-	buffer = calloc(BUF_SIZE, sizeof(char));
-	if (!buffer) {
-		fprintf(stdout,"Failed to allocate memory for stat buffer\n");
-		return -1;
-	}
-
-	rc = readstat(buffer, BUF_SIZE-1);
-	if (rc < 0) {
-		fprintf(stdout, "%s : readstat failed, err(%d)\n", node, errno);
-		free(buffer);
-		return -1;
-	} else if (rc == 0)
-		fprintf(stdout, "(%s) info not found\n", node);
-	else {
-		fprintf(stdout, "%s stats:\n", node);
-		fprintf(stdout, "%s", buffer);
-	}
-	free(buffer);
-	return 0;
-}
 
 /**
  * is_validIP() - utility function to validate IP address
