@@ -652,6 +652,25 @@ static int handle_remove_user_account(struct nl_sock *nlsock)
 }
 
 /**
+ * handle_cifsd_kernel_debug() - handler for cifsd kernel debug setting
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: 0
+ *		fail: -EINVAL
+ */
+static int handle_cifsd_kernel_debug(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+
+	if (ev->error) {
+		cifsd_err("cifsd kernel debug setting failed\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
  * cifsadmin_request_handler() - to handle cifsd events
  * @nlsock:	netlink structure for socket communication
  *
@@ -674,12 +693,35 @@ int cifsadmin_request_handler(struct nl_sock *nlsock)
 	case CIFSADMIN_UEVENT_REMOVE_USER_RSP:
 		ret = handle_remove_user_account(nlsock);
 		break;
+	case CIFSADMIN_UEVENT_KERNEL_DEBUG_RSP:
+		ret = handle_cifsd_kernel_debug(nlsock);
+		break;
 	default:
 		cifsd_err("unknown event %u\n", ev->type);
 		ret = -EINVAL;
 		break;
 	}
 	return ret;
+}
+
+/**
+ * cifsd_kernel_debug() - function to enable cifsd kernel debug mode
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: CIFS_SUCCESS
+ *		fail: CIFS_FAIL (cifsd not available)
+ */
+int cifsd_kernel_debug(struct nl_sock *nlsock, char *arg)
+{
+	struct cifsd_uevent ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = CIFSADMIN_KEVENT_KERNEL_DEBUG;
+
+	if (cifsd_common_sendmsg(nlsock, &ev, arg, (strlen(arg) + 1)) < 0)
+		return CIFS_FAIL;
+
+	return CIFS_SUCCESS;
 }
 
 /**
@@ -695,6 +737,7 @@ void usage(void)
 			"	-a <username> add/update user account\n"
 			"	-d <username> delete user account\n"
 			"	-q <username> query user exists in cifsd\n",
+			"	-D <debug> enable debug mode\n"
 			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 
 	exit(0);
@@ -712,8 +755,8 @@ int parse_options(int argc, char **argv)
 	int ch;
 	int s_flags = 0;
 
-	while ((ch = getopt(argc, argv, "a:d:q:hv")) != EOF) {
-		if (ch == 'a' || ch == 'd' || ch == 'q') {
+	while ((ch = getopt(argc, argv, "a:d:D:q:hv")) != EOF) {
+		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D') {
 			if (!optarg) {
 				cifsd_debug("option [value] missing\n");
 				usage();
@@ -723,7 +766,7 @@ int parse_options(int argc, char **argv)
 			dup_optarg = strdup(optarg);
 		}
 
-		if (ch == 'a' || ch == 'd' || ch == 'q') {
+		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D') {
 			if (s_flags && s_flags != F_VERBOSE) {
 				cifsd_err("Try with single flag at a time\n");
 				usage();
@@ -736,6 +779,9 @@ int parse_options(int argc, char **argv)
 		break;
 		case 'd':
 			s_flags |= F_REMOVE_USER;
+		break;
+		case 'D':
+			s_flags |= F_DEBUG;
 		break;
 		case 'q':
 			s_flags |= F_QUERY_USER;
@@ -806,7 +852,8 @@ int main(int argc, char *argv[])
 	if (getuid() == 0)
 		options |= AM_ROOT;
 
-	if ((options & F_QUERY_USER) || (options & F_REMOVE_USER)) {
+	if ((options & F_QUERY_USER) || (options & F_REMOVE_USER)
+		|| (options & F_DEBUG)) {
 		nlsock = nl_init();
 		if (!nlsock) {
 			cifsd_err("Failed to allocate memory"
@@ -832,7 +879,8 @@ int main(int argc, char *argv[])
 				ret = remove_user_account(nlsock, fd_db,
 							dup_optarg);
 		}
-	}
+	} else if ((options & F_DEBUG) && dup_optarg)
+		ret = cifsd_kernel_debug(nlsock, dup_optarg);
 
 	if (nlsock) {
 		nlsock->event_handle_cb = cifsadmin_request_handler;

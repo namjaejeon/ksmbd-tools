@@ -24,10 +24,11 @@
 #include "cifsd.h"
 
 /* process flags */
-#define AM_ROOT 0x1
-#define F_ADD_USER 0x2
-#define F_REMOVE_USER 0x8
-#define F_QUERY_USER 0x10
+#define AM_ROOT		0x1
+#define F_ADD_USER	0x2
+#define F_DEBUG		0x4
+#define F_REMOVE_USER	0x8
+#define F_QUERY_USER	0x10
 
 #define COPY_UCS2_CHAR(dest, src) (((unsigned char *)(dest))[0] =\
 		((unsigned char *)(src))[0], ((unsigned char *)(dest))[1] =\
