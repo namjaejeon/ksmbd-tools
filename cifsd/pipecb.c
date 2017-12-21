@@ -189,9 +189,9 @@ static int handle_remove_pipe_event(void *msg)
 	return ret;
 }
 
-static int handle_read_pipe_event(void *msg)
+static int handle_read_pipe_event(struct nl_sock *nlsock)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	struct cifsd_uevent rsp_ev;
 	struct cifsd_pipe *pipe;
@@ -232,7 +232,7 @@ out:
 	rsp_ev.error = ret;
 	rsp_ev.buflen = nbytes;
 	rsp_ev.u.r_pipe_rsp.read_count = nbytes;
-	ret = cifsd_common_sendmsg(&rsp_ev, buf, nbytes);
+	ret = cifsd_common_sendmsg(nlsock, &rsp_ev, buf, nbytes);
 	cifsd_debug("READ: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	if (buf)
@@ -240,9 +240,9 @@ out:
 	return ret;
 }
 
-static int handle_write_pipe_event(void *msg)
+static int handle_write_pipe_event(struct nl_sock *nlsock)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	struct cifsd_uevent rsp_ev;
 	struct cifsd_pipe *pipe;
@@ -270,15 +270,15 @@ out:
 	rsp_ev.error = ret;
 	rsp_ev.buflen = 0;
 	rsp_ev.u.w_pipe_rsp.write_count = ret < 0 ? 0 : ev->buflen;
-	ret = cifsd_common_sendmsg(&rsp_ev, NULL, 0);
+	ret = cifsd_common_sendmsg(nlsock, &rsp_ev, NULL, 0);
 	cifsd_debug("WRITE: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	return ret;
 }
 
-static int handle_ioctl_pipe_event(void *msg)
+static int handle_ioctl_pipe_event(struct nl_sock *nlsock)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	struct cifsd_uevent rsp_ev;
 	struct cifsd_pipe *pipe;
@@ -324,7 +324,7 @@ out:
 	rsp_ev.error = ret;
 	rsp_ev.buflen = nbytes;
 	rsp_ev.u.i_pipe_rsp.data_count = nbytes;
-	ret = cifsd_common_sendmsg(&rsp_ev, buf, nbytes);
+	ret = cifsd_common_sendmsg(nlsock, &rsp_ev, buf, nbytes);
 	cifsd_debug("IOCTL: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	if (buf)
@@ -333,9 +333,9 @@ out:
 	return ret;
 }
 
-static int handle_lanman_pipe_event(void *msg)
+static int handle_lanman_pipe_event(struct nl_sock *nlsock)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	struct cifsd_uevent rsp_ev;
 	struct cifsd_pipe *pipe;
@@ -386,7 +386,7 @@ out:
 	rsp_ev.buflen = nbytes;
 	rsp_ev.u.l_pipe_rsp.data_count = nbytes;
 	rsp_ev.u.l_pipe_rsp.param_count = param_len;
-	ret = cifsd_common_sendmsg(&rsp_ev, buf, nbytes);
+	ret = cifsd_common_sendmsg(nlsock, &rsp_ev, buf, nbytes);
 	cifsd_debug("IOCTL: response u->k send, on server handle 0x%llx, ret %d\n",
 			ev->server_handle, ret);
 	if (buf)
@@ -464,7 +464,8 @@ static void fill_noti_info_res(struct cifsd_notify_client_info *notify_client,
 		noti_info_res_buf->file_notify_info[0].Action);
 }
 
-static void send_rsp_ev(struct cifsd_notify_client_info *notify_client,
+static void send_rsp_ev(struct nl_sock *nlsock,
+	struct cifsd_notify_client_info *notify_client,
 	struct smb2_inotify_res_info *noti_info_res_buf)
 {
 	struct cifsd_uevent rsp_ev;
@@ -473,12 +474,12 @@ static void send_rsp_ev(struct cifsd_notify_client_info *notify_client,
 	rsp_ev.type = CIFSD_UEVENT_INOTIFY_RESPONSE;
 	rsp_ev.server_handle = notify_client->hash;
 
-	cifsd_common_sendmsg(&rsp_ev, (char *)noti_info_res_buf,
+	cifsd_common_sendmsg(nlsock, &rsp_ev, (char *)noti_info_res_buf,
 		sizeof(struct smb2_inotify_res_info) +
 		sizeof(struct FileNotifyInformation) + NAME_MAX);
 }
 
-static void *read_inotify_event(void *arg)
+static void *read_inotify_event(void *nlsock)
 {
 	struct smb2_inotify_res_info *noti_info_res_buf;
 	struct cifsd_notify_client_info *notify_client = NULL;
@@ -540,7 +541,8 @@ static void *read_inotify_event(void *arg)
 			+ noti_info_res_buf->file_notify_info[0].FileNameLength;
 		cifsd_debug("noti_info_res_buf->output_buffer_length : %d\n",
 			noti_info_res_buf->output_buffer_length);
-		send_rsp_ev(notify_client, noti_info_res_buf);
+		send_rsp_ev((struct nl_sock *)nlsock, notify_client,
+				noti_info_res_buf);
 		free(noti_info_res_buf);
 		list_del(&notify_client->list);
 		free(notify_client);
@@ -609,7 +611,7 @@ static int cifsd_set_wd(struct cifsd_uevent *ev, int wd)
 	return 0;
 }
 
-static int make_inotify_handler_thread(void)
+static int make_inotify_handler_thread(void *nlsock)
 {
 	pthread_t th;
 	pthread_attr_t attr;
@@ -628,7 +630,7 @@ static int make_inotify_handler_thread(void)
 		goto out;
 	}
 
-	ret = pthread_create(&th, &attr, read_inotify_event, NULL);
+	ret = pthread_create(&th, &attr, read_inotify_event, nlsock);
 	if (ret) {
 		cifsd_err("pthread_attr_create failed : %d\n", ret);
 		goto out;
@@ -650,9 +652,9 @@ out:
 	return ret;
 }
 
-static int handle_inotify_request_event(struct nlmsghdr *msg)
+static int handle_inotify_request_event(struct nl_sock *nlsock)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	char *buf;
 	struct smb2_inotify_req_info *inotify_req_info;
@@ -689,11 +691,10 @@ static int handle_inotify_request_event(struct nlmsghdr *msg)
 	}
 
 	pthread_mutex_lock(&mtx_notifyd_exist);
-	if (!notifyd_exist) {
+	if (!notifyd_exist)
 		pthread_mutex_unlock(&mtx_notifyd_exist);
-		ret = make_inotify_handler_thread();
+		ret = make_inotify_handler_thread(nlsock);
 		return ret;
-	}
 	pthread_mutex_unlock(&mtx_notifyd_exist);
 
 	return ret;
@@ -703,9 +704,9 @@ static int handle_inotify_request_event(struct nlmsghdr *msg)
  * once the pipe is available, utilize the code from process_rpc/process_rpc_rsp
  * modify the rpc request/response to use the pipe from above methods
  */
-int request_handler(void *msg)
+int request_handler(struct nl_sock *nlsock)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)msg;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
 	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
 	int ret = 0;
 
@@ -714,27 +715,27 @@ int request_handler(void *msg)
 
 	switch (nlh->nlmsg_type) {
 	case CIFSD_KEVENT_CREATE_PIPE:
-		ret = handle_create_pipe_event(msg);
+		ret = handle_create_pipe_event(nlsock->nlsk_rcv_buf);
 		break;
 
 	case CIFSD_KEVENT_DESTROY_PIPE:
-		ret = handle_remove_pipe_event(msg);
+		ret = handle_remove_pipe_event(nlsock->nlsk_rcv_buf);
 		break;
 
 	case CIFSD_KEVENT_READ_PIPE:
-		ret = handle_read_pipe_event(msg);
+		ret = handle_read_pipe_event(nlsock);
 		break;
 
 	case CIFSD_KEVENT_WRITE_PIPE:
-		ret = handle_write_pipe_event(msg);
+		ret = handle_write_pipe_event(nlsock);
 		break;
 
 	case CIFSD_KEVENT_IOCTL_PIPE:
-		ret = handle_ioctl_pipe_event(msg);
+		ret = handle_ioctl_pipe_event(nlsock);
 		break;
 
 	case CIFSD_KEVENT_LANMAN_PIPE:
-		ret = handle_lanman_pipe_event(msg);
+		ret = handle_lanman_pipe_event(nlsock);
 		break;
 
 	case CFISD_KEVENT_USER_DAEMON_EXIST:
@@ -743,7 +744,7 @@ int request_handler(void *msg)
 		break;
 
 	case CIFSD_KEVENT_INOTIFY_REQUEST:
-		ret = handle_inotify_request_event(msg);
+		ret = handle_inotify_request_event(nlsock);
 		break;
 
 	default:
@@ -753,4 +754,17 @@ int request_handler(void *msg)
 	}
 
 	return ret;
+}
+
+int cifsd_netlink_setup(struct nl_sock *nlsock)
+{
+	initialize();
+	nl_handle_init_cifsd(nlsock);
+
+	nlsock->event_handle_cb = request_handler;
+	nl_loop(nlsock);
+
+	nl_handle_exit_cifsd(nlsock);
+
+	return 0;
 }
