@@ -94,21 +94,12 @@ int readline(FILE *fp, char **buf, int *isEOF, int check)
 	char *lbuf = NULL;
 	static int lcnt;
 	int i;
-#if 0
-	FILE *fp;
-
-	fp = fdopen(fd, "r");
-	if (!fp) {
-		cifsd_err("fdopen error %d, fd %d\n", errno, fd);
-		exit(0);
-	}
-#endif
 
 	cnt = getline(&lbuf, &sz, fp);
 	if (cnt == -1)
 		*isEOF = 1;
 	else {
-		cnt -= 1; /* discard '\0' */
+		cnt -= 1; /* discard newline */
 		*isEOF = 0;
 		if (check)
 			lcnt++;
@@ -117,7 +108,6 @@ int readline(FILE *fp, char **buf, int *isEOF, int check)
 	if (cnt > 0 && check) {
 		if (strpbrk(lbuf, "=") != NULL) {
 			i = strcspn(lbuf, "=");
-
 			if ((lbuf[i-1] != ' ') ||
 					(lbuf[cnt-1] != '=' &&
 					 lbuf[i+1] != ' ')) {

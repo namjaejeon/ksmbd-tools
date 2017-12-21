@@ -36,6 +36,10 @@
 #include <iconv.h>
 #include <errno.h>
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "list.h"
 #include "nterr.h"
 #include "error.h"
@@ -52,10 +56,6 @@
 #define PATH_PWDDB "/etc/cifs/cifspwd.db"
 #define PATH_SHARECONF "/etc/cifs/smb.conf"
 
-#define PATH_CIFSD_CONFIG "/sys/fs/cifsd/config"
-#define PATH_CIFSD_SHARE "/sys/fs/cifsd/share"
-#define PATH_CIFSD_USR "/sys/fs/cifsd/user"
-
 #define UNICODE_LEN(x) (x * 2)
 
 #define CIFS_NTHASH_SIZE 16
@@ -67,10 +67,6 @@
 #define CIFS_MAX_MSGSIZE 65536
 #define MAX_CIFS_HDR_SIZE 0x78 //default for SMB2, SMB limit is 0x58
 #define RESP_BUF_SIZE (CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE)
-
-
-#define CIFSD_MAJOR_VERSION 1
-#define CIFSD_MINOR_VERSION 0
 
 #define CIFSD_CODEPAGE_LEN    32
 #define CIFSD_USERNAME_LEN	33
@@ -108,6 +104,13 @@ struct cifsd_client_info {
         __u64 hash;
 	void *local_nls; // To be replaced with actual encoding logic
         struct list_head pipelist;
+};
+
+struct cifsd_notify_client_info {
+	struct list_head list;
+	__u64 hash;
+	char codepage[CIFSD_CODEPAGE_LEN];
+	int wd;
 };
 
 /* max string size for share and parameters */
@@ -171,18 +174,17 @@ struct cifsd_usr {
 
 int vflags;
 
-#define cifsd_debug(fmt, ...)                         \
-	do {                                                    \
-		if (vflags)					\
-			printf("%s:%d: " fmt,                           \
-				__func__, __LINE__, ##__VA_ARGS__);     \
+#define cifsd_debug(fmt, ...)						\
+	do {								\
+		if (vflags)						\
+			printf("cifsd: %s:%d: " fmt,			\
+				__func__, __LINE__, ##__VA_ARGS__);	\
 	} while (0)
 
-#define cifsd_err(fmt, ...)                                   \
-	do {                                                    \
-		printf("%s:%d: " fmt,                           \
-				__func__, __LINE__, ##__VA_ARGS__);     \
-	} while (0)
+#define cifsd_info(fmt, ...) printf("cifsd: " fmt, ##__VA_ARGS__)
+
+#define cifsd_err(fmt, ...) printf("cifsd: %s:%d: " fmt,	\
+			__func__, __LINE__, ##__VA_ARGS__)
 
 int init_2_strings(const char *src, char **str1, char **str2, int len);
 int readline(FILE *fp, char **buf, int *isEOF, int check);

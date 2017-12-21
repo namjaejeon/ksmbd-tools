@@ -29,114 +29,14 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
+#include "cifsd.h"
+#include "netlink.h"
+
 /* global definitions */
-#define PATH_STATS "/sys/fs/cifsd/stat"
-#define BUF_SIZE 4096
-
-#ifdef IPV6_SUPPORTED
-#define MAX_IPLEN 128
-#else
-#define MAX_IPLEN 16
-#endif
-
-
-#define OPT_SERVER "1"
-
 #define O_SERVER 1
 #define O_CLIENT 2
-
-/**
- * readstat() - reads data from cifsd statistics control interface
- * @buf:	destination buffer to copy statistics data
- * @size:	length of statistics data to read
- *
- * Return:	success: length of data copied to dst buffer; fail: -1
- */
-int readstat(char *buf, int size)
-{
-	FILE *fp;
-	int rc;
-
-	fp = fopen(PATH_STATS, "r");
-	if (!fp) {
-		fprintf(stdout, "Not able to open (%s) for read, err(%d)\n",
-					PATH_STATS, errno);
-		return -1;
-	}
-
-	rc = fread(buf, sizeof(char), size, fp);
-
-	fclose(fp);
-
-	return rc;
-}
-
-/**
- * setstatopt() - writes data to cifsd statistics control interface
- *	       Needed during read stat, to check if the request is
- *		for server stats or specific client stat
- * @opt:	buffer for setting stat option
- *		"1" in case of server and
- *		valid ip address in case of client
- * @size:	bytes to write as per option
- *
- * Return:	success: 0; fail: -1
- */
-int setstatopt(char *opt, int size)
-{
-	FILE *fp;
-	int rc = 0;
-
-	fp = fopen(PATH_STATS, "w");
-	if (!fp) {
-		fprintf(stdout, "Not able to open (%s) for write, err(%d)\n",
-					PATH_STATS, errno);
-		return -1;
-	}
-
-	if (fwrite(opt, sizeof(char), size, fp) != size) {
-		fprintf(stdout, "Failed to set stat (%s) on %s\n",
-				opt, PATH_STATS);
-		rc = -1;
-	}
-
-	fclose(fp);
-
-	return rc;
-}
-
-/**
- * getstats() - reads stats from CIFSSRSV sysfs interface
- * @node:    either server/client which object to consider for reading stats
- *
- * Return:	0 on success and -1 on failure
- */
-
-int getstats(char *node)
-{
-	char *buffer;
-	int rc;
-
-	buffer = calloc(BUF_SIZE, sizeof(char));
-	if (!buffer) {
-		fprintf(stdout,"Failed to allocate memory for stat buffer\n");
-		return -1;
-	}
-
-	rc = readstat(buffer, BUF_SIZE-1);
-	if (rc < 0) {
-		fprintf(stdout, "%s : readstat failed, err(%d)\n", node, errno);
-		free(buffer);
-		return -1;
-	} else if (rc == 0)
-		fprintf(stdout, "(%s) info not found\n", node);
-	else {
-		fprintf(stdout, "%s stats:\n", node);
-		fprintf(stdout, "%s", buffer);
-	}
-	free(buffer);
-	return 0;
-}
+#define O_USER   4
+#define O_SHARE  8
 
 /**
  * is_validIP() - utility function to validate IP address
@@ -158,6 +58,141 @@ int is_validIP(char *ipaddr)
 }
 
 /**
+ * handle_cifsstat_read_event() - get server/client stats using
+ *				netlink socket
+ * @nlsock:	netlink socket for cifsstat connection
+ *
+ * Return:	0 on success, otherwise error
+ */
+static int handle_cifsstat_read_event(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int flag = ev->k.r_stat.flag;
+	int err = ev->error;
+
+	if (err < 0) {
+		if (flag & O_SERVER)
+			cifsd_err("Server stat info: failed, err %d\n", err);
+
+		if (flag & O_CLIENT)
+			cifsd_err("CLient stat info: failed, err %d\n", err);
+		goto out;
+	}
+
+	if (ev->buflen) {
+		if (flag & O_SERVER)
+			fprintf(stdout, "Server stats:\n%s", ev->buffer);
+
+		if (flag & O_CLIENT)
+			fprintf(stdout, "Client stats:\n%s", ev->buffer);
+	}
+
+out:
+	return err;
+}
+
+/**
+ * handle_cifsstat_list_user() - handler to print cifsd user list
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: non zero greater value
+ *		fail: 0 or error code
+ */
+static int handle_cifsstat_list_user(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int err = ev->error;
+
+	if (err <= 0) {
+		cifsd_err("Cifsd user list : failed, err %d\n", err);
+		goto out;
+	}
+
+	if (ev->buflen)
+		fprintf(stdout, "Cifsd user list:\n%s", ev->buffer);
+
+out:
+	return err;
+}
+
+/**
+ * handle_cifsstat_list_share() - handler to print cifsd share list
+ * @nlsock:	netlink structure for socket communication
+ *
+ * Return:	success: non zero greater value
+ *		fail: 0 or error code
+ */
+static int handle_cifsstat_list_share(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int err = ev->error;
+
+	if (err <= 0) {
+		cifsd_err("Cifsd share list : failed, err %d\n", err);
+		goto out;
+	}
+
+	if (ev->buflen)
+		fprintf(stdout, "Cifsd share list:\n%s", ev->buffer);
+
+out:
+	return err;
+}
+
+/**
+ * cifsstat_request_handler() - cifsstat netlink command handler
+ * @nlsock:	netlink socket for cifsstat connection
+ *
+ * Return:	0 on success, otherwise error
+ */
+int cifsstat_request_handler(struct nl_sock *nlsock)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
+	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	int ret = 0;
+
+	cifsd_debug("start cifsstat event\n");
+	switch (nlh->nlmsg_type) {
+	case CIFSSTAT_UEVENT_READ_STAT_RSP:
+		ret = handle_cifsstat_read_event(nlsock);
+		break;
+	case CIFSSTAT_UEVENT_LIST_USER_RSP:
+		ret = handle_cifsstat_list_user(nlsock);
+		break;
+	case CIFSSTAT_UEVENT_LIST_SHARE_RSP:
+		ret = handle_cifsstat_list_share(nlsock);
+		break;
+	default:
+		cifsd_err("unknown event %u\n", ev->type);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+/**
+ * cifsstat_process_args() - helper function to process cifsd events
+ * @nlsock:	for netlink socket communication
+ * @ev:		cifsd_uevent for sending request with event type
+ * @buf:	containing message to send over netlink socket
+ * @buflen:	length of buf
+ *
+ * Return:	success: 0; fail: -1
+ */
+int cifsstat_process_args(struct nl_sock *nlsock, struct cifsd_uevent *ev,
+	char *buf, int buflen)
+{
+	if (cifsd_common_sendmsg(nlsock, ev, buf, buflen) < 0) {
+		cifsd_err("cifsd event sending failed\n");
+		return -1;
+	}
+	nlsock->event_handle_cb = cifsstat_request_handler;
+	return nl_handle_event(nlsock);
+}
+/**
  * process_args() - helper function to process commandline arguments
  * @flags:	user selected option to process
  * @client:	client IP under request
@@ -167,23 +202,55 @@ int is_validIP(char *ipaddr)
  */
 int process_args(int flags, char *client, int size)
 {
+	struct cifsd_uevent ev;
+	struct nl_sock *nlsock = nl_init();
+	int ret = 0;
+
+	if (!nlsock) {
+		cifsd_err("Failed to allocate memory for netlink socket\n");
+		return -ENOMEM;
+	}
+
+	nl_handle_init_cifsstat(nlsock);
+	memset(&ev, 0, sizeof(ev));
+
 	if (flags & O_SERVER) {
-		if (setstatopt(OPT_SERVER, strlen(OPT_SERVER)))
-			return -1;
-		if (getstats("Server"))
-			return -1;
+		ev.type = CIFSSTAT_UEVENT_READ_STAT;
+		ev.k.r_stat.flag = O_SERVER;
+		ret = cifsstat_process_args(nlsock, &ev, NULL, 0);
+		if (ret < 0)
+			cifsd_err("server stat info: failed\n");
 		flags &= ~O_SERVER;
 	}
 
 	if (flags & O_CLIENT) {
-		if (setstatopt(client, size))
-			return -1;
-		if (getstats("Client"))
-			return -1;
+		ev.type = CIFSSTAT_UEVENT_READ_STAT;
+		ev.k.r_stat.flag = O_CLIENT;
+		strncpy(ev.k.r_stat.statip, client, strlen(client));
+		ret = cifsstat_process_args(nlsock, &ev, NULL, 0);
+		if (ret < 0)
+			cifsd_err("client stat info: failed\n");
 		flags &= ~O_CLIENT;
 	}
 
-	return 0;
+	if (flags & O_USER) {
+		ev.type = CIFSSTAT_UEVENT_LIST_USER;
+		ret = cifsstat_process_args(nlsock, &ev, NULL, 0);
+		if (ret < 0)
+			cifsd_err("Cifsd user list: failed\n");
+		flags &= ~O_USER;
+	}
+
+	if (flags & O_SHARE) {
+		ev.type = CIFSSTAT_UEVENT_LIST_SHARE;
+		ret = cifsstat_process_args(nlsock, &ev, NULL, 0);
+		if (ret < 0)
+			cifsd_err("Cifsd share list: failed\n");
+		flags &= ~O_SHARE;
+	}
+
+	nl_exit(nlsock);
+	return ret;
 }
 
 /**
@@ -191,11 +258,15 @@ int process_args(int flags, char *client, int size)
  */
 void usage(void)
 {
-	fprintf(stdout, "Usage: cifsstat [options]\n"
+	fprintf(stdout, "cifsd-tools version : %s, date : %s\n"
+			"Usage: cifsstat [options]\n"
 			"options:\n"
+			"	-c <client IP> show client stat\n"
 			"	-h help\n"
 			"	-s show server stat\n"
-			"	-c <client IP> show client stat\n");
+			"	-S show share list\n"
+			"	-U show configured user list\n",
+			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
 }
 
 /**
@@ -212,28 +283,40 @@ int main(int argc, char *argv[])
 
 	memset(client, 0, MAX_IPLEN);
 
-	while ((opt = getopt(argc, argv, "hsc:")) != -1) {
+	while ((opt = getopt(argc, argv, "hsSc:U")) != -1) {
 		switch (opt) {
-			case 's':
-				flags |= O_SERVER;
-				break;
-			case 'c':
-				if (is_validIP(optarg)) {
-					strncpy(client, optarg, MAX_IPLEN - 1);
-					flags |= O_CLIENT;
-				} else {
-					fprintf(stdout,
-							"Invalid client IP, exiting\n");
-					exit(EXIT_FAILURE);
-				}
-				break;
-			case 'h':
-			default: /* '?' */
-				usage();
+		case 's':
+			flags |= O_SERVER;
+			break;
+		case 'S':
+			flags |= O_SHARE;
+			break;
+		case 'c':
+			if (is_validIP(optarg)) {
+				strncpy(client, optarg, MAX_IPLEN - 1);
+				flags |= O_CLIENT;
+			} else {
+				fprintf(stdout,
+						"Invalid client IP, exiting\n");
 				exit(EXIT_FAILURE);
+			}
+			break;
+		case 'U':
+			flags |= O_USER;
+			break;
+		case 'h':
+		default: /* '?' */
+			usage();
+			exit(EXIT_FAILURE);
 		}
 	}
-	if (process_args(flags, client, strlen(client)))
+
+	if (!flags) {
+		usage();
+		exit(EXIT_FAILURE);
+	}
+
+	if (process_args(flags, client, strlen(client)) < 0)
 		fprintf(stdout, "Unable to process request, try again\n");
 
 	return 0;
