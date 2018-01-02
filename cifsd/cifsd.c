@@ -320,7 +320,7 @@ static void parse_share_config(char *src)
 	if (!src)
 		return;
 
-	cifsd_debug("%s\n\n", src);
+	cifsd_debug("src : %s\n", src);
 
 	if (strcasestr(src, "sharename = global")) {
 		parse_global_config(src);
@@ -362,6 +362,7 @@ void prefix_share_name(char *src, int *srclen)
 	char *share_cfg = "sharename = ";
 	char share_name[PAGE_SZ];
 	int i, j;
+	int cfg_len;
 
 	/* remove [ and ] from share name */
 	for (i = 0, j = 0; i < *srclen; i++) {
@@ -370,7 +371,9 @@ void prefix_share_name(char *src, int *srclen)
 	}
 	share_name[j] = '\0';
 
-	strncpy(src, share_cfg,  strlen(share_cfg));
+	cfg_len = strlen(share_cfg);
+	strncpy(src, share_cfg, cfg_len);
+	src[cfg_len] = '\0';
 	strncat(src, share_name, strlen(share_name));
 	*srclen = strlen(src);
 }
