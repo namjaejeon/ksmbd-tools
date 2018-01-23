@@ -200,7 +200,7 @@ static int handle_read_pipe_event(struct nl_sock *nlsock)
 	int nbytes = 0;
 
 	cifsd_debug("READ: on server handle 0x%llx\n", ev->server_handle);
-	assert(ev->k.r_pipe.out_buflen < NETLINK_CIFSD_MAX_PAYLOAD);
+	assert(ev->k.r_pipe.out_buflen <= NETLINK_CIFSD_MAX_PAYLOAD);
 	buf = calloc(1, NETLINK_CIFSD_MAX_PAYLOAD);
 	if (!buf) {
 		cifsd_debug("failed to allocate memory\n");
@@ -287,7 +287,7 @@ static int handle_ioctl_pipe_event(struct nl_sock *nlsock)
 	int nbytes = 0;
 
 	cifsd_debug("IOCTL: on server handle %llu\n", ev->server_handle);
-	assert(ev->k.i_pipe.out_buflen < NETLINK_CIFSD_MAX_PAYLOAD);
+	assert(ev->k.i_pipe.out_buflen <= NETLINK_CIFSD_MAX_PAYLOAD);
 	buf = calloc(1, NETLINK_CIFSD_MAX_PAYLOAD);
 	if (!buf) {
 		cifsd_debug("failed to allocate memory\n");
@@ -345,7 +345,7 @@ static int handle_lanman_pipe_event(struct nl_sock *nlsock)
 	int param_len = 0;
 
 	cifsd_debug("LANMAN: on server handle 0x%llx\n", ev->server_handle);
-	assert(ev->k.l_pipe.out_buflen < NETLINK_CIFSD_MAX_PAYLOAD);
+	assert(ev->k.l_pipe.out_buflen <= NETLINK_CIFSD_MAX_PAYLOAD);
 	buf = calloc(1, NETLINK_CIFSD_MAX_PAYLOAD);
 	if (!buf) {
 		cifsd_debug("failed to allocate memory\n");
