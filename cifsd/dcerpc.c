@@ -80,7 +80,7 @@ int process_rpc(struct cifsd_pipe *pipe, char *data)
 		ret = rpc_bind(pipe, data);
 		break;
 	default:
-		cifsd_debug("rpc type = %d Not Implemented\n",
+		cifsd_err("rpc type = %d Not Implemented\n",
 				rpc_hdr->pkt_type);
 		ret = -EOPNOTSUPP;
 	}
@@ -959,7 +959,7 @@ static int srvsvc_net_share_enum_all(struct cifsd_pipe *pipe, char *data,
 		break;
 
 	default:
-		cifsd_debug("SRVSVC pipe info level %u  not supported\n",
+		cifsd_err("SRVSVC pipe info level %u  not supported\n",
 				req->info_level);
 		return -EOPNOTSUPP;
 	}
@@ -1140,7 +1140,7 @@ int srvsvc_net_share_info(struct cifsd_pipe *pipe, char *data,
 		break;
 
 	default:
-		cifsd_debug("SRVSVC pipe info level %u  not supported\n",
+		cifsd_err("SRVSVC pipe info level %u  not supported\n",
 				req->info_level);
 		return -EOPNOTSUPP;
 	}
@@ -1312,7 +1312,7 @@ static int srvsvc_rpc_request(struct cifsd_pipe *pipe, char *in_data)
 		ret = wkkssvc_net_share_info(pipe, data, rpc_request_req);
 		break;
 	default:
-		cifsd_debug("WKSSVC pipe opnum not supported = %d\n", opnum);
+		cifsd_err("WKSSVC pipe opnum not supported = %d\n", opnum);
 		return -EOPNOTSUPP;
 	}
 	return ret;
@@ -1399,7 +1399,7 @@ int winreg_rpc_request(struct cifsd_pipe *pipe, char *in_data)
 		ret = winreg_delete_value(pipe, rpc_request_req, data);
 		break;
 	default:
-		cifsd_debug("WINREG pipe opnum not supported = %d\n", opnum);
+		cifsd_err("WINREG pipe opnum not supported = %d\n", opnum);
 		return -EOPNOTSUPP;
 	}
 	return ret;
@@ -1423,7 +1423,7 @@ int rpc_request(struct cifsd_pipe *pipe, char *in_data)
 		return -EOPNOTSUPP;
 #endif
 	default:
-		cifsd_debug("pipe not supported\n");
+		cifsd_err("pipe not supported\n");
 		return -EOPNOTSUPP;
 	}
 	return ret;
@@ -1697,7 +1697,7 @@ static int handle_netshareenum(struct cifsd_pipe *pipe, LANMAN_REQ *req,
 		ret = handle_netshareenum_info1(pipe, in_params, out_data);
 		break;
 	default:
-		cifsd_debug("Info level = %d not supported\n", info_level);
+		cifsd_err("Info level = %d not supported\n", info_level);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -1841,7 +1841,7 @@ int handle_wkstagetinfo(struct cifsd_pipe *pipe,
 		ret = handle_wkstagetinfo_info10(pipe, in_params, out_data);
 		break;
 	default:
-		cifsd_debug("Info level = %d not supported\n", info_level);
+		cifsd_err("Info level = %d not supported\n", info_level);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -1884,7 +1884,7 @@ int handle_lanman_pipe(struct cifsd_pipe *pipe, char *in_data,
 			*param_len = 6;
 		break;
 	default:
-		cifsd_debug("opcode = %d not supported\n", opcode);
+		cifsd_err("opcode = %d not supported\n", opcode);
 		ret = -EOPNOTSUPP;
 	}
 
