@@ -61,6 +61,21 @@ AC_CHECK_FUNCS_ONCE([
 	recvmsg
 ])
 
+has_libnl_ver=0
+dnl libnl-2 provides only libnl-2.0.pc file, so we check for separate
+dnl libnl-genl-3.0.pc pkg-config file just for libnl-3.0 case.
+PKG_CHECK_MODULES([LIBNL], [libnl-3.0 >= 3.0 libnl-genl-3.0 >= 3.0], [has_libnl_ver=3], [
+	PKG_CHECK_MODULES([LIBNL], [libnl-2.0 >= 2.0], [has_libnl_ver=2], [
+		PKG_CHECK_MODULES([LIBNL], [libnl-1], [has_libnl_ver=1], [has_libnl_ver=0])
+	])
+])
+AS_IF([test "$has_libnl_ver" -eq 0], [
+	AC_MSG_ERROR([libnl and libnl-genl are required but were not found])
+])
+AS_IF([test "$has_libnl_ver" -gt 1], [
+	AC_DEFINE([HAVE_LIBNL20], [1], [Define if you have libnl-2.0 or higher])
+])
+
 # Install directories
 #AC_PREFIX_DEFAULT([/usr])
 #AC_SUBST([sbindir], [/sbin])
