@@ -20,6 +20,9 @@ AC_DEFINE([CIFSD_MINOR_VERSION], m4_bpatsubst(cifsd_tools_version,
 				 [\([0-9]*\).\([0-9]*\)\(\w\|\W\)*], [\2]),
 				 [Minor version for cifsd-tools])
 
+AM_SILENT_RULES([yes])
+AC_LANG([C])
+
 AC_CHECK_FILE(.git,
         AC_DEFINE([CIFSD_TOOLS_DATE],
                 "m4_bpatsubst(cifsd_tools_gitdate,
