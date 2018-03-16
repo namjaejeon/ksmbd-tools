@@ -4,9 +4,11 @@ language: c
 notifications:
  - email: true
 
+before_install:
+ - sudo apt-get install libnl-3-dev libnl-genl-3-dev
+
 script:
  # Compilation
- - sudo apt-get install libnl-3-dev libnl-genl-3-dev
  - ./autogen.sh
  - ./configure
  - make
