@@ -11,8 +11,12 @@ notifications:
  # Go in cifsd-tools
  - cd $CIFSD_TOOLS
  - git checkout cifsd-tools-next
+ - ls -al
 
  # Compilation
  - ./autogen.sh
+ - ls -al
  - ./configure
+ - ls -al
  - make
+ - ls -al
