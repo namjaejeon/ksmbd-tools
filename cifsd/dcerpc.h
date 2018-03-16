@@ -332,10 +332,7 @@ void dcerpc_header_init(RPC_HDR *header, int packet_type,
 int rpc_bind(struct cifsd_pipe *pipe, char *data);
 int rpc_request(struct cifsd_pipe *pipe, char *data);
 int rpc_read_bind_data(struct cifsd_pipe *pipe, char *data);
-int rpc_read_winreg_data(struct cifsd_pipe *pipe, char *outdata,
-							int buf_len);
 
-int winreg_rpc_request(struct cifsd_pipe *pipe, char *in_data);
 /* SRVSVC pipe function */
 
 int rpc_read_srvsvc_data(struct cifsd_pipe *pipe,
