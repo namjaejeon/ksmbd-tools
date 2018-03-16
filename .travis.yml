@@ -2,7 +2,7 @@
 language: c
 
 notifications:
-	- email: true
+ - email: true
 
  # Download cifsd-tools
  - git clone --depth 1 https://github.com/namjaejeon/cifsd-tools
