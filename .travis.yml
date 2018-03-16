@@ -1,0 +1,18 @@
+
+language: c
+
+notifications:
+	- email: true
+
+ # Download cifsd-tools
+ - git clone --depth 1 https://github.com/namjaejeon/cifsd-tools
+ - export CIFSD_TOOLS=$PWD/cifsd-tools 
+
+ # Go in cifsd-tools
+ - cd $CIFSD_TOOLS
+ - git checkout cifsd-tools-next
+
+ # Compilation
+ - ./autogen.sh
+ - ./configure
+ - make
