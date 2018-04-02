@@ -122,7 +122,7 @@ static int ipc_introduce(void)
 	msg->type = CIFSD_EVENT_INTRODUCTION;
 
 	ev->pid = getpid();
-	strncpy(ev->version, CIFSD_TOOLS_VERSION, sizeof(ev->version));
+	strncpy(ev->version, CIFSD_VERSION, sizeof(ev->version));
 
 	ret = ipc_msg_send(msg);
 

@@ -26,6 +26,8 @@
 
 #define CIFSD_TOOLS_NETLINK	30
 
+#define CIFSD_VERSION	"0.0.1"
+
 #ifndef __packed
 #define __packed			__attribute__ ((packed));
 #endif
