@@ -369,15 +369,6 @@ static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
 		shm_add_new_share((struct smbconf_group *)_v);
 	else {
 		global_group((struct smbconf_group *)_v);
-
-		printf(">> got global %s %s %s %s %s %s %s\n",
-				global_conf.server_string,
-				global_conf.workgroup,
-				global_conf.netbios_name,
-				global_conf.server_string,
-				global_conf.server_min_protocol,
-				global_conf.server_max_protocol,
-				global_conf.guest_account);
 	}
 }
 
