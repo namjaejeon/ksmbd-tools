@@ -26,46 +26,48 @@
 
 #define CIFSD_TOOLS_NETLINK	30
 
-#define ATTR			__attribute__ ((packed));
+#ifndef __packed
+#define __packed			__attribute__ ((packed));
+#endif
 
 struct cifsd_introduction {
 	__u32	pid;
 	__s8	version[8];
-} ATTR;
+} __packed;
 
 struct cifsd_login_request {
 	__u64	handle;
 	__s8	account[256];
-} ATTR;
+} __packed;
 
 struct cifsd_login_response {
 	__u64	handle;
 	__u16	status;
 	__u16	hash_sz;
 	__s8	hash[256];
-} ATTR;
+} __packed;
 
 struct cifsd_tree_connect_request {
 	__u64	handle;
 	__s8	account[256];
 	__s8	share[256];
 	__s8	host[256];
-} ATTR;
+} __packed;
 
 struct cifsd_tree_connect_response {
 	__u64	handle;
 	__u32	status;
 	__u32	connection_flags;
 	__u64	connection_id;
-} ATTR;
+} __packed;
 
 struct cifsd_tree_disconnect_request {
 	__u64	connect_id;
-} ATTR;
+} __packed;
 
 struct cifsd_logout_request {
 	__u64	handle;
-} ATTR;
+} __packed;
 
 enum cifsd_event {
 	CIFSD_EVENT_INTRODUCTION		= 1,
