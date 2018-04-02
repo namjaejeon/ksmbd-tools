@@ -24,10 +24,7 @@
 #include <netlink/netlink.h>
 #include <netlink/msg.h>
 #include <netlink/handlers.h>
-/*
- * FIXME: should be in /include/linux/
- */
-#include <cifsd_server.h>
+#include <linux/cifsd_server.h>
 
 #include <ipc.h>
 #include <cifsdtools.h>

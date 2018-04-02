@@ -21,10 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-/*
- * FIXME: should be in /include/linux/
- */
-#include <cifsd_server.h>
+#include <linux/cifsd_server.h>
 
 #include <config_parser.h>
 #include <management/tree_conn.h>

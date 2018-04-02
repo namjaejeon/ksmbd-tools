@@ -20,10 +20,7 @@
 #include <memory.h>
 #include <glib.h>
 #include <errno.h>
-/*
- * FIXME: should be in /include/linux/
- */
-#include <cifsd_server.h>
+#include <linux/cifsd_server.h>
 
 #include <cifsdtools.h>
 #include <worker_pool.h>
