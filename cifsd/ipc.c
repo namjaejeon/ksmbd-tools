@@ -105,18 +105,44 @@ out_error:
 	return ret;
 }
 
-static int ipc_introduce(void)
+static int ipc_cifsd_starting_up(void)
 {
-	struct cifsd_introduction *ev;
+	struct cifsd_startup_shutdown *ev;
 	struct ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
 	int ret;
 
 	if (!msg)
 		return -ENOMEM;
 
+	pr_info("Starting up...\n");
+
 	ev = IPC_MSG_PAYLOAD(msg);
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
-	msg->type = CIFSD_EVENT_INTRODUCTION;
+	msg->type = CIFSD_EVENT_STARTING_UP;
+
+	ev->pid = getpid();
+	strncpy(ev->version, CIFSD_VERSION, sizeof(ev->version));
+
+	ret = ipc_msg_send(msg);
+
+	ipc_msg_free(msg);
+	return ret;
+}
+
+static int ipc_cifsd_shutting_down(void)
+{
+	struct cifsd_startup_shutdown *ev;
+	struct ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
+	int ret;
+
+	if (!msg)
+		return -ENOMEM;
+
+	pr_info("Shutting down...\n");
+
+	ev = IPC_MSG_PAYLOAD(msg);
+	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
+	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
 
 	ev->pid = getpid();
 	strncpy(ev->version, CIFSD_VERSION, sizeof(ev->version));
@@ -129,10 +155,11 @@ static int ipc_introduce(void)
 
 int ipc_receive_loop(void)
 {
-	if (ipc_introduce())
+	if (ipc_cifsd_starting_up())
 		return -EINVAL;
 
-	while (1) {
+	cifsd_health_status = CIFSD_HEALTH_RUNNING;
+	while (cifsd_health_status == CIFSD_HEALTH_RUNNING) {
 		if (nl_recvmsgs_default(sk) < 0)
 			break;
 	}
@@ -141,6 +168,9 @@ int ipc_receive_loop(void)
 
 void ipc_final_release(void)
 {
+	if (cifsd_health_status == CIFSD_HEALTH_RUNNING)
+		ipc_cifsd_shutting_down();
+
 	nl_socket_free(sk);
 	nl_cb_put(cb);
 	sk = NULL;
@@ -166,6 +196,7 @@ int ipc_init(void)
 	if (nl_connect(sk, CIFSD_TOOLS_NETLINK))
 		goto out_error;
 
+	cifsd_health_status = CIFSD_HEALTH_RUNNING;
 	return 0;
 
 out_error:

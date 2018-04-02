@@ -31,7 +31,7 @@
 #define __packed			__attribute__ ((packed));
 #endif
 
-struct cifsd_introduction {
+struct cifsd_startup_shutdown {
 	__u32	pid;
 	__s8	version[8];
 } __packed;
@@ -71,7 +71,9 @@ struct cifsd_logout_request {
 } __packed;
 
 enum cifsd_event {
-	CIFSD_EVENT_INTRODUCTION		= 1,
+	CIFSD_EVENT_STARTING_UP		= 1,
+	CIFSD_EVENT_SHUTTING_DOWN,
+
 	CIFSD_EVENT_LOGIN_REQUEST,
 	CIFSD_EVENT_LOGIN_RESPONSE,
 
@@ -80,7 +82,7 @@ enum cifsd_event {
 
 	CIFSD_EVENT_TREE_DISCONNECT_REQUEST,
 
-	CIFSD_EVENT_LOGOUT_REQUEST
+	CIFSD_EVENT_LOGOUT_REQUEST,
 };
 
 enum CIFSD_LOGIN_STATUS {

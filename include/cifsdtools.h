@@ -42,6 +42,11 @@
 #define PATH_PWDDB	"/etc/cifs/cifspwd.db2"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
+#define CIFSD_HEALTH_START	0
+#define CIFSD_HEALTH_RUNNING	1
+
+static int cifsd_health_status;
+
 //---------------------------------------------------------------//
 #define LOGAPP		"[%s/%d]:"
 #define PRERR		LOGAPP" ERROR: "
