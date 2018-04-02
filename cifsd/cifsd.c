@@ -115,7 +115,7 @@ out:
 	 * NOTE, this is the final release, we don't look at ref_count
 	 * values. User management should be destroyed last.
 	 */
-
+	ipc_final_release();
 	wp_final_release();
 	tcm_final_release();
 	shm_final_release();
