@@ -21,8 +21,7 @@
 #ifndef _LINUX_CIFSD_SERVER_H
 #define _LINUX_CIFSD_SERVER_H
 
-#include <sys/types.h>
-#include <asm/types.h>
+#include <linux/types.h>
 
 #define CIFSD_TOOLS_NETLINK	30
 
