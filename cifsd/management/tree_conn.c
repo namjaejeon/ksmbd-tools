@@ -29,19 +29,28 @@
 #include <management/user.h>
 #include <cifsdtools.h>
 
+#define TREE_CONNECT_TYPE_SMB1	0
+#define TREE_CONNECT_TYPE_SMB2	1
+
 static GHashTable	*conns_table;
 static GRWLock		conns_table_lock;
 
 static GMutex			conn_id_lock;
-static unsigned long long	conn_id;
+static unsigned long long	smb2_conn_id = USHRT_MAX;
+static unsigned short		smb1_conn_id;
 
-static unsigned long long get_next_conn_id(void)
+static unsigned long long get_next_conn_id(int type)
 {
 	unsigned long long ret;
 
 	g_mutex_lock(&conn_id_lock);
-	ret = conn_id;
-	conn_id += 1;
+	if (type & CIFSD_TREE_CONN_FLAG_REQUEST_SMB1)
+		ret = smb1_conn_id++;
+	else
+		ret = smb2_conn_id++;
+
+	if (smb2_conn_id == 0)
+		smb2_conn_id = USHRT_MAX;
 	g_mutex_unlock(&conn_id_lock);
 
 	return ret;
@@ -52,7 +61,7 @@ static void kill_cifsd_tree_conn(struct cifsd_tree_conn *conn)
 	free(conn);
 }
 
-static struct cifsd_tree_conn *new_cifsd_tree_conn(void)
+static struct cifsd_tree_conn *new_cifsd_tree_conn(int type)
 {
 	struct cifsd_tree_conn *conn = malloc(sizeof(struct cifsd_tree_conn));
 
@@ -60,7 +69,7 @@ static struct cifsd_tree_conn *new_cifsd_tree_conn(void)
 		return NULL;
 
 	memset(conn, 0x00, sizeof(struct cifsd_tree_conn));
-	conn->id = get_next_conn_id();
+	conn->id = get_next_conn_id(type);
 	return conn;
 }
 
@@ -126,7 +135,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 {
 	struct cifsd_user *user = NULL;
 	struct cifsd_share *share = NULL;
-	struct cifsd_tree_conn *conn = new_cifsd_tree_conn();
+	struct cifsd_tree_conn *conn = new_cifsd_tree_conn(req->flags);
 	int ret;
 
 	if (!conn) {

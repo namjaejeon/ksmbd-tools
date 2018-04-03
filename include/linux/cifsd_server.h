@@ -50,6 +50,7 @@ struct cifsd_login_response {
 
 struct cifsd_tree_connect_request {
 	__u64	handle;
+	__u32	flags;
 	__s8	account[256];
 	__s8	share[256];
 	__s8	host[256];
@@ -105,5 +106,7 @@ enum CIFSD_TREE_CONN_STATUS {
 #define CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT	(1 << 0)
 #define CIFSD_TREE_CONN_FLAG_READ_ONLY		(1 << 1)
 #define CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT	(1 << 3)
+#define CIFSD_TREE_CONN_FLAG_REQUEST_SMB1	(1 << 4)
+#define CIFSD_TREE_CONN_FLAG_REQUEST_SMB2	(1 << 5)
 
 #endif /* _LINUX_CIFSD_SERVER_H */
