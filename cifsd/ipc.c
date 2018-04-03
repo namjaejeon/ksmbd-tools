@@ -55,10 +55,11 @@ static int nlink_msg_cb(struct nl_msg *nlmsg, void *arg)
 struct ipc_msg *ipc_msg_alloc(size_t sz)
 {
 	struct ipc_msg *msg;
-	
-	msg = malloc(sz + sizeof(struct ipc_msg) - sizeof(void *));
+	size_t msg_sz = sz + sizeof(struct ipc_msg) - sizeof(void *);
+
+	msg = malloc(msg_sz);
 	if (msg) {
-		memset(msg, 0x00, sizeof(struct ipc_msg));
+		memset(msg, 0x00, msg_sz);
 		msg->destination = -1;
 		msg->sz = sz;
 	}
