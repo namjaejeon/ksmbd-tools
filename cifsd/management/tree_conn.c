@@ -29,9 +29,6 @@
 #include <management/user.h>
 #include <cifsdtools.h>
 
-#define TREE_CONNECT_TYPE_SMB1	0
-#define TREE_CONNECT_TYPE_SMB2	1
-
 static GHashTable	*conns_table;
 static GRWLock		conns_table_lock;
 
