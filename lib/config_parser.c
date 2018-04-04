@@ -160,7 +160,7 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 	gchar *contents;
 	gsize len;
 	char *delim;
-	int fd, ret;
+	int fd, ret = 0;
 
 	fd = g_open(fname, O_RDONLY, 0);
 	if (fd == -1) {
