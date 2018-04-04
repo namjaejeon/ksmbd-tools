@@ -45,6 +45,25 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static int parse_configs(char *pwddb, char *smbconf)
+{
+	int ret;
+
+	ret = cp_parse_pwddb(pwddb);
+	if (ret)
+		return ret;
+
+	ret = cp_parse_smbconf(smbconf);
+	if (ret)
+		return ret;
+
+	if (pwddb != PATH_PWDDB)
+		free(pwddb);
+	if (smbconf!= PATH_SMBCONF)
+		free(smbconf);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
@@ -84,22 +103,13 @@ int main(int argc, char *argv[])
 	if (ret)
 		goto out;
 
+	ret = parse_configs(pwddb, smbconf);
+	if (ret)
+		goto out;
+
 	ret = tcm_init();
 	if (ret)
 		goto out;
-
-	ret = cp_parse_pwddb(pwddb);
-	if (ret)
-		goto out;
-
-	ret = cp_parse_smbconf(smbconf);
-	if (ret)
-		goto out;
-
-	if (pwddb != PATH_PWDDB)
-		free(pwddb);
-	if (smbconf!= PATH_SMBCONF)
-		free(smbconf);
 
 	ret = wp_init();
 	if (ret)
