@@ -448,3 +448,16 @@ void shm_unbind_connection(struct cifsd_share *share,
 	share->conns = g_list_remove(share->conns, conn);
 	g_rw_lock_writer_unlock(&share->conns_lock);
 }
+
+static void hash_walk_cb(gpointer k, gpointer u, gpointer user_data)
+{
+	walk_shares cb = (walk_shares)user_data;
+	cb(u);
+}
+
+void for_each_cifsd_share(walk_shares cb)
+{
+	g_rw_lock_reader_lock(&shares_table_lock);
+	g_hash_table_foreach(shares_table, hash_walk_cb, cb);
+	g_rw_lock_reader_unlock(&shares_table_lock);
+}

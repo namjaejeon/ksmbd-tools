@@ -118,4 +118,7 @@ int shm_bind_connection(struct cifsd_share *share,
 void shm_unbind_connection(struct cifsd_share *share,
 			   struct cifsd_tree_conn *conn);
 
+typedef void (*walk_shares)(struct cifsd_share *share);
+void for_each_cifsd_share(walk_shares cb);
+
 #endif /* __MANAGEMENT_SHARE_H__ */
