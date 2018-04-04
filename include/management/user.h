@@ -80,4 +80,7 @@ void usm_unbind_connection(struct cifsd_user *user,
 void usm_final_release(void);
 int usm_init(void);
 
+typedef void (*walk_users)(struct cifsd_user *user);
+void for_each_cifsd_user(walk_users cb);
+
 #endif /* __MANAGEMENT_USER_H__ */

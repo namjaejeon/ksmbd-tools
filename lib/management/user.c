@@ -216,3 +216,16 @@ void usm_unbind_connection(struct cifsd_user *user,
 	user->conns = g_list_remove(user->conns, conn);
 	g_rw_lock_writer_unlock(&user->conns_lock);
 }
+
+static void hash_walk_cb(gpointer k, gpointer u, gpointer user_data)
+{
+	walk_users cb = (walk_users)user_data;
+	cb(u);
+}
+
+void for_each_cifsd_user(walk_users cb)
+{
+	g_rw_lock_reader_lock(&users_table_lock);
+	g_hash_table_foreach(users_table, hash_walk_cb, cb);
+	g_rw_lock_reader_unlock(&users_table_lock);
+}
