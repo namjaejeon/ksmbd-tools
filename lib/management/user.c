@@ -77,6 +77,12 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 {
 	struct cifsd_user *user = malloc(sizeof(struct cifsd_user));
 	struct passwd *passwd;
+	char *pass = strdup(pwd);
+
+	if (!pass) {
+		free(user);
+		return NULL;
+	}
 
 	if (!user)
 		return NULL;
@@ -85,7 +91,7 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 
 	g_rw_lock_clear(&user->conns_lock);
 	user->name = name;
-	user->pass_b64 = pwd;
+	user->pass_b64 = pass;
 	user->ref_count = 1;
 	passwd = getpwnam(name);
 	if (passwd) {
@@ -93,7 +99,7 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 		user->gid = passwd->pw_gid;
 	}
 
-	user->pass = base64_decode(pwd, &user->pass_sz);
+	user->pass = base64_decode(user->pass_b64, &user->pass_sz);
 	return user;
 }
 
