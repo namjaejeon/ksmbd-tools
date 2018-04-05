@@ -83,4 +83,5 @@ int usm_init(void);
 typedef void (*walk_users)(struct cifsd_user *user);
 void for_each_cifsd_user(walk_users cb);
 
+int usm_update_user_password(struct cifsd_user *user, char *pass);
 #endif /* __MANAGEMENT_USER_H__ */

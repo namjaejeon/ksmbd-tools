@@ -233,3 +233,26 @@ void for_each_cifsd_user(walk_users cb)
 	g_hash_table_foreach(users_table, walk_users_cb, cb);
 	g_rw_lock_reader_unlock(&users_table_lock);
 }
+
+int usm_update_user_password(struct cifsd_user *user, char *pswd)
+{
+	size_t pass_sz;
+	char *pass_b64 = strdup(pswd);
+	char *pass = base64_decode(pass_b64, &pass_sz);
+
+	if (!pass_b64 || !pass) {
+		free(pass_b64);
+		free(pass);
+		return -ENOMEM;
+	}
+
+	g_rw_lock_writer_lock(&user->update_lock);
+	free(user->pass_b64);
+	free(user->pass);
+	user->pass_b64 = pass_b64;
+	user->pass = pass;
+	user->pass_sz = pass_sz;
+	g_rw_lock_writer_unlock(&user->update_lock);
+
+	return 0;
+}
