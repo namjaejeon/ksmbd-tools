@@ -180,12 +180,21 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 	if (!contents)
 		goto out;
 
-	do {
+	len = g_mapped_file_get_length(file);
+	while (len) {
 		delim = strchr(contents, '\n');
+		if (!delim)
+			delim = strchr(contents, 0x00);
+
 		if (delim) {
 			size_t sz = delim - contents;
-			char *data = malloc(sz + 1);
-			if (!malloc) {
+			char *data;
+
+			if (!sz)
+				break;
+
+			data = malloc(sz + 1);
+			if (!data) {
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -201,8 +210,9 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 
 			free(data);
 			contents = delim + 1;
+			len -= (sz + 1);
 		}
-	} while (delim);
+	}
 
 	ret = 0;
 out:
