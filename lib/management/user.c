@@ -35,7 +35,7 @@ static void kill_cifsd_user(struct cifsd_user *user)
 	free(user->name);
 	free(user->pass_b64);
 	free(user->pass);
-	g_rw_lock_clear(&user->conns_lock);
+	g_rw_lock_clear(&user->update_lock);
 	free(user);
 }
 
@@ -87,7 +87,7 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 
 	memset(user, 0x00, sizeof(struct cifsd_user));
 
-	g_rw_lock_clear(&user->conns_lock);
+	g_rw_lock_clear(&user->update_lock);
 	user->name = name;
 	user->pass_b64 = pass;
 	user->ref_count = 1;
@@ -207,21 +207,21 @@ int usm_new_user_from_pwdentry(char *data)
 int usm_bind_connection(struct cifsd_user *user,
 			struct cifsd_tree_conn *conn)
 {
-	g_rw_lock_writer_lock(&user->conns_lock);
+	g_rw_lock_writer_lock(&user->update_lock);
 	user->conns = g_list_insert(user->conns, conn, -1);
-	g_rw_lock_writer_unlock(&user->conns_lock);
+	g_rw_lock_writer_unlock(&user->update_lock);
 	return 0;
 }
 
 void usm_unbind_connection(struct cifsd_user *user,
 			   struct cifsd_tree_conn *conn)
 {
-	g_rw_lock_writer_lock(&user->conns_lock);
+	g_rw_lock_writer_lock(&user->update_lock);
 	user->conns = g_list_remove(user->conns, conn);
-	g_rw_lock_writer_unlock(&user->conns_lock);
+	g_rw_lock_writer_unlock(&user->update_lock);
 }
 
-static void hash_walk_cb(gpointer k, gpointer u, gpointer user_data)
+static void walk_users_cb(gpointer k, gpointer u, gpointer user_data)
 {
 	walk_users cb = (walk_users)user_data;
 	cb(u);
@@ -230,6 +230,6 @@ static void hash_walk_cb(gpointer k, gpointer u, gpointer user_data)
 void for_each_cifsd_user(walk_users cb)
 {
 	g_rw_lock_reader_lock(&users_table_lock);
-	g_hash_table_foreach(users_table, hash_walk_cb, cb);
+	g_hash_table_foreach(users_table, walk_users_cb, cb);
 	g_rw_lock_reader_unlock(&users_table_lock);
 }

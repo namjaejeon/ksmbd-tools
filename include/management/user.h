@@ -41,7 +41,7 @@ struct cifsd_user {
 	int 		flags;
 
 	GList		*conns;
-	GRWLock		conns_lock;
+	GRWLock		update_lock;
 };
 
 static inline void set_user_flag(struct cifsd_user *user, int bit)
