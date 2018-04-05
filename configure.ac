@@ -1,7 +1,7 @@
 AC_PREREQ([2.68])
 
 AC_INIT([CIFSD tools], [cifsd_tools_version],
-	[linux-cifsd-devel@sourceforge.net])
+	[linux-cifsd-devel@lists.sourceforge.net])
 
 # Get version from file VERSION
 m4_define([cifsd_tools_version], m4_esyscmd([sed -n '1p' VERSION | tr -d '\n']))
