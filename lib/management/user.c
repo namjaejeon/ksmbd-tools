@@ -186,21 +186,16 @@ int usm_new_user_from_pwdentry(char *data)
 		return -EINVAL;
 	}
 
-	pwd = strdup(pos + 1);
+	pwd = pos + 1;
 	*pos = 0x00;
 	name = strdup(data);
 
-	if (!name || !pwd) {
-		free(name);
-		free(pwd);
+	if (!name)
 		return -ENOMEM;
-	}
 
 	ret = usm_add_new_user(name, pwd);
-	if (ret) {
+	if (ret)
 		free(name);
-		free(pwd);
-	}
 	return ret;
 }
 
