@@ -273,6 +273,14 @@ static void write_user_cb(struct cifsd_user *user)
 	write_user(user);
 }
 
+static void write_remove_user_cb(struct cifsd_user *user)
+{
+	if (!g_ascii_strncasecmp(user->name, account, strlen(account)))
+		return;
+
+	write_user_cb(user);
+}
+
 static int command_add_user(char *pwddb)
 {
 	struct cifsd_user *user = usm_lookup_user(account);
@@ -316,7 +324,13 @@ static int command_del_user(char *pwddb)
 		return -EINVAL;
 	}
 
-	for_each_cifsd_user(write_user_cb);
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_user(write_remove_user_cb);
 	close(conf_fd);
 	return 0;
 }
