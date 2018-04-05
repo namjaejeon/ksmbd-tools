@@ -310,6 +310,12 @@ static int command_add_user(char *pwddb)
 		return -EINVAL;
 	}
 
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
 	for_each_cifsd_user(write_user_cb);
 	close(conf_fd);
 	return 0;
@@ -335,6 +341,49 @@ static int command_del_user(char *pwddb)
 	return 0;
 }
 
+static int command_update_user(char *pwddb)
+{
+	struct cifsd_user *user = usm_lookup_user(account);
+	char *pswd;
+
+	if (!user) {
+		pr_err("Unknown account\n");
+		return -EINVAL;
+	}
+
+	pswd = get_hashed_b64_password();
+	if (!pswd) {
+		pr_err("Out of memory\n");
+		put_cifsd_user(user);
+		return -EINVAL;
+	}
+
+	if (usm_update_user_password(user, pswd)) {
+		pr_err("Out of memory\n");
+		put_cifsd_user(user);
+		return -ENOMEM;
+	}
+
+	put_cifsd_user(user);
+	free(pswd);
+
+	conf_fd = open(pwddb, O_WRONLY);
+	if (conf_fd == -1) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		return -EINVAL;
+	}
+
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_user(write_user_cb);
+	close(conf_fd);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
@@ -345,7 +394,7 @@ int main(int argc, char *argv[])
 	set_logger_app_name("cifsd_admin");
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:a:d:vh")) != EOF)
+	while ((c = getopt(argc, argv, "c:i:a:d:u:vh")) != EOF)
 		switch (c) {
 		case 'a':
 			account = strdup(optarg);
@@ -354,6 +403,10 @@ int main(int argc, char *argv[])
 		case 'd':
 			account = strdup(optarg);
 			cmd = COMMAND_DEL_USER;
+			break;
+		case 'u':
+			account = strdup(optarg);
+			cmd = COMMAND_UPDATE_USER;
 			break;
 		case 'c':
 			smbconf = strdup(optarg);
@@ -390,7 +443,8 @@ int main(int argc, char *argv[])
 		ret = command_add_user(pwddb);
 	if (cmd == COMMAND_DEL_USER)
 		ret = command_del_user(pwddb);
-
+	if (cmd == COMMAND_UPDATE_USER)
+		ret = command_update_user(pwddb);
 out:
 	shm_final_release();
 	usm_final_release();
