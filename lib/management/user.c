@@ -79,13 +79,11 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 	struct passwd *passwd;
 	char *pass = strdup(pwd);
 
-	if (!pass) {
+	if (!pass || !user) {
 		free(user);
+		free(pass);
 		return NULL;
 	}
-
-	if (!user)
-		return NULL;
 
 	memset(user, 0x00, sizeof(struct cifsd_user));
 
