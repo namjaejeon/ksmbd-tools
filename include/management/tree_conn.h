@@ -55,7 +55,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 
 int tcm_handle_tree_disconnect(unsigned long long id);
 
-void tcm_final_release(void);
+void tcm_destroy(void);
 int tcm_init(void);
 
 #endif /* __MANAGEMENT_TCONNECTION_H__ */

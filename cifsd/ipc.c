@@ -167,7 +167,7 @@ int ipc_receive_loop(void)
 	return -EINVAL;
 }
 
-void ipc_final_release(void)
+void ipc_destroy(void)
 {
 	if (cifsd_health_status == CIFSD_HEALTH_RUNNING)
 		ipc_cifsd_shutting_down();
@@ -201,6 +201,6 @@ int ipc_init(void)
 	return 0;
 
 out_error:
-	ipc_final_release();
+	ipc_destroy();
 	return -EINVAL;
 }

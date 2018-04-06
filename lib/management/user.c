@@ -113,7 +113,7 @@ static void usm_clear_users(void)
 	g_rw_lock_writer_unlock(&users_table_lock);
 }
 
-void usm_final_release(void)
+void usm_destroy(void)
 {
 	usm_clear_users();
 	g_hash_table_destroy(users_table);

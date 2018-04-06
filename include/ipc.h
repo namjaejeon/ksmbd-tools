@@ -40,7 +40,7 @@ void ipc_msg_free(struct ipc_msg *msg);
 int ipc_msg_send(struct ipc_msg *msg);
 
 int ipc_receive_loop(void);
-void ipc_final_release(void);
+void ipc_destroy(void);
 int ipc_init(void);
 
 #endif /* __CIFSD_IPC_H__ */

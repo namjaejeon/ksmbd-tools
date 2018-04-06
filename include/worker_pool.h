@@ -24,7 +24,7 @@
 struct ipc_msg;
 
 int wp_ipc_msg_push(struct ipc_msg *msg);
-void wp_final_release(void);
+void wp_destroy(void);
 int wp_init(void);
 
 #endif /* __CIFSD_WORKER_POOL_H__ */

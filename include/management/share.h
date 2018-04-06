@@ -101,7 +101,7 @@ struct cifsd_share *shm_lookup_share(char *name);
 struct smbconf_group;
 int shm_add_new_share(struct smbconf_group *group);
 
-void shm_final_release(void);
+void shm_destroy(void);
 int shm_init(void);
 
 int shm_lookup_users_map(struct cifsd_share *share,

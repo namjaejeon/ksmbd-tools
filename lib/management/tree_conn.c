@@ -82,7 +82,7 @@ static void tcm_clear_conns(void)
 	g_rw_lock_writer_unlock(&conns_table_lock);
 }
 
-void tcm_final_release(void)
+void tcm_destroy(void)
 {
 	tcm_clear_conns();
 	g_hash_table_destroy(conns_table);

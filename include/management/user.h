@@ -77,7 +77,7 @@ int usm_bind_connection(struct cifsd_user *user,
 void usm_unbind_connection(struct cifsd_user *user,
 			   struct cifsd_tree_conn *conn);
 
-void usm_final_release(void);
+void usm_destroy(void);
 int usm_init(void);
 
 typedef void (*walk_users)(struct cifsd_user *user);

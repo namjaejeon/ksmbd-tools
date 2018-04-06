@@ -181,7 +181,7 @@ int wp_ipc_msg_push(struct ipc_msg *msg)
 	return g_thread_pool_push(pool, msg, NULL);
 }
 
-void wp_final_release(void)
+void wp_destroy(void)
 {
 	g_thread_pool_free(pool, 1, 1);
 }
@@ -205,6 +205,6 @@ int wp_init(void)
 
 	return 0;
 out_error:
-	wp_final_release();
+	wp_destroy();
 	return -ENOMEM;
 }

@@ -446,7 +446,7 @@ int main(int argc, char *argv[])
 	if (cmd == COMMAND_UPDATE_USER)
 		ret = command_update_user(pwddb);
 out:
-	shm_final_release();
-	usm_final_release();
+	shm_destroy();
+	usm_destroy();
 	return ret;
 }

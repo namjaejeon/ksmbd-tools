@@ -150,7 +150,7 @@ static void shm_clear_shares(void)
 	g_rw_lock_writer_unlock(&shares_table_lock);
 }
 
-void shm_final_release(void)
+void shm_destroy(void)
 {
 	shm_clear_shares();
 	g_hash_table_destroy(shares_table);
