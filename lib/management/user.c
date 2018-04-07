@@ -251,3 +251,17 @@ int usm_update_user_password(struct cifsd_user *user, char *pswd)
 
 	return 0;
 }
+
+int usm_copy_user_passhash(struct cifsd_user *user, char *pass, size_t sz)
+{
+	int ret = 0;
+
+	g_rw_lock_reader_lock(&user->update_lock);
+	if (sz <= user->pass_sz) {
+		memcpy(pass, user->pass, user->pass_sz);
+		ret = user->pass_sz;
+	}
+	g_rw_lock_reader_unlock(&user->update_lock);
+
+	return ret;
+}

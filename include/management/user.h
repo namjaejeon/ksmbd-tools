@@ -54,16 +54,6 @@ static inline int get_user_flag(struct cifsd_user *user, int bit)
 	return user->flags & bit;
 }
 
-static inline size_t get_user_pass_sz(struct cifsd_user *user)
-{
-	return user->pass_sz;
-}
-
-static inline char *get_user_passhash(struct cifsd_user *user)
-{
-	return user->pass;
-}
-
 void put_cifsd_user(struct cifsd_user *user);
 
 struct cifsd_user *usm_lookup_user(char *name);
@@ -84,4 +74,5 @@ typedef void (*walk_users)(struct cifsd_user *user);
 void for_each_cifsd_user(walk_users cb);
 
 int usm_update_user_password(struct cifsd_user *user, char *pass);
+int usm_copy_user_passhash(struct cifsd_user *user, char *pass, size_t sz);
 #endif /* __MANAGEMENT_USER_H__ */

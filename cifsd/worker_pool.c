@@ -55,17 +55,11 @@ static int __login_request(struct cifsd_login_request *req,
 		return -EINVAL;
 	}
 
-	hash_sz = get_user_pass_sz(user);
-	if (hash_sz > sizeof(resp->hash)) {
-		put_cifsd_user(user);
-
-		pr_err("User hash is too large: %d\n", hash_sz);
-		return -E2BIG;
+	hash_sz = usm_copy_user_passhash(user, resp->hash, sizeof(resp->hash));
+	if (hash_sz > 0) {
+		resp->status = CIFSD_LOGIN_STATUS_OK;
+		resp->hash_sz = hash_sz;
 	}
-
-	resp->status = CIFSD_LOGIN_STATUS_OK;
-	resp->hash_sz = hash_sz;
-	memcpy(resp->hash, get_user_passhash(user), hash_sz);
 	put_cifsd_user(user);
 }
 
