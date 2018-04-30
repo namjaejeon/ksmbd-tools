@@ -1,0 +1,21 @@
+Original Author and Creator
+===========================
+Namjae Jeon <namjae.jeon@protocolfreedom.org>
+
+Maintainers
+===============
+Namjae Jeon <namjae.jeon@protocolfreedom.org>
+Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+Patch Contributors and Developers
+---------------------------------
+Sergey Senozhatsky <sergey.senozhatsky@gmail.com> (Resolve overall architecture issues and make close to the mainline. and his work cause cifsd 2.0 to be reborn)
+Taeyang Mok <t.mok@samsung.com> (SMB1 support and various cifsd works)
+Yunjae Lim <yunjae.lim@samsung.com> (compatibility works for several windows version and MS-SMB2 testsuite)
+Gibeom Kim <gibeomii.kim@samsung.com>
+Pankaj Sharma <pankaj.s01@samsung.com>
+Anupam Aggarwal <anupam.al@samsung.com>
+Mayank Singh <mayank.singh@samsung.com>
+kumar sourav <kumar.sourav@samsung.com>
+Vivek Trivedi <t.vivek@samsung.com>
+Amit Sahrawat <a.sahrawat@samsung.com>
