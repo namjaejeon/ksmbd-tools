@@ -36,13 +36,25 @@ static GMutex			conn_id_lock;
 static unsigned long long	smb2_conn_id = USHRT_MAX;
 static unsigned short		smb1_conn_id;
 
+static unsigned short __get_next_smb1_conn_id(void)
+{
+	unsigned short ret;
+
+	do {
+		ret = smb1_conn_id++;
+		/* SMB1 id cannot be 0 or 0xFFFE */
+	} while (ret == 0 || ret == 0xfffe);
+
+	return ret;
+}
+
 static unsigned long long get_next_conn_id(int type)
 {
 	unsigned long long ret;
 
 	g_mutex_lock(&conn_id_lock);
 	if (type & CIFSD_TREE_CONN_FLAG_REQUEST_SMB1)
-		ret = smb1_conn_id++;
+		ret = __get_next_smb1_conn_id();
 	else
 		ret = smb2_conn_id++;
 
