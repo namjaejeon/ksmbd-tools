@@ -106,13 +106,6 @@ struct cifsd_client_info {
         struct list_head pipelist;
 };
 
-struct cifsd_notify_client_info {
-	struct list_head list;
-	__u64 hash;
-	char codepage[CIFSD_CODEPAGE_LEN];
-	int wd;
-};
-
 /* max string size for share and parameters */
 #define SHARE_MAX_NAME_LEN      100
 #define SHARE_MAX_COMMENT_LEN   100
