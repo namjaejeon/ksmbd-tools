@@ -33,18 +33,24 @@ static GHashTable	*conns_table;
 static GRWLock		conns_table_lock;
 
 static GMutex			conn_id_lock;
-static unsigned long long	smb2_conn_id = USHRT_MAX;
+/* Exclude SMB1 ids */
+static unsigned long long	smb2_conn_id = 0xFFFF + 1;
 static unsigned short		smb1_conn_id = 1;
+static int			num_avail_smb1_conn_ids = 0xFFFF - 2;
 
 static unsigned short __get_next_smb1_conn_id(void)
 {
 	unsigned short ret;
+
+	if (num_avail_smb1_conn_ids == 0)
+		return 0;
 
 	do {
 		ret = smb1_conn_id++;
 		/* SMB1 id cannot be 0 or 0xFFFE */
 	} while (ret == 0 || ret == 0xfffe);
 
+	num_avail_smb1_conn_ids--;
 	return ret;
 }
 
@@ -52,6 +58,7 @@ static unsigned long long get_next_conn_id(int type)
 {
 	unsigned long long ret;
 
+again:
 	g_mutex_lock(&conn_id_lock);
 	if (type & CIFSD_TREE_CONN_FLAG_REQUEST_SMB1)
 		ret = __get_next_smb1_conn_id();
@@ -59,9 +66,13 @@ static unsigned long long get_next_conn_id(int type)
 		ret = smb2_conn_id++;
 
 	if (smb2_conn_id == 0)
-		smb2_conn_id = USHRT_MAX;
+		smb2_conn_id = 0xFFFF + 1;
 	g_mutex_unlock(&conn_id_lock);
 
+	if (ret != 0) {
+		if (tcm_lookup_conn(ret))
+			goto again;
+	}
 	return ret;
 }
 
@@ -79,6 +90,10 @@ static struct cifsd_tree_conn *new_cifsd_tree_conn(int type)
 
 	memset(conn, 0x00, sizeof(struct cifsd_tree_conn));
 	conn->id = get_next_conn_id(type);
+	if (conn->id == 0) {
+		free(conn);
+		conn = NULL;
+	}
 	return conn;
 }
 
@@ -115,8 +130,18 @@ static int __tcm_remove_conn(struct cifsd_tree_conn *conn)
 	int ret = -EINVAL;
 
 	g_rw_lock_writer_lock(&conns_table_lock);
-	if (g_hash_table_remove(conns_table, &conn->id))
+	if (g_hash_table_remove(conns_table, &conn->id)) {
 		ret = 0;
+
+		g_mutex_lock(&conn_id_lock);
+		if (conn->id < USHRT_MAX) {
+			smb1_conn_id = conn->id;
+			num_avail_smb1_conn_ids++;
+		} else {
+			smb1_conn_id = conn->id;
+		}
+		g_mutex_unlock(&conn_id_lock);
+	}
 	g_rw_lock_writer_unlock(&conns_table_lock);
 
 	if (!ret)
