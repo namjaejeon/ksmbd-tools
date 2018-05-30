@@ -34,7 +34,7 @@ static GRWLock		conns_table_lock;
 
 static GMutex			conn_id_lock;
 static unsigned long long	smb2_conn_id = USHRT_MAX;
-static unsigned short		smb1_conn_id;
+static unsigned short		smb1_conn_id = 1;
 
 static unsigned short __get_next_smb1_conn_id(void)
 {
