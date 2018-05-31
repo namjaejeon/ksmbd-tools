@@ -337,6 +337,11 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			set_share_flag(share, CIFSD_SHARE_INVALID);
 		return;
 	}
+
+	if (!cp_key_cmp(k, "max connections")) {
+		share->max_connections = cp_get_group_kv_long_base(v, 10);
+		return;
+	}
 }
 
 static int init_share_from_group(struct cifsd_share *share,
