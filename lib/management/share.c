@@ -437,6 +437,20 @@ int shm_lookup_hosts_map(struct cifsd_share *share,
 	return ret;
 }
 
+int shm_prebind_connection(struct cifsd_share *share)
+{
+	int ret = 0;
+
+	g_rw_lock_writer_lock(&share->conns_lock);
+	share->num_connections++;
+	if (share->max_connections) {
+		if (share->num_connections >= share->max_connections)
+			ret = -EINVAL;
+	}
+	g_rw_lock_writer_unlock(&share->conns_lock);
+	return ret;
+}
+
 int shm_bind_connection(struct cifsd_share *share,
 			struct cifsd_tree_conn *conn)
 {
@@ -446,11 +460,23 @@ int shm_bind_connection(struct cifsd_share *share,
 	return 0;
 }
 
+int shm_bind_connection_error(struct cifsd_share *share)
+{
+	if (!share)
+		return 0;
+
+	g_rw_lock_writer_lock(&share->conns_lock);
+	share->num_connections--;
+	g_rw_lock_writer_unlock(&share->conns_lock);
+	return 0;
+}
+
 void shm_unbind_connection(struct cifsd_share *share,
 			   struct cifsd_tree_conn *conn)
 {
 	g_rw_lock_writer_lock(&share->conns_lock);
 	share->conns = g_list_remove(share->conns, conn);
+	share->num_connections--;
 	g_rw_lock_writer_unlock(&share->conns_lock);
 }
 

@@ -113,8 +113,10 @@ int shm_lookup_hosts_map(struct cifsd_share *share,
 			  char *host);
 
 struct cifsd_tree_conn;
+int shm_prebind_connection(struct cifsd_share *share);
 int shm_bind_connection(struct cifsd_share *share,
 			struct cifsd_tree_conn *conn);
+int shm_bind_connection_error(struct cifsd_share *share);
 void shm_unbind_connection(struct cifsd_share *share,
 			   struct cifsd_tree_conn *conn);
 

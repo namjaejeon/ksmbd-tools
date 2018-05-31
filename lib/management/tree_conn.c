@@ -183,6 +183,11 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		goto out_error;
 	}
 
+	if (shm_prebind_connection(share)) {
+		resp->status = CIFSD_TREE_CONN_STATUS_TOO_MANY_CONNS;
+		goto out_error;
+	}
+
 	ret = shm_lookup_hosts_map(share,
 				   CIFSD_SHARE_HOSTS_ALLOW_MAP,
 				   req->host);
@@ -283,6 +288,7 @@ bind:
 
 out_error:
 	kill_cifsd_tree_conn(conn);
+	shm_bind_connection_error(share);
 	put_cifsd_share(share);
 	put_cifsd_user(user);
 	return -EINVAL;
