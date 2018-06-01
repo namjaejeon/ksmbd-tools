@@ -184,6 +184,7 @@ void tlws(char *src, char *dst, int *sz)
 
 	while ((--i >= 0) &&
 			(src[i] != ']' &&
+			 src[i] != '/' &&
 			 !(src[i] >= 'A' && src[i] <= 'Z') &&
 			 !(src[i] >= 'a' && src[i] <= 'z') &&
 			 !(src[i] >= '0' && src[i] <= '9')))
