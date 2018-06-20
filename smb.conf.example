@@ -39,6 +39,21 @@
 ;	- invalid users
 ;		This is a list of users that should not be allowed to login to
 ;		this service.
+;	- max connections
+;		This option allows the number of simultaneous connections to
+;		a service to be limited.
+;	- veto files
+;		This is a list of files and directories that are neither visible
+		nor accessible.
+;
+;		Veto any files containing the word Security,
+;		any ending in .tmp, and any directory containing the
+;		word root.
+;		veto files = /*Security*/*.tmp/*root*/
+;
+;		Veto the Apple specific files that a NetAtalk server
+;		creates.
+;		veto files = /.AppleDouble/.bin/.AppleDesktop/Network Trash Folder/
 ;
 ;
 ; Rules to update this file:
