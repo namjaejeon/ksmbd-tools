@@ -23,21 +23,12 @@
 
 #define CIFSD_IPC_DESTINATION_KERNEL	0
 
-struct ipc_msg {
-	int		type;
-	int		destination;
+struct cifsd_ipc_msg;
 
-	int		sz;
-	unsigned char	____payload[0];
-};
+struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz);
+void ipc_msg_free(struct cifsd_ipc_msg *msg);
 
-#define IPC_MSG_PAYLOAD(m)	\
-	((void *)(m) + offsetof(struct ipc_msg, ____payload))
-
-struct ipc_msg *ipc_msg_alloc(size_t sz);
-void ipc_msg_free(struct ipc_msg *msg);
-
-int ipc_msg_send(struct ipc_msg *msg);
+int ipc_msg_send(struct cifsd_ipc_msg *msg);
 
 int ipc_receive_loop(void);
 void ipc_destroy(void);

@@ -21,9 +21,9 @@
 #ifndef __CIFSD_WORKER_POOL_H__
 #define __CIFSD_WORKER_POOL_H__
 
-struct ipc_msg;
+struct cifsd_ipc_msg;
 
-int wp_ipc_msg_push(struct ipc_msg *msg);
+int wp_ipc_msg_push(struct cifsd_ipc_msg *msg);
 void wp_destroy(void);
 int wp_init(void);
 

@@ -37,7 +37,7 @@ static int nlink_msg_cb(struct nl_msg *nlmsg, void *arg)
 {
 	struct nlmsghdr *nlh = nlmsg_data(nlmsg_hdr(nlmsg));
 	size_t sz = nlmsg_datalen(nlh);
-	struct ipc_msg *event = ipc_msg_alloc(sz);
+	struct cifsd_ipc_msg *event = ipc_msg_alloc(sz);
 
 	if (!event)
 		return NL_SKIP;
@@ -47,15 +47,15 @@ static int nlink_msg_cb(struct nl_msg *nlmsg, void *arg)
 	event->type = nlh->nlmsg_type;
 	event->sz = sz;
 
-	memcpy(IPC_MSG_PAYLOAD(event), nlmsg_data(nlmsg_hdr(nlmsg)), sz);
+	memcpy(CIFSD_IPC_MSG_PAYLOAD(event), nlmsg_data(nlmsg_hdr(nlmsg)), sz);
 	wp_ipc_msg_push(event);
 	return NL_SKIP;
 }
 
-struct ipc_msg *ipc_msg_alloc(size_t sz)
+struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz)
 {
-	struct ipc_msg *msg;
-	size_t msg_sz = sz + sizeof(struct ipc_msg) - sizeof(void *);
+	struct cifsd_ipc_msg *msg;
+	size_t msg_sz = sz + sizeof(struct cifsd_ipc_msg) - sizeof(void *);
 
 	msg = malloc(msg_sz);
 	if (msg) {
@@ -66,12 +66,12 @@ struct ipc_msg *ipc_msg_alloc(size_t sz)
 	return msg;
 }
 
-void ipc_msg_free(struct ipc_msg *msg)
+void ipc_msg_free(struct cifsd_ipc_msg *msg)
 {
 	free(msg);
 }
 
-int ipc_msg_send(struct ipc_msg *msg)
+int ipc_msg_send(struct cifsd_ipc_msg *msg)
 {
 	struct nl_msg *nlmsg;
 	struct nlmsghdr *hdr;
@@ -92,7 +92,7 @@ int ipc_msg_send(struct ipc_msg *msg)
 	if (!hdr)
 		goto out_error;
 
-	ret = nla_put(nlmsg, NLA_UNSPEC, msg->sz, IPC_MSG_PAYLOAD(msg));
+	ret = nla_put(nlmsg, NLA_UNSPEC, msg->sz, CIFSD_IPC_MSG_PAYLOAD(msg));
 	if (ret)
 		goto out_error;
 
@@ -109,7 +109,7 @@ out_error:
 static int ipc_cifsd_starting_up(void)
 {
 	struct cifsd_startup_shutdown *ev;
-	struct ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
+	struct cifsd_ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
 	int ret;
 
 	if (!msg)
@@ -117,7 +117,7 @@ static int ipc_cifsd_starting_up(void)
 
 	pr_info("Starting up...\n");
 
-	ev = IPC_MSG_PAYLOAD(msg);
+	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
@@ -133,7 +133,7 @@ static int ipc_cifsd_starting_up(void)
 static int ipc_cifsd_shutting_down(void)
 {
 	struct cifsd_startup_shutdown *ev;
-	struct ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
+	struct cifsd_ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
 	int ret;
 
 	if (!msg)
@@ -141,7 +141,7 @@ static int ipc_cifsd_shutting_down(void)
 
 	pr_info("Shutting down...\n");
 
-	ev = IPC_MSG_PAYLOAD(msg);
+	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
 

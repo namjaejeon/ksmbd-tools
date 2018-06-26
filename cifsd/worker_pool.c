@@ -63,18 +63,18 @@ static int __login_request(struct cifsd_login_request *req,
 	put_cifsd_user(user);
 }
 
-static int login_request(struct ipc_msg *msg)
+static int login_request(struct cifsd_ipc_msg *msg)
 {
 	struct cifsd_login_request *req;
 	struct cifsd_login_response *resp;
-	struct ipc_msg *resp_msg;
+	struct cifsd_ipc_msg *resp_msg;
 
 	resp_msg = ipc_msg_alloc(sizeof(*resp));
 	if (!resp_msg)
 		goto out;
 
-	req = IPC_MSG_PAYLOAD(msg);
-	resp = IPC_MSG_PAYLOAD(resp_msg);
+	req = CIFSD_IPC_MSG_PAYLOAD(msg);
+	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 
 	resp->status = CIFSD_LOGIN_STATUS_INVALID;
 	if (VALID_IPC_MSG(msg, struct cifsd_login_request))
@@ -90,18 +90,18 @@ out:
 	return 0;
 }
 
-static int tree_connect_request(struct ipc_msg *msg)
+static int tree_connect_request(struct cifsd_ipc_msg *msg)
 {
 	struct cifsd_tree_connect_request *req;
 	struct cifsd_tree_connect_response *resp;
-	struct ipc_msg *resp_msg;
+	struct cifsd_ipc_msg *resp_msg;
 
 	resp_msg = ipc_msg_alloc(sizeof(*resp));
 	if (!resp_msg)
 		goto out;
 
-	req = IPC_MSG_PAYLOAD(msg);
-	resp = IPC_MSG_PAYLOAD(resp_msg);
+	req = CIFSD_IPC_MSG_PAYLOAD(msg);
+	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 
 	resp->status = CIFSD_TREE_CONN_STATUS_ERROR;
 	resp->connection_id = -1;
@@ -120,20 +120,20 @@ out:
 	return 0;
 }
 
-static int tree_disconnect_request(struct ipc_msg *msg)
+static int tree_disconnect_request(struct cifsd_ipc_msg *msg)
 {
 	struct cifsd_tree_disconnect_request *req;
 
 	if (!VALID_IPC_MSG(msg, struct cifsd_tree_disconnect_request))
 		return -EINVAL;
 
-	req = IPC_MSG_PAYLOAD(msg);
+	req = CIFSD_IPC_MSG_PAYLOAD(msg);
 	tcm_handle_tree_disconnect(req->connect_id);
 
 	return 0;
 }
 
-static int logout_request(struct ipc_msg *msg)
+static int logout_request(struct cifsd_ipc_msg *msg)
 {
 	if (!VALID_IPC_MSG(msg, struct cifsd_logout_request))
 		return -EINVAL;
@@ -143,7 +143,7 @@ static int logout_request(struct ipc_msg *msg)
 
 static void worker_pool_fn(gpointer event, gpointer user_data)
 {
-	struct ipc_msg *msg = (struct ipc_msg *)event;
+	struct cifsd_ipc_msg *msg = (struct cifsd_ipc_msg *)event;
 
 	switch (msg->type) {
 	case CIFSD_EVENT_LOGIN_REQUEST:
@@ -170,7 +170,7 @@ static void worker_pool_fn(gpointer event, gpointer user_data)
 	ipc_msg_free(msg);
 }
 
-int wp_ipc_msg_push(struct ipc_msg *msg)
+int wp_ipc_msg_push(struct cifsd_ipc_msg *msg)
 {
 	return g_thread_pool_push(pool, msg, NULL);
 }
