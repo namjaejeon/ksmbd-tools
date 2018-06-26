@@ -31,17 +31,6 @@
 #define __packed			__attribute__ ((packed));
 #endif
 
-struct cifsd_ipc_msg {
-	__u32		type;
-	__s32		destination;
-
-	__u32		sz;
-	__u8		____payload[0];
-};
-
-#define CIFSD_IPC_MSG_PAYLOAD(m)	\
-	((void *)(m) + offsetof(struct cifsd_ipc_msg, ____payload))
-
 struct cifsd_startup_shutdown {
 	__u32	pid;
 	__s8	version[8];
