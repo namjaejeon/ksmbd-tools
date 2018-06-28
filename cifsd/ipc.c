@@ -213,9 +213,7 @@ void ipc_destroy(void)
 		ipc_cifsd_shutting_down();
 
 	nl_socket_free(sk);
-	nl_cb_put(cb);
 	sk = NULL;
-	cb = NULL;
 }
 
 int ipc_init(void)
