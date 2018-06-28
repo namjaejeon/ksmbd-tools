@@ -31,7 +31,6 @@
 #include <worker_pool.h>
 
 static struct nl_sock *sk;
-static struct nl_cb *cb;
 
 static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
 	[CIFSD_EVENT_STARTING_UP] = {
