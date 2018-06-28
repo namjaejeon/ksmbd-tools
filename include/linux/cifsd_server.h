@@ -38,22 +38,22 @@ struct cifsd_startup_shutdown {
 
 struct cifsd_login_request {
 	__u64	handle;
-	__s8	account[256];
+	__s8	account[64];
 } __packed;
 
 struct cifsd_login_response {
 	__u64	handle;
 	__u16	status;
 	__u16	hash_sz;
-	__s8	hash[256];
+	__s8	hash[64];
 } __packed;
 
 struct cifsd_tree_connect_request {
 	__u64	handle;
 	__u32	flags;
-	__s8	account[256];
-	__s8	share[256];
-	__s8	host[256];
+	__s8	account[64];
+	__s8	share[64];
+	__s8	host[64];
 } __packed;
 
 struct cifsd_tree_connect_response {
@@ -64,11 +64,11 @@ struct cifsd_tree_connect_response {
 } __packed;
 
 struct cifsd_tree_disconnect_request {
-	__u64	connect_id;
+	__u64	connection_id;
 } __packed;
 
 struct cifsd_logout_request {
-	__u64	handle;
+	__s8	account[64];
 } __packed;
 
 enum cifsd_event {

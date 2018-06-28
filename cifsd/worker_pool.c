@@ -128,7 +128,7 @@ static int tree_disconnect_request(struct cifsd_ipc_msg *msg)
 		return -EINVAL;
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
-	tcm_handle_tree_disconnect(req->connect_id);
+	tcm_handle_tree_disconnect(req->connection_id);
 
 	return 0;
 }
