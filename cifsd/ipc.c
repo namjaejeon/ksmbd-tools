@@ -74,20 +74,20 @@ static int nlink_msg_cb(struct nl_msg *nlmsg, void *arg)
 	size_t sz;
 	struct cifsd_ipc_msg *event;
 
-        if (nlmsg_parse(nlh, 0, attrs, CIFSD_EVENT_MAX, cifsd_nl_policy)) {
+        if (nlmsg_parse(nlh, 0, attrs, CIFSD_EVENT_MAX, cifsd_nl_policy) < 0) {
 		pr_err("Unalbe to parse IPC message.\n");
 		return NL_SKIP;
 	}
 
-	if (!attrs[nlh->nlmsg_type])
+	if (!attrs[nlh->nlmsg_type]) {
+		pr_err("Cannot find type %d\n", nlh->nlmsg_type);
 		return NL_SKIP;
+	}
 
 	sz = nla_len(attrs[nlh->nlmsg_type]);
 	event = ipc_msg_alloc(sz);
 	if (!event)
 		return NL_SKIP;
-
-	pr_err(">>> GOT MSG\n");
 
 	event->type = nlh->nlmsg_type;
 	event->sz = sz;
@@ -130,12 +130,7 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 		goto out_error;
 	}
 
-	hdr = nlmsg_put(nlmsg,
-			msg->destination,
-			NL_AUTO_SEQ,
-			msg->type,
-			0,
-			0);
+	hdr = nlmsg_put(nlmsg, getpid(), 0, msg->type, 0, 0);
 	if (!hdr)
 		goto out_error;
 
@@ -167,7 +162,7 @@ static int ipc_cifsd_starting_up(void)
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
-	ev->pid = getpid();
+	ev->pid = 0;
 	strncpy(ev->version, CIFSD_VERSION, sizeof(ev->version));
 
 	ret = ipc_msg_send(msg);
@@ -189,7 +184,7 @@ static int ipc_cifsd_shutting_down(void)
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
 
-	ev->pid = getpid();
+	ev->pid = 0;
 	strncpy(ev->version, CIFSD_VERSION, sizeof(ev->version));
 
 	ret = ipc_msg_send(msg);
@@ -205,8 +200,10 @@ int ipc_receive_loop(void)
 
 	cifsd_health_status = CIFSD_HEALTH_RUNNING;
 	while (cifsd_health_status == CIFSD_HEALTH_RUNNING) {
-		if (nl_recvmsgs_default(sk) < 0)
+		if (nl_recvmsgs_default(sk) < 0) {
+			pr_err("Recieve error\n");
 			break;
+		}
 	}
 	return -EINVAL;
 }
@@ -228,15 +225,17 @@ int ipc_init(void)
 	if (!sk)
 		goto out_error;
 
-	cb = nl_cb_alloc(NL_CB_DEFAULT);
-	if (!cb)
+	if (nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM,
+				nlink_msg_cb, NULL))
 		goto out_error;
 
 	nl_socket_enable_msg_peek(sk);
 	nl_socket_disable_seq_check(sk);
 
-	if (nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nlink_msg_cb, NULL))
-		goto out_error;
+	nl_socket_set_local_port(sk, getpid());
+	nl_socket_set_peer_port(sk, 0);
+	nl_socket_set_peer_groups(sk, 0);
+	nl_socket_enable_auto_ack(sk);
 
 	if (nl_connect(sk, CIFSD_TOOLS_NETLINK))
 		goto out_error;
