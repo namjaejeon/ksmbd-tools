@@ -92,7 +92,8 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 	if (!hdr)
 		goto out_error;
 
-	ret = nla_put(nlmsg, NLA_UNSPEC, msg->sz, CIFSD_IPC_MSG_PAYLOAD(msg));
+	/* Use msg->type as attribute TYPE */
+	ret = nla_put(nlmsg, msg->type, msg->sz, CIFSD_IPC_MSG_PAYLOAD(msg));
 	if (ret)
 		goto out_error;
 
@@ -115,8 +116,6 @@ static int ipc_cifsd_starting_up(void)
 	if (!msg)
 		return -ENOMEM;
 
-	pr_info("Starting up...\n");
-
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_STARTING_UP;
@@ -138,8 +137,6 @@ static int ipc_cifsd_shutting_down(void)
 
 	if (!msg)
 		return -ENOMEM;
-
-	pr_info("Shutting down...\n");
 
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;

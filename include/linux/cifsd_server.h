@@ -71,8 +71,10 @@ struct cifsd_logout_request {
 	__s8	account[64];
 } __packed;
 
+/* This also used as NETLINK attribute type value. */
 enum cifsd_event {
-	CIFSD_EVENT_STARTING_UP		= 1,
+	CIFSD_EVENT_UNSPEC			= 0,
+	CIFSD_EVENT_STARTING_UP,
 	CIFSD_EVENT_SHUTTING_DOWN,
 
 	CIFSD_EVENT_LOGIN_REQUEST,
@@ -84,6 +86,8 @@ enum cifsd_event {
 	CIFSD_EVENT_TREE_DISCONNECT_REQUEST,
 
 	CIFSD_EVENT_LOGOUT_REQUEST,
+
+	CIFSD_EVENT_MAX
 };
 
 enum CIFSD_LOGIN_STATUS {
