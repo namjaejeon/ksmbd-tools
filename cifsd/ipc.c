@@ -33,12 +33,57 @@
 static struct nl_sock *sk;
 static struct nl_cb *cb;
 
+static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
+	[CIFSD_EVENT_STARTING_UP] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_SHUTTING_DOWN] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_LOGIN_REQUEST] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_LOGIN_RESPONSE] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_TREE_CONNECT_REQUEST] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_TREE_CONNECT_RESPONSE] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_TREE_DISCONNECT_REQUEST] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+
+	[CIFSD_EVENT_LOGOUT_REQUEST] = {
+		.minlen = sizeof(struct cifsd_startup_shutdown),
+	},
+};
+
 static int nlink_msg_cb(struct nl_msg *nlmsg, void *arg)
 {
 	struct nlmsghdr *nlh = nlmsg_data(nlmsg_hdr(nlmsg));
-	size_t sz = nlmsg_datalen(nlh);
-	struct cifsd_ipc_msg *event = ipc_msg_alloc(sz);
+        struct nlattr *attrs[CIFSD_EVENT_MAX + 1];
+	size_t sz;
+	struct cifsd_ipc_msg *event;
 
+        if (nlmsg_parse(nlh, 0, attrs, CIFSD_EVENT_MAX, cifsd_nl_policy)) {
+		pr_err("Unalbe to parse IPC message.\n");
+		return NL_SKIP;
+	}
+
+	if (!attrs[nlh->nlmsg_type])
+		return NL_SKIP;
+
+	sz = nla_len(attrs[nlh->nlmsg_type]);
+	event = ipc_msg_alloc(sz);
 	if (!event)
 		return NL_SKIP;
 
@@ -47,7 +92,9 @@ static int nlink_msg_cb(struct nl_msg *nlmsg, void *arg)
 	event->type = nlh->nlmsg_type;
 	event->sz = sz;
 
-	memcpy(CIFSD_IPC_MSG_PAYLOAD(event), nlmsg_data(nlmsg_hdr(nlmsg)), sz);
+	memcpy(CIFSD_IPC_MSG_PAYLOAD(event),
+	       nla_data(attrs[nlh->nlmsg_type]),
+	       sz);
 	wp_ipc_msg_push(event);
 	return NL_SKIP;
 }
