@@ -23,9 +23,8 @@
 
 #include <linux/types.h>
 
-#define CIFSD_TOOLS_NETLINK	30
-
-#define CIFSD_VERSION	"0.0.1"
+#define CIFSD_GENL_NAME      "CIFSD_GENL"
+#define CIFSD_GENL_VERSION    0x01
 
 #ifndef __packed
 #define __packed			__attribute__ ((packed));
