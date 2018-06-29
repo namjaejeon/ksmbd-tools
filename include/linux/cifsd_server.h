@@ -31,8 +31,7 @@
 #endif
 
 struct cifsd_startup_shutdown {
-	__u32	pid;
-	__s8	version[8];
+	__s8	reserved[8];
 } __packed;
 
 struct cifsd_login_request {

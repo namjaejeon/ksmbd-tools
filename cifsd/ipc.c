@@ -118,8 +118,7 @@ static int ipc_cifsd_starting_up(void)
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
-	ev->pid = 0;
-	strncpy(ev->version, "RSRVD", sizeof(ev->version));
+	strncpy(ev->reserved, "HELO", sizeof(ev->reserved));
 
 	ret = ipc_msg_send(msg);
 	ipc_msg_free(msg);
@@ -138,8 +137,7 @@ static int ipc_cifsd_shutting_down(void)
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
 
-	ev->pid = 0;
-	strncpy(ev->version, "RSRVD", sizeof(ev->version));
+	strncpy(ev->reserved, "QUIT", sizeof(ev->reserved));
 
 	ret = ipc_msg_send(msg);
 	ipc_msg_free(msg);
