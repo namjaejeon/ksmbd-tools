@@ -44,7 +44,6 @@ struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz)
 	msg = malloc(msg_sz);
 	if (msg) {
 		memset(msg, 0x00, msg_sz);
-		msg->destination = -1;
 		msg->sz = sz;
 	}
 	return msg;
@@ -117,7 +116,6 @@ static int ipc_cifsd_starting_up(void)
 		return -ENOMEM;
 
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
-	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
 	ev->pid = 0;
@@ -138,7 +136,6 @@ static int ipc_cifsd_shutting_down(void)
 		return -ENOMEM;
 
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
-	msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
 
 	ev->pid = 0;

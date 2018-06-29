@@ -21,12 +21,8 @@
 #ifndef __CIFSD_IPC_H__
 #define __CIFSD_IPC_H__
 
-#define CIFSD_IPC_DESTINATION_KERNEL	0
-
 struct cifsd_ipc_msg {
 	unsigned int	type;
-	int		destination;
-
 	unsigned int	sz;
 	unsigned char	____payload[0];
 };

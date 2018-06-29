@@ -80,7 +80,6 @@ static int login_request(struct cifsd_ipc_msg *msg)
 	if (VALID_IPC_MSG(msg, struct cifsd_login_request))
 		__login_request(req, resp);
 
-	resp_msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	resp_msg->type = CIFSD_EVENT_LOGIN_RESPONSE;
 	resp->handle = req->handle;
 
@@ -110,7 +109,6 @@ static int tree_connect_request(struct cifsd_ipc_msg *msg)
 	if (VALID_IPC_MSG(msg, struct cifsd_tree_connect_request))
 		tcm_handle_tree_connect(req, resp);
 
-	resp_msg->destination = CIFSD_IPC_DESTINATION_KERNEL;
 	resp_msg->type = CIFSD_EVENT_TREE_CONNECT_RESPONSE;
 	resp->handle = req->handle;
 
