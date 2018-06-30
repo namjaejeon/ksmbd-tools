@@ -257,7 +257,7 @@ int usm_copy_user_passhash(struct cifsd_user *user, char *pass, size_t sz)
 	int ret = 0;
 
 	g_rw_lock_reader_lock(&user->update_lock);
-	if (sz <= user->pass_sz) {
+	if (sz >= user->pass_sz) {
 		memcpy(pass, user->pass, user->pass_sz);
 		ret = user->pass_sz;
 	}
