@@ -264,6 +264,7 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 		goto out_error;
 	}
 
+	nlmsg_set_proto(nlmsg, NETLINK_GENERIC);
 	hdr = genlmsg_put(nlmsg, getpid(), 0, cifsd_family_ops.o_id,
 			0, 0, msg->type, CIFSD_GENL_VERSION);
 	if (!hdr)
