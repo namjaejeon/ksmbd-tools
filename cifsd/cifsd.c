@@ -220,7 +220,7 @@ static void add_new_share(char *sharename, char *comment)
 	if (sharename)
 		memcpy(share->sharename, sharename, strlen(sharename));
 
-	if (share->config.comment)
+	if (comment)
 		memcpy(share->config.comment, comment, strlen(comment));
 
 	list_add(&share->list, &cifsd_share_list);
