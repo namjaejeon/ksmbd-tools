@@ -60,10 +60,10 @@ static unsigned long long get_next_conn_id(int type)
 
 again:
 	g_mutex_lock(&conn_id_lock);
-	if (type & CIFSD_TREE_CONN_FLAG_REQUEST_SMB1)
-		ret = __get_next_smb1_conn_id();
-	else
+	if (type & CIFSD_TREE_CONN_FLAG_REQUEST_SMB2)
 		ret = smb2_conn_id++;
+	else
+		ret = __get_next_smb1_conn_id();
 
 	if (smb2_conn_id == 0)
 		smb2_conn_id = 0xFFFF + 1;
@@ -190,7 +190,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 
 	ret = shm_lookup_hosts_map(share,
 				   CIFSD_SHARE_HOSTS_ALLOW_MAP,
-				   req->host);
+				   req->peer_addr);
 	if (ret == -ENOENT) {
 		resp->status = CIFSD_TREE_CONN_STATUS_HOST_DENIED;
 		goto out_error;
@@ -199,7 +199,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	if (ret != 0) {
 		ret = shm_lookup_hosts_map(share,
 					   CIFSD_SHARE_HOSTS_DENY_MAP,
-					   req->host);
+					   req->peer_addr);
 		if (ret == 0) {
 			resp->status = CIFSD_TREE_CONN_STATUS_HOST_DENIED;
 			goto out_error;

@@ -51,7 +51,7 @@ struct cifsd_tree_connect_request {
 	__u32	flags;
 	__s8	account[64];
 	__s8	share[64];
-	__s8	host[64];
+	__s8	peer_addr[64];
 } __packed;
 
 struct cifsd_tree_connect_response {
@@ -106,10 +106,18 @@ enum CIFSD_TREE_CONN_STATUS {
 	CIFSD_TREE_CONN_STATUS_ERROR,
 };
 
+/*
+ * Tree connect response flags
+ */
 #define CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT	(1 << 0)
 #define CIFSD_TREE_CONN_FLAG_READ_ONLY		(1 << 1)
-#define CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT	(1 << 3)
-#define CIFSD_TREE_CONN_FLAG_REQUEST_SMB1	(1 << 4)
-#define CIFSD_TREE_CONN_FLAG_REQUEST_SMB2	(1 << 5)
+#define CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT	(1 << 2)
+
+/*
+ * Tree connect request flags
+ */
+#define CIFSD_TREE_CONN_FLAG_REQUEST_SMB1	(0)
+#define CIFSD_TREE_CONN_FLAG_REQUEST_IPV6	(1 << 0)
+#define CIFSD_TREE_CONN_FLAG_REQUEST_SMB2	(1 << 1)
 
 #endif /* _LINUX_CIFSD_SERVER_H */
