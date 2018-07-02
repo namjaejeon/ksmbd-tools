@@ -35,19 +35,19 @@ struct cifsd_startup_shutdown {
 } __packed;
 
 struct cifsd_login_request {
-	__u64	handle;
+	__u32	handle;
 	__s8	account[64];
 } __packed;
 
 struct cifsd_login_response {
-	__u64	handle;
+	__u32	handle;
 	__u16	status;
 	__u16	hash_sz;
 	__s8	hash[64];
 } __packed;
 
 struct cifsd_tree_connect_request {
-	__u64	handle;
+	__u32	handle;
 	__u32	flags;
 	__s8	account[64];
 	__s8	share[64];
@@ -55,7 +55,7 @@ struct cifsd_tree_connect_request {
 } __packed;
 
 struct cifsd_tree_connect_response {
-	__u64	handle;
+	__u32	handle;
 	__u32	status;
 	__u32	connection_flags;
 	__u64	connection_id;
