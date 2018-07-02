@@ -69,7 +69,13 @@ struct cifsd_logout_request {
 	__s8	account[64];
 } __packed;
 
-/* This also used as NETLINK attribute type value. */
+/*
+ * This also used as NETLINK attribute type value.
+ *
+ * NOTE:
+ * Response message type value should be equal to
+ * request message type value + 1.
+ */
 enum cifsd_event {
 	CIFSD_EVENT_UNSPEC			= 0,
 	CIFSD_EVENT_STARTING_UP,
