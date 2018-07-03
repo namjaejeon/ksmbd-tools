@@ -119,6 +119,7 @@ static char *prompt_password(long *sz)
 	char *pswd1 = malloc(MAX_NT_PWD_LEN + 1);
 	char *pswd2 = malloc(MAX_NT_PWD_LEN + 1);
 	size_t len = 0;
+	int i;
 
 	if (!pswd1 || !pswd2) {
 		free(pswd1);
@@ -139,6 +140,16 @@ again:
 	fgets(pswd2, MAX_NT_PWD_LEN, stdin);
 	term_toggle_echo(1);
 
+	len = strlen(pswd1);
+	for (i = 0; i < len; i++)
+		if (pswd1[i] == '\n')
+			pswd1[i] = 0x00;
+
+	len = strlen(pswd2);
+	for (i = 0; i < len; i++)
+		if (pswd2[i] == '\n')
+			pswd2[i] = 0x00;
+
 	if (memcmp(pswd1, pswd2, MAX_NT_PWD_LEN + 1)) {
 		pr_err("Passwords don't match\n");
 		goto again;
@@ -150,9 +161,7 @@ again:
 		goto again;
 	}
 
-	*sz = len - 1;
-	if (pswd1[len - 1] == '\n')
-		pswd1[len - 1] = 0x00;
+	*sz = len;
 	free(pswd2);
 	return pswd1;
 }
@@ -169,7 +178,7 @@ static char *get_utf8_password(long *len)
 	if (!pswd1)
 		return NULL;
 
-	dstsz = sz * sizeof(unsigned short);
+	dstsz = sz * sizeof(unsigned short) * 2;
 	pswd2 = malloc(dstsz);
 	if (!pswd2) {
 		free(pswd1);
@@ -190,7 +199,6 @@ static char *get_utf8_password(long *len)
 	pswd2o = pswd2;
 	ret = iconv(conv, &pswd1, &sz, &pswd2, &dstsz);
 	iconv_close(conv);
-
 	if (ret == (size_t)-1) {
 		pr_err("%s\n", strerror(errno));
 		free(pswd1o);
@@ -206,34 +214,53 @@ static char *get_utf8_password(long *len)
 	return pswd2;
 }
 
+static void __sanity_check(char *pswd_hash, char *pswd_b64)
+{
+	size_t pass_sz;
+	char *pass = base64_decode(pswd_b64, &pass_sz);
+
+	if (!pass) {
+		pr_err("Unable to decode NT hash\n");
+		exit(1);
+	}
+
+	if (memcmp(pass, pswd_hash, pass_sz)) {
+		pr_err("NT hash encoding error\n");
+		exit(1);
+	}
+	free(pass);
+}
+
 static char *get_hashed_b64_password(void)
 {
 	struct md4_ctx mctx;
 	long len;
-	char *pswd1, *pswd2;
+	char *pswd_plain, *pswd_hash, *pswd_b64;
 
-	pswd1 = get_utf8_password(&len);
-	if (!pswd1)
+	pswd_plain = get_utf8_password(&len);
+	if (!pswd_plain)
 		return NULL;
 
-	pswd2 = malloc(sizeof(mctx.hash) + 1);
-	if (!pswd2) {
-		free(pswd1);
+	pswd_hash = malloc(sizeof(mctx.hash) + 1);
+	if (!pswd_hash) {
+		free(pswd_plain);
 		pr_err("Out of memory\n");
 		return NULL;
 	}
 
-	memset(pswd2, 0x00, sizeof(mctx.hash) + 1);
+	memset(pswd_hash, 0x00, sizeof(mctx.hash) + 1);
 
 	md4_init(&mctx);
-	md4_update(&mctx, pswd1, len);
-	md4_final(&mctx, pswd2);
+	md4_update(&mctx, pswd_plain, len);
+	md4_final(&mctx, pswd_hash);
 
-	free(pswd1);
-	pswd1 = base64_encode(pswd2, MD4_HASH_WORDS * sizeof(unsigned int));
-	free(pswd2);
+	pswd_b64 = base64_encode(pswd_hash,
+				 MD4_HASH_WORDS * sizeof(unsigned int));
 
-	return pswd1;
+	__sanity_check(pswd_hash, pswd_b64);
+	free(pswd_plain);
+	free(pswd_hash);
+	return pswd_b64;
 }
 
 static void write_user(struct cifsd_user *user)
