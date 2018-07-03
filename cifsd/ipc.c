@@ -163,6 +163,10 @@ int ipc_receive_loop(void)
 }
 
 static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
+	[CIFSD_EVENT_UNSPEC] = {
+		.minlen = 0,
+	},
+
 	[CIFSD_EVENT_HEARTBEAT_REQUEST] = {
 		.minlen = sizeof(struct cifsd_heartbeat),
 	},
@@ -205,6 +209,12 @@ static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
 };
 
 static struct genl_cmd cifsd_genl_cmds[] = {
+	{
+		.c_id		= CIFSD_EVENT_UNSPEC,
+		.c_attr_policy	= cifsd_nl_policy,
+		.c_msg_parser	= &handle_unsupported_event,
+		.c_maxattr	= CIFSD_EVENT_MAX,
+	},
 	{
 		.c_id		= CIFSD_EVENT_HEARTBEAT_REQUEST,
 		.c_attr_policy	= cifsd_nl_policy,
