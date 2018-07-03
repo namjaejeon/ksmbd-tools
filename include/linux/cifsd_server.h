@@ -30,6 +30,10 @@
 #define __packed			__attribute__ ((packed));
 #endif
 
+struct cifsd_heartbeat {
+	__u32	handle;
+};
+
 struct cifsd_startup_shutdown {
 	__s8	reserved[8];
 } __packed;
@@ -78,6 +82,8 @@ struct cifsd_logout_request {
  */
 enum cifsd_event {
 	CIFSD_EVENT_UNSPEC			= 0,
+	CIFSD_EVENT_HEARTBEAT,
+
 	CIFSD_EVENT_STARTING_UP,
 	CIFSD_EVENT_SHUTTING_DOWN,
 
