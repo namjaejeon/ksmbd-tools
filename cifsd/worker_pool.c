@@ -118,6 +118,53 @@ out:
 	return 0;
 }
 
+static int share_config_request(struct cifsd_ipc_msg *msg)
+{
+	struct cifsd_share_config_request *req;
+	struct cifsd_share_config_response *resp;
+	struct cifsd_ipc_msg *resp_msg;
+	struct cifsd_share *share;
+	void *config_payload;
+	size_t veto_list_sz = 0;
+	size_t path_sz = 0;
+
+	req = CIFSD_IPC_MSG_PAYLOAD(msg);
+	if (VALID_IPC_MSG(msg, struct cifsd_share_config_request)) {
+		share = shm_lookup_share(req->share_name);
+		if (share) {
+			path_sz = strlen(share->path) + 1;
+			veto_list_sz = share->veto_list_sz;
+		}
+	}
+
+	resp_msg = ipc_msg_alloc(sizeof(*resp) + path_sz + veto_list_sz);
+	if (!resp_msg)
+		goto out;
+
+	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
+	if (share) {
+		resp->flags = share->flags;
+		resp->veto_list_sz = share->veto_list_sz;
+		config_payload = CIFSD_SHARE_CONFIG_VETO_LIST(resp);
+		memcpy(config_payload,
+		       share->veto_list,
+		       resp->veto_list_sz);
+		if (resp->veto_list_sz)
+			resp->veto_list_sz++;
+		config_payload = CIFSD_SHARE_CONFIG_PATH(resp);
+		memcpy(config_payload, share->path, path_sz);
+	}
+
+	resp_msg->type = CIFSD_EVENT_SHARE_CONFIG_RESPONSE;
+	resp->handle = req->handle;
+
+	ipc_msg_send(resp_msg);
+out:
+	put_cifsd_share(share);
+	ipc_msg_free(resp_msg);
+	return 0;
+}
+
 static int tree_disconnect_request(struct cifsd_ipc_msg *msg)
 {
 	struct cifsd_tree_disconnect_request *req;
@@ -182,6 +229,10 @@ static void worker_pool_fn(gpointer event, gpointer user_data)
 
 	case CIFSD_EVENT_LOGOUT_REQUEST:
 		logout_request(msg);
+		break;
+
+	case CIFSD_EVENT_SHARE_CONFIG_REQUEST:
+		share_config_request(msg);
 		break;
 
 	case CIFSD_EVENT_HEARTBEAT_REQUEST:

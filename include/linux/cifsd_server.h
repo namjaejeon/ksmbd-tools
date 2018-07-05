@@ -57,12 +57,17 @@ struct cifsd_share_config_request {
 
 struct cifsd_share_config_response {
 	__u32	handle;
-	__u16	share_path_sz;
-	__u16	num_veto_filters;
 	__u32	flags;
-	__s8	share_path[0];
-	__s8	veto_filters[0];
+	__u32	veto_list_sz;
+	__s8	____payload[0];
 } __align;
+
+#define CIFSD_SHARE_CONFIG_VETO_LIST(s)				\
+	((void *)(s) + offsetof(struct cifsd_share_config_response,	\
+		____payload))
+
+#define CIFSD_SHARE_CONFIG_PATH(s)					\
+	CIFSD_SHARE_CONFIG_VETO_LIST(s) + s->veto_list_sz
 
 struct cifsd_tree_connect_request {
 	__u32	handle;
