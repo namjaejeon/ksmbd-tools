@@ -68,6 +68,9 @@ struct cifsd_share {
 	int		directory_mask;
 	int		flags;
 
+	char		*veto_list;
+	int		veto_list_sz;
+
 	GHashTable	*maps[CIFSD_SHARE_USERS_MAX];
 	/*
 	 * FIXME

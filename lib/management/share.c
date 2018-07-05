@@ -74,6 +74,7 @@ static void kill_cifsd_share(struct cifsd_share *share)
 	free(share->name);
 	free(share->path);
 	free(share->comment);
+	free(share->veto_list);
 	g_rw_lock_clear(&share->conns_lock);
 	free(share);
 }
@@ -223,6 +224,16 @@ static GHashTable *parse_list(GHashTable *map, char **list)
 	return map;
 }
 
+static void make_veto_list(struct cifsd_share *share)
+{
+	int i;
+
+	for (i = 0; i < share->veto_list_sz; i++) {
+		if (share->veto_list[i] == '/')
+			share->veto_list[i] = 0x00;
+	}
+}
+
 static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 {
 	struct cifsd_share *share = user_data;
@@ -340,6 +351,17 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 	if (!cp_key_cmp(k, "max connections")) {
 		share->max_connections = cp_get_group_kv_long_base(v, 10);
+		return;
+	}
+
+	if (!cp_key_cmp(k, "veto files")) {
+		share->veto_list = cp_get_group_kv_string(v);
+		if (share->veto_list == NULL) {
+			set_share_flag(share, CIFSD_SHARE_INVALID);
+		} else {
+			share->veto_list_sz = strlen(share->veto_list);
+			make_veto_list(share);
+		}
 		return;
 	}
 }
