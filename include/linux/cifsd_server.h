@@ -26,29 +26,43 @@
 #define CIFSD_GENL_NAME      "CIFSD_GENL"
 #define CIFSD_GENL_VERSION    0x01
 
-#ifndef __packed
-#define __packed			__attribute__ ((packed));
+#ifndef __align
+#define __align		__attribute__((__aligned__(4)))
 #endif
 
 struct cifsd_heartbeat {
 	__u32	handle;
-};
+} __align;
 
 struct cifsd_startup_shutdown {
 	__s8	reserved[8];
-} __packed;
+} __align;
 
 struct cifsd_login_request {
 	__u32	handle;
 	__s8	account[64];
-} __packed;
+} __align;
 
 struct cifsd_login_response {
 	__u32	handle;
 	__u16	status;
 	__u16	hash_sz;
 	__s8	hash[64];
-} __packed;
+} __align;
+
+struct cifsd_share_config_request {
+	__u32	handle;
+	__s8	share_name[64];
+} __align;
+
+struct cifsd_share_config_response {
+	__u32	handle;
+	__u16	share_path_sz;
+	__u16	num_veto_filters;
+	__u32	flags;
+	__s8	share_path[0];
+	__s8	veto_filters[0];
+} __align;
 
 struct cifsd_tree_connect_request {
 	__u32	handle;
@@ -56,22 +70,22 @@ struct cifsd_tree_connect_request {
 	__s8	account[64];
 	__s8	share[64];
 	__s8	peer_addr[64];
-} __packed;
+} __align;
 
 struct cifsd_tree_connect_response {
 	__u32	handle;
 	__u32	status;
 	__u32	connection_flags;
 	__u64	connection_id;
-} __packed;
+} __align;
 
 struct cifsd_tree_disconnect_request {
 	__u64	connection_id;
-} __packed;
+} __align;
 
 struct cifsd_logout_request {
 	__s8	account[64];
-} __packed;
+} __align;
 
 /*
  * This also used as NETLINK attribute type value.
@@ -90,6 +104,9 @@ enum cifsd_event {
 
 	CIFSD_EVENT_LOGIN_REQUEST,
 	CIFSD_EVENT_LOGIN_RESPONSE,
+
+	CIFSD_EVENT_SHARE_CONFIG_REQUEST,
+	CIFSD_EVENT_SHARE_CONFIG_RESPONSE,
 
 	CIFSD_EVENT_TREE_CONNECT_REQUEST,
 	CIFSD_EVENT_TREE_CONNECT_RESPONSE,
