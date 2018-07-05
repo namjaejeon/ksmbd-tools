@@ -355,7 +355,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(k, "veto files")) {
-		share->veto_list = cp_get_group_kv_string(v);
+		share->veto_list = cp_get_group_kv_string(v + 1);
 		if (share->veto_list == NULL) {
 			set_share_flag(share, CIFSD_SHARE_INVALID);
 		} else {
