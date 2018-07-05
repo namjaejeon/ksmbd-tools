@@ -63,7 +63,7 @@ struct cifsd_share_config_response {
 } __align;
 
 #define CIFSD_SHARE_CONFIG_VETO_LIST(s)				\
-	((void *)(s) + offsetof(struct cifsd_share_config_response,	\
+	(char *)((void *)(s) + offsetof(struct cifsd_share_config_response,\
 		____payload))
 
 #define CIFSD_SHARE_CONFIG_PATH(s)					\
