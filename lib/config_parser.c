@@ -190,6 +190,12 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 			size_t sz = delim - contents;
 			char *data;
 
+			if (delim == contents) {
+				contents = delim + 1;
+				len--;
+				continue;
+			}
+
 			if (!sz)
 				break;
 
