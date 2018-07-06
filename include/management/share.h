@@ -71,6 +71,8 @@ struct cifsd_share {
 	char		*veto_list;
 	int		veto_list_sz;
 
+	char		*guest_account;
+
 	GHashTable	*maps[CIFSD_SHARE_USERS_MAX];
 	/*
 	 * FIXME

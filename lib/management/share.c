@@ -75,6 +75,7 @@ static void kill_cifsd_share(struct cifsd_share *share)
 	free(share->path);
 	free(share->comment);
 	free(share->veto_list);
+	free(share->guest_account);
 	g_rw_lock_clear(&share->conns_lock);
 	free(share);
 }
@@ -257,6 +258,27 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (!cp_key_cmp(k, "guest ok")) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, CIFSD_SHARE_GUEST_OK);
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "guest account")) {
+		struct cifsd_user *user;
+
+		if (usm_add_new_user(cp_get_group_kv_string(_v),
+				     strdup("NULL"))) {
+			pr_err("Unable to add guest account\n");
+			set_share_flag(share, CIFSD_SHARE_INVALID);
+			return;
+		}
+
+		user = usm_lookup_user(_v);
+		if (user) {
+			set_user_flag(user, CIFSD_USER_GUEST_ACCOUNT);
+			put_cifsd_user(user);
+		}
+		share->guest_account = cp_get_group_kv_string(_v);
+		if (!share->guest_account)
+			set_share_flag(share, CIFSD_SHARE_INVALID);
 		return;
 	}
 
