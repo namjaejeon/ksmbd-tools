@@ -138,6 +138,9 @@ struct cifsd_user *usm_lookup_user(char *name)
 {
 	struct cifsd_user *user, *ret;
 
+	if (!name)
+		return NULL;
+
 	g_rw_lock_reader_lock(&users_table_lock);
 	user = __usm_lookup_user(name);
 	if (user) {
