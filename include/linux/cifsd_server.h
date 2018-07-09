@@ -57,8 +57,7 @@ struct cifsd_share_config_request {
 
 struct cifsd_share_config_response {
 	__u32	handle;
-	__u16	flags;
-	__u16	status;
+	__u32	flags;
 	__u32	veto_list_sz;
 	__s8	____payload[0];
 } __align;
