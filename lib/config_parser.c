@@ -396,6 +396,10 @@ int cp_parse_smbconf(const char *smbconf)
 		return ret;
 
 	ret = __mmap_parse_file(smbconf, process_smbconf_entry);
+	if (!ret) {
+		ret = add_new_group(strdup("[IPC$]"));
+		ret |= add_group_key_value(strdup("comment = IPC share"));
+	}
 	if (!ret)
 		g_hash_table_foreach(parser.groups, groups_callback, NULL);
 
