@@ -413,7 +413,7 @@ int shm_add_new_share(struct smbconf_group *group)
 	}
 
 	g_rw_lock_writer_lock(&shares_table_lock);
-	if (__shm_lookup_share(share->path)) {
+	if (__shm_lookup_share(share->name)) {
 		g_rw_lock_writer_unlock(&shares_table_lock);
 		pr_info("share exists %s\n", share->name);
 		kill_cifsd_share(share);
