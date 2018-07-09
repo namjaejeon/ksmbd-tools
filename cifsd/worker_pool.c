@@ -51,7 +51,7 @@ static int __login_request(struct cifsd_login_request *req,
 
 	user = usm_lookup_user(req->account);
 	if (!user) {
-		resp->status = CIFSD_LOGIN_STATUS_UNKNOWN_USER;
+		resp->status = CIFSD_LOGIN_STATUS_BAD_USER;
 		return -EINVAL;
 	}
 
