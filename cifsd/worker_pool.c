@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <linux/cifsd_server.h>
 
+#include <config_parser.h>
 #include <cifsdtools.h>
 #include <worker_pool.h>
 #include <ipc.h>
@@ -55,11 +56,20 @@ static int __login_request(struct cifsd_login_request *req,
 		return -EINVAL;
 	}
 
+	resp->status = user->status;
 	hash_sz = usm_copy_user_passhash(user, resp->hash, sizeof(resp->hash));
 	if (hash_sz > 0) {
 		resp->status = CIFSD_USER_STATUS_OK;
 		resp->hash_sz = hash_sz;
 	}
+
+	if (get_user_flag(user, CIFSD_USER_STATUS_GUEST_ACCOUNT)) {
+		if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
+			resp->status = CIFSD_USER_STATUS_BAD_USER;
+		else
+			resp->status |= CIFSD_USER_STATUS_ANONYMOUS;
+	}
+
 	put_cifsd_user(user);
 }
 
