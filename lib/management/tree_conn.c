@@ -178,14 +178,14 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	}
 
 	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER) {
-		if (req->status == CIFSD_LOGIN_STATUS_BAD_PASSWORD) {
+		if (req->status & CIFSD_USER_STATUS_BAD_PASSWORD) {
 			resp->status = CIFSD_TREE_CONN_STATUS_INVALID_USER;
 			goto out_error;
 		}
 	}
 
-	if (global_conf.map_to_guest == CIFSD_LOGIN_STATUS_BAD_USER &&
-			req->status == CIFSD_LOGIN_STATUS_BAD_PASSWORD) {
+	if (global_conf.map_to_guest == CIFSD_USER_STATUS_BAD_USER &&
+			req->status & CIFSD_USER_STATUS_BAD_PASSWORD) {
 		user = usm_lookup_user(req->account);
 		if (user) {
 			resp->status = CIFSD_TREE_CONN_STATUS_INVALID_USER;
@@ -227,13 +227,13 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	if (get_share_flag(share, CIFSD_SHARE_GUEST_OK)) {
 		user = usm_lookup_user(share->guest_account);
 		if (user) {
-			set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT);
+			set_conn_flag(conn, CIFSD_USER_STATUS_GUEST_ACCOUNT);
 			goto bind;
 		}
 
 		user = usm_lookup_user(global_conf.guest_account);
 		if (user) {
-			set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT);
+			set_conn_flag(conn, CIFSD_USER_STATUS_GUEST_ACCOUNT);
 			goto bind;
 		}
 	}
@@ -248,7 +248,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 				   CIFSD_SHARE_ADMIN_USERS_MAP,
 				   req->account);
 	if (ret == 0) {
-		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT);
+		set_conn_flag(conn, CIFSD_USER_STATUS_ADMIN_ACCOUNT);
 		goto bind;
 	}
 
@@ -264,7 +264,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 				   CIFSD_SHARE_READ_LIST_MAP,
 				   req->account);
 	if (ret == 0) {
-		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_READ_ONLY);
+		set_conn_flag(conn, CIFSD_USER_STATUS_READ_ONLY);
 		goto bind;
 	}
 

@@ -25,8 +25,6 @@
 #include <pwd.h>
 #include <glib.h>
 
-#define CIFSD_USER_GUEST_ACCOUNT	(1 << 0)
-
 struct cifsd_user {
 	char		*name;
 	char		*pass_b64;
@@ -38,7 +36,7 @@ struct cifsd_user {
 	gid_t		gid;
 
 	int		ref_count;
-	int 		flags;
+	int 		status;
 
 	GList		*conns;
 	GRWLock		update_lock;
@@ -46,12 +44,12 @@ struct cifsd_user {
 
 static inline void set_user_flag(struct cifsd_user *user, int bit)
 {
-	user->flags |= bit;
+	user->status |= bit;
 }
 
 static inline int get_user_flag(struct cifsd_user *user, int bit)
 {
-	return user->flags & bit;
+	return user->status & bit;
 }
 
 void put_cifsd_user(struct cifsd_user *user);
