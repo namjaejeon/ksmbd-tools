@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
+#include <config_parser.h>
+#include <linux/cifsd_server.h>
 
 #include <management/user.h>
 #include <cifsdtools.h>
@@ -255,7 +257,9 @@ int usm_update_user_password(struct cifsd_user *user, char *pswd)
 	return 0;
 }
 
-int usm_copy_user_passhash(struct cifsd_user *user, char *pass, size_t sz)
+static int usm_copy_user_passhash(struct cifsd_user *user,
+				  char *pass,
+				  size_t sz)
 {
 	int ret = 0;
 
@@ -267,4 +271,34 @@ int usm_copy_user_passhash(struct cifsd_user *user, char *pass, size_t sz)
 	g_rw_lock_reader_unlock(&user->update_lock);
 
 	return ret;
+}
+
+int usm_handle_login_request(struct cifsd_login_request *req,
+			     struct cifsd_login_response *resp)
+{
+	struct cifsd_user *user;
+	size_t hash_sz;
+
+	user = usm_lookup_user(req->account);
+	if (!user) {
+		resp->status = CIFSD_USER_FLAG_BAD_USER;
+		return -EINVAL;
+	}
+
+	resp->status = user->flags;
+	hash_sz = usm_copy_user_passhash(user, resp->hash, sizeof(resp->hash));
+	if (hash_sz > 0) {
+		resp->status = CIFSD_USER_FLAG_OK;
+		resp->hash_sz = hash_sz;
+	}
+
+	if (get_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT)) {
+		if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
+			resp->status = CIFSD_USER_FLAG_BAD_USER;
+		else
+			resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
+	}
+
+	put_cifsd_user(user);
+	return 0;
 }

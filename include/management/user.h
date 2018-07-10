@@ -72,5 +72,11 @@ typedef void (*walk_users)(struct cifsd_user *user);
 void for_each_cifsd_user(walk_users cb);
 
 int usm_update_user_password(struct cifsd_user *user, char *pass);
-int usm_copy_user_passhash(struct cifsd_user *user, char *pass, size_t sz);
+
+struct cifsd_login_request;
+struct cifsd_login_response;
+
+int usm_handle_login_request(struct cifsd_login_request *req,
+			     struct cifsd_login_response *resp);
+
 #endif /* __MANAGEMENT_USER_H__ */
