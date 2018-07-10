@@ -584,13 +584,10 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 				    struct cifsd_share_config_response *resp)
 {
 	void *config_payload;
-	size_t veto_list_sz = 0;
 	size_t path_sz = 0;
 
-	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
+	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
 		path_sz = strlen(share->path) + 1;
-		veto_list_sz = share->veto_list_sz;
-	}
 
 	if (share) {
 		resp->flags = share->flags;
