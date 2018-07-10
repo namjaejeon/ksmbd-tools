@@ -30,6 +30,7 @@
 #define CIFSD_SHARE_GUEST_OK		(1 << 4)
 #define CIFSD_SHARE_GUEST_ONLY		(1 << 5)
 #define CIFSD_SHARE_STORE_DOS_ATTRS	(1 << 6)
+#define CIFSD_SHARE_OPLOCKS		(1 << 7)
 
 #define CIFSD_SHARE_INVALID	(1 << 31)
 

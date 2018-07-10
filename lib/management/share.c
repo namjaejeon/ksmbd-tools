@@ -315,6 +315,14 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(k, "oplocks")) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, CIFSD_SHARE_OPLOCKS);
+		else
+			clear_share_flag(share, CIFSD_SHARE_OPLOCKS);
+		return;
+	}
+
 	if (!cp_key_cmp(k, "create mask")) {
 		share->create_mask = cp_get_group_kv_long_base(v, 8);
 		return;
