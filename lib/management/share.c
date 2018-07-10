@@ -501,7 +501,7 @@ int shm_lookup_hosts_map(struct cifsd_share *share,
 	if (map == CIFSD_SHARE_HOSTS_DENY_MAP)
 		lookup_map = share->hosts_deny_map;
 
-	if (!map)
+	if (!lookup_map)
 		return -EINVAL;
 
 	g_rw_lock_reader_lock(&share->maps_lock);
