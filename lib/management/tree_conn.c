@@ -184,7 +184,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
-	if (global_conf.map_to_guest == CIFSD_USER_FLAG_BAD_USER &&
+	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER &&
 			req->account_flags & CIFSD_USER_FLAG_BAD_PASSWORD) {
 		user = usm_lookup_user(req->account);
 		if (user) {
