@@ -92,7 +92,7 @@ static void clear_share_flag(struct cifsd_share *share, int flag)
 	share->flags &= ~flag;
 }
 
-static int get_share_flag(struct cifsd_share *share, int flag)
+static int test_share_flag(struct cifsd_share *share, int flag)
 {
 	return share->flags & flag;
 }

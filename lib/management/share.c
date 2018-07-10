@@ -436,7 +436,7 @@ int shm_add_new_share(struct smbconf_group *group)
 		return -ENOMEM;
 
 	init_share_from_group(share, group);
-	if (get_share_flag(share, CIFSD_SHARE_FLAG_INVALID)) {
+	if (test_share_flag(share, CIFSD_SHARE_FLAG_INVALID)) {
 		pr_err("Invalid share %s\n", share->name);
 		kill_cifsd_share(share);
 		return 0;

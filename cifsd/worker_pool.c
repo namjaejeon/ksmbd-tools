@@ -141,7 +141,7 @@ static int share_config_request(struct cifsd_ipc_msg *msg)
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
 	if (VALID_IPC_MSG(msg, struct cifsd_share_config_request)) {
 		share = shm_lookup_share(req->share_name);
-		if (share) {
+		if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
 			path_sz = strlen(share->path) + 1;
 			veto_list_sz = share->veto_list_sz;
 		}
