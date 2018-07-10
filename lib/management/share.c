@@ -567,3 +567,42 @@ void for_each_cifsd_share(walk_shares cb)
 	g_hash_table_foreach(shares_table, hash_walk_cb, cb);
 	g_rw_lock_reader_unlock(&shares_table_lock);
 }
+
+int shm_share_config_payload_size(struct cifsd_share *share)
+{
+	int sz = 0;
+
+	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
+		sz = strlen(share->path) + 1;
+		sz += share->veto_list_sz;
+	}
+
+	return sz;
+}
+
+int shm_handle_share_config_request(struct cifsd_share *share,
+				    struct cifsd_share_config_response *resp)
+{
+	void *config_payload;
+	size_t veto_list_sz = 0;
+	size_t path_sz = 0;
+
+	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
+		path_sz = strlen(share->path) + 1;
+		veto_list_sz = share->veto_list_sz;
+	}
+
+	if (share) {
+		resp->flags = share->flags;
+		resp->veto_list_sz = share->veto_list_sz;
+		config_payload = CIFSD_SHARE_CONFIG_VETO_LIST(resp);
+		memcpy(config_payload,
+		       share->veto_list,
+		       resp->veto_list_sz);
+		if (resp->veto_list_sz)
+			resp->veto_list_sz++;
+		config_payload = CIFSD_SHARE_CONFIG_PATH(resp);
+		memcpy(config_payload, share->path, path_sz);
+	}
+	return 0;
+}

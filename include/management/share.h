@@ -125,4 +125,10 @@ void shm_unbind_connection(struct cifsd_share *share,
 typedef void (*walk_shares)(struct cifsd_share *share);
 void for_each_cifsd_share(walk_shares cb);
 
+struct cifsd_share_config_response;
+
+int shm_share_config_payload_size(struct cifsd_share *share);
+int shm_handle_share_config_request(struct cifsd_share *share,
+				    struct cifsd_share_config_response *resp);
+
 #endif /* __MANAGEMENT_SHARE_H__ */
