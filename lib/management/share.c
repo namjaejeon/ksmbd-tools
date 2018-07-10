@@ -421,6 +421,9 @@ static int init_share_from_group(struct cifsd_share *share,
 	set_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
 	set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
 
+	if (!cp_key_cmp(share->name, "IPC$"))
+		set_share_flag(share, CIFSD_SHARE_FLAG_PIPE);
+
 	g_hash_table_foreach(group->kv, process_group_kv, share);
 }
 
