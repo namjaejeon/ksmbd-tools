@@ -162,6 +162,7 @@ enum CIFSD_TREE_CONN_STATUS {
 #define CIFSD_SHARE_FLAG_GUEST_ONLY		(1 << 5)
 #define CIFSD_SHARE_FLAG_STORE_DOS_ATTRS	(1 << 6)
 #define CIFSD_SHARE_FLAG_OPLOCKS		(1 << 7)
+#define CIFSD_SHARE_FLAG_PIPE			(1 << 8)
 
 /*
  * Tree connect request flags
