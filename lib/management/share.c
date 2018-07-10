@@ -274,7 +274,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 		user = usm_lookup_user(_v);
 		if (user) {
-			set_user_flag(user, CIFSD_USER_STATUS_GUEST_ACCOUNT);
+			set_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT);
 			put_cifsd_user(user);
 		}
 		share->guest_account = cp_get_group_kv_string(_v);

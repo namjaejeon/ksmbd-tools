@@ -36,7 +36,7 @@ struct cifsd_user {
 	gid_t		gid;
 
 	int		ref_count;
-	int 		status;
+	int 		flags;
 
 	GList		*conns;
 	GRWLock		update_lock;
@@ -44,12 +44,12 @@ struct cifsd_user {
 
 static inline void set_user_flag(struct cifsd_user *user, int bit)
 {
-	user->status |= bit;
+	user->flags |= bit;
 }
 
 static inline int get_user_flag(struct cifsd_user *user, int bit)
 {
-	return user->status & bit;
+	return user->flags & bit;
 }
 
 void put_cifsd_user(struct cifsd_user *user);

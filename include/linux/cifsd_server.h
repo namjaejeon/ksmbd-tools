@@ -71,7 +71,7 @@ struct cifsd_share_config_response {
 
 struct cifsd_tree_connect_request {
 	__u32	handle;
-	__u16	status;
+	__u16	account_flags;
 	__u16	flags;
 	__s8	account[64];
 	__s8	share[64];
@@ -139,15 +139,15 @@ enum CIFSD_TREE_CONN_STATUS {
 /*
  * User/user login status
  */
-#define CIFSD_USER_STATUS_OK			0
-#define CIFSD_USER_STATUS_INVALID		(1 << 0)
-#define CIFSD_USER_STATUS_BAD_PASSWORD		(1 << 1)
-#define CIFSD_USER_STATUS_BAD_UID		(1 << 2)
-#define CIFSD_USER_STATUS_BAD_USER		(1 << 3)
-#define CIFSD_USER_STATUS_GUEST_ACCOUNT	(1 << 4)
-#define CIFSD_USER_STATUS_READ_ONLY		(1 << 5)
-#define CIFSD_USER_STATUS_ADMIN_ACCOUNT	(1 << 6)
-#define CIFSD_USER_STATUS_ANONYMOUS		(1 << 7)
+#define CIFSD_USER_FLAG_OK			0
+#define CIFSD_USER_FLAG_INVALID		(1 << 0)
+#define CIFSD_USER_FLAG_BAD_PASSWORD		(1 << 1)
+#define CIFSD_USER_FLAG_BAD_UID		(1 << 2)
+#define CIFSD_USER_FLAG_BAD_USER		(1 << 3)
+#define CIFSD_USER_FLAG_GUEST_ACCOUNT	(1 << 4)
+#define CIFSD_USER_FLAG_READ_ONLY		(1 << 5)
+#define CIFSD_USER_FLAG_ADMIN_ACCOUNT	(1 << 6)
+#define CIFSD_USER_FLAG_ANONYMOUS		(1 << 7)
 
 /*
  * Tree connect request flags

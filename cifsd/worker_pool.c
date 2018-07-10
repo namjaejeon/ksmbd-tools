@@ -52,22 +52,22 @@ static int __login_request(struct cifsd_login_request *req,
 
 	user = usm_lookup_user(req->account);
 	if (!user) {
-		resp->status = CIFSD_USER_STATUS_BAD_USER;
+		resp->status = CIFSD_USER_FLAG_BAD_USER;
 		return -EINVAL;
 	}
 
-	resp->status = user->status;
+	resp->status = user->flags;
 	hash_sz = usm_copy_user_passhash(user, resp->hash, sizeof(resp->hash));
 	if (hash_sz > 0) {
-		resp->status = CIFSD_USER_STATUS_OK;
+		resp->status = CIFSD_USER_FLAG_OK;
 		resp->hash_sz = hash_sz;
 	}
 
-	if (get_user_flag(user, CIFSD_USER_STATUS_GUEST_ACCOUNT)) {
+	if (get_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT)) {
 		if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
-			resp->status = CIFSD_USER_STATUS_BAD_USER;
+			resp->status = CIFSD_USER_FLAG_BAD_USER;
 		else
-			resp->status |= CIFSD_USER_STATUS_ANONYMOUS;
+			resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
 	}
 
 	put_cifsd_user(user);
@@ -86,7 +86,7 @@ static int login_request(struct cifsd_ipc_msg *msg)
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 
-	resp->status = CIFSD_USER_STATUS_INVALID;
+	resp->status = CIFSD_USER_FLAG_INVALID;
 	if (VALID_IPC_MSG(msg, struct cifsd_login_request))
 		__login_request(req, resp);
 
