@@ -33,6 +33,7 @@ AM_INIT_AUTOMAKE([foreign tar-pax dist-xz subdir-objects])
 
 AC_LANG([C])
 AC_PROG_CC
+AC_PROG_CC_STDC
 AM_SILENT_RULES([yes])
 AC_PROG_LIBTOOL
 
