@@ -80,7 +80,8 @@ struct cifsd_tree_connect_request {
 
 struct cifsd_tree_connect_response {
 	__u32	handle;
-	__u32	status;
+	__u16	status;
+	__u16	flags;
 	__u32	connection_flags;
 	__u64	connection_id;
 } __align;
@@ -137,18 +138,15 @@ enum CIFSD_TREE_CONN_STATUS {
 };
 
 /*
- * User config flags. Some of them we also use for tree connect
- * flags.
+ * User config flags.
  */
-#define CIFSD_USER_FLAG_OK			0
+#define CIFSD_USER_FLAG_OK		0
 #define CIFSD_USER_FLAG_INVALID		(1 << 0)
-#define CIFSD_USER_FLAG_BAD_PASSWORD		(1 << 1)
+#define CIFSD_USER_FLAG_BAD_PASSWORD	(1 << 1)
 #define CIFSD_USER_FLAG_BAD_UID		(1 << 2)
-#define CIFSD_USER_FLAG_BAD_USER		(1 << 3)
-#define CIFSD_USER_FLAG_GUEST_ACCOUNT	(1 << 4)
-#define CIFSD_USER_FLAG_READ_ONLY		(1 << 5)
-#define CIFSD_USER_FLAG_ADMIN_ACCOUNT	(1 << 6)
-#define CIFSD_USER_FLAG_ANONYMOUS		(1 << 7)
+#define CIFSD_USER_FLAG_BAD_USER	(1 << 3)
+#define CIFSD_USER_FLAG_ANONYMOUS	(1 << 4)
+#define CIFSD_USER_FLAG_GUEST_ACCOUNT	(1 << 5)
 
 /*
  * Share config flags.
@@ -165,10 +163,18 @@ enum CIFSD_TREE_CONN_STATUS {
 #define CIFSD_SHARE_FLAG_PIPE			(1 << 8)
 
 /*
- * Tree connect request flags
+ * Tree connect request flags.
  */
 #define CIFSD_TREE_CONN_FLAG_REQUEST_SMB1	(0)
 #define CIFSD_TREE_CONN_FLAG_REQUEST_IPV6	(1 << 0)
 #define CIFSD_TREE_CONN_FLAG_REQUEST_SMB2	(1 << 1)
+
+/*
+ * Tree connect flags.
+ */
+#define CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT	(1 << 0)
+#define CIFSD_TREE_CONN_FLAG_READ_ONLY		(1 << 1)
+#define CIFSD_TREE_CONN_FLAG_WRITABLE		(1 << 2)
+#define CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT	(1 << 3)
 
 #endif /* _LINUX_CIFSD_SERVER_H */

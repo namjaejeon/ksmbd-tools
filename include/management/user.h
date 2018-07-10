@@ -47,7 +47,7 @@ static inline void set_user_flag(struct cifsd_user *user, int bit)
 	user->flags |= bit;
 }
 
-static inline int get_user_flag(struct cifsd_user *user, int bit)
+static inline int test_user_flag(struct cifsd_user *user, int bit)
 {
 	return user->flags & bit;
 }

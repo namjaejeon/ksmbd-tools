@@ -40,7 +40,12 @@ static inline void set_conn_flag(struct cifsd_tree_conn *conn, int bit)
 	conn->flags |= bit;
 }
 
-static inline int get_conn_flag(struct cifsd_tree_conn *conn, int bit)
+static inline void clear_conn_flag(struct cifsd_tree_conn *conn, int bit)
+{
+	conn->flags &= ~bit;
+}
+
+static inline int test_conn_flag(struct cifsd_tree_conn *conn, int bit)
 {
 	conn->flags & bit;
 }

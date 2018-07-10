@@ -201,6 +201,11 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		goto out_error;
 	}
 
+	if (test_share_flag(share, CIFSD_SHARE_FLAG_WRITEABLE))
+		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_WRITABLE);
+	if (test_share_flag(share, CIFSD_SHARE_FLAG_READONLY))
+		set_conn_flag(conn, CIFSD_SHARE_FLAG_READONLY);
+
 	if (shm_prebind_connection(share)) {
 		resp->status = CIFSD_TREE_CONN_STATUS_TOO_MANY_CONNS;
 		goto out_error;
@@ -227,13 +232,13 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK)) {
 		user = usm_lookup_user(share->guest_account);
 		if (user) {
-			set_conn_flag(conn, CIFSD_USER_FLAG_GUEST_ACCOUNT);
+			set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT);
 			goto bind;
 		}
 
 		user = usm_lookup_user(global_conf.guest_account);
 		if (user) {
-			set_conn_flag(conn, CIFSD_USER_FLAG_GUEST_ACCOUNT);
+			set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT);
 			goto bind;
 		}
 	}
@@ -244,11 +249,14 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		goto out_error;
 	}
 
+	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
+		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT);
+
 	ret = shm_lookup_users_map(share,
 				   CIFSD_SHARE_ADMIN_USERS_MAP,
 				   req->account);
 	if (ret == 0) {
-		set_conn_flag(conn, CIFSD_USER_FLAG_ADMIN_ACCOUNT);
+		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT);
 		goto bind;
 	}
 
@@ -264,15 +272,18 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 				   CIFSD_SHARE_READ_LIST_MAP,
 				   req->account);
 	if (ret == 0) {
-		set_conn_flag(conn, CIFSD_USER_FLAG_READ_ONLY);
+		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_READ_ONLY);
+		clear_conn_flag(conn, CIFSD_TREE_CONN_FLAG_WRITABLE);
 		goto bind;
 	}
 
 	ret = shm_lookup_users_map(share,
 				   CIFSD_SHARE_WRITE_LIST_MAP,
 				   req->account);
-	if (ret == 0)
+	if (ret == 0) {
+		set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_WRITABLE);
 		goto bind;
+	}
 
 	ret = shm_lookup_users_map(share,
 				   CIFSD_SHARE_VALID_USERS_MAP,

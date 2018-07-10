@@ -292,7 +292,7 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 		resp->hash_sz = hash_sz;
 	}
 
-	if (get_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT)) {
+	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT)) {
 		if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
 			resp->status = CIFSD_USER_FLAG_BAD_USER;
 		else
