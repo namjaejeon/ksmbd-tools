@@ -117,6 +117,7 @@ static int share_config_request(struct cifsd_ipc_msg *msg)
 	if (!resp_msg)
 		goto out;
 
+	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 	shm_handle_share_config_request(share, resp);
 	resp_msg->type = CIFSD_EVENT_SHARE_CONFIG_RESPONSE;
 	resp->handle = req->handle;
