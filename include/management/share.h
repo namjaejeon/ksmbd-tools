@@ -23,12 +23,13 @@
 
 #include <glib.h>
 
-#define CIFSD_SHARE_AVAILABLE	(1 << 0)
-#define CIFSD_SHARE_GUEST_OK	(1 << 1)
-#define CIFSD_SHARE_WRITEABLE	(1 << 2)
-#define CIFSD_SHARE_READONLY	(1 << 3)
-#define CIFSD_SHARE_BROWSEABLE	(1 << 4)
-#define CIFSD_SHARE_GUEST_ONLY	(1 << 5)
+#define CIFSD_SHARE_AVAILABLE		(1 << 0)
+#define CIFSD_SHARE_BROWSEABLE		(1 << 1)
+#define CIFSD_SHARE_WRITEABLE		(1 << 2)
+#define CIFSD_SHARE_READONLY		(1 << 3)
+#define CIFSD_SHARE_GUEST_OK		(1 << 4)
+#define CIFSD_SHARE_GUEST_ONLY		(1 << 5)
+#define CIFSD_SHARE_STORE_DOS_ATTRS	(1 << 6)
 
 #define CIFSD_SHARE_INVALID	(1 << 31)
 
@@ -93,6 +94,11 @@ struct cifsd_share {
 static void set_share_flag(struct cifsd_share *share, int flag)
 {
 	share->flags |= flag;
+}
+
+static void clear_share_flag(struct cifsd_share *share, int flag)
+{
+	share->flags &= ~flag;
 }
 
 static int get_share_flag(struct cifsd_share *share, int flag)

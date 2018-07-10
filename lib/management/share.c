@@ -284,20 +284,34 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(k, "read only")) {
-		if (cp_get_group_kv_bool(v))
+		if (cp_get_group_kv_bool(v)) {
 			set_share_flag(share, CIFSD_SHARE_READONLY);
+			clear_share_flag(share, CIFSD_SHARE_WRITEABLE);
+		}
 		return;
 	}
 
 	if (!cp_key_cmp(k, "browseable")) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, CIFSD_SHARE_BROWSEABLE);
+		else
+			clear_share_flag(share, CIFSD_SHARE_BROWSEABLE);
 		return;
 	}
 
-	if (!cp_key_cmp(k, "writeable")) {
+	if (!cp_key_cmp(k, "write ok") || !cp_key_cmp(k, "writeable")) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, CIFSD_SHARE_WRITEABLE);
+		else
+			clear_share_flag(share, CIFSD_SHARE_WRITEABLE);
+		return;
+	}
+
+	if (!cp_key_cmp(k, "store dos attributes")) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, CIFSD_SHARE_STORE_DOS_ATTRS);
+		else
+			clear_share_flag(share, CIFSD_SHARE_STORE_DOS_ATTRS);
 		return;
 	}
 
