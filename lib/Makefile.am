@@ -1,4 +1,4 @@
-AM_CFLAGS = -I$(top_srcdir)/include $(GLIB_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/include $(GLIB_CFLAGS) -fno-common
 LIBS = $(GLIB_LIBS)
 
 lib_LTLIBRARIES = libcifsdtools.la
