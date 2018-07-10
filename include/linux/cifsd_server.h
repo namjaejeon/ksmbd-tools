@@ -137,7 +137,8 @@ enum CIFSD_TREE_CONN_STATUS {
 };
 
 /*
- * User/user login status
+ * User config flags. Some of them we also use for tree connect
+ * flags.
  */
 #define CIFSD_USER_FLAG_OK			0
 #define CIFSD_USER_FLAG_INVALID		(1 << 0)
@@ -148,6 +149,19 @@ enum CIFSD_TREE_CONN_STATUS {
 #define CIFSD_USER_FLAG_READ_ONLY		(1 << 5)
 #define CIFSD_USER_FLAG_ADMIN_ACCOUNT	(1 << 6)
 #define CIFSD_USER_FLAG_ANONYMOUS		(1 << 7)
+
+/*
+ * Share config flags.
+ */
+#define CIFSD_SHARE_FLAG_INVALID		(0)
+#define CIFSD_SHARE_FLAG_AVAILABLE		(1 << 0)
+#define CIFSD_SHARE_FLAG_BROWSEABLE		(1 << 1)
+#define CIFSD_SHARE_FLAG_WRITEABLE		(1 << 2)
+#define CIFSD_SHARE_FLAG_READONLY		(1 << 3)
+#define CIFSD_SHARE_FLAG_GUEST_OK		(1 << 4)
+#define CIFSD_SHARE_FLAG_GUEST_ONLY		(1 << 5)
+#define CIFSD_SHARE_FLAG_STORE_DOS_ATTRS	(1 << 6)
+#define CIFSD_SHARE_FLAG_OPLOCKS		(1 << 7)
 
 /*
  * Tree connect request flags

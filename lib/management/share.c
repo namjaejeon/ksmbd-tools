@@ -245,20 +245,20 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (!cp_key_cmp(k, "comment")) {
 		share->comment = cp_get_group_kv_string(v);
 		if (share->comment == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "path")) {
 		share->path = cp_get_group_kv_string(v);
 		if (share->path == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "guest ok")) {
 		if (cp_get_group_kv_bool(v))
-			set_share_flag(share, CIFSD_SHARE_GUEST_OK);
+			set_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK);
 		return;
 	}
 
@@ -268,7 +268,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		if (usm_add_new_user(cp_get_group_kv_string(_v),
 				     strdup("NULL"))) {
 			pr_err("Unable to add guest account\n");
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 			return;
 		}
 
@@ -279,47 +279,47 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		}
 		share->guest_account = cp_get_group_kv_string(_v);
 		if (!share->guest_account)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "read only")) {
 		if (cp_get_group_kv_bool(v)) {
-			set_share_flag(share, CIFSD_SHARE_READONLY);
-			clear_share_flag(share, CIFSD_SHARE_WRITEABLE);
+			set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
+			clear_share_flag(share, CIFSD_SHARE_FLAG_WRITEABLE);
 		}
 		return;
 	}
 
 	if (!cp_key_cmp(k, "browseable")) {
 		if (cp_get_group_kv_bool(v))
-			set_share_flag(share, CIFSD_SHARE_BROWSEABLE);
+			set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
 		else
-			clear_share_flag(share, CIFSD_SHARE_BROWSEABLE);
+			clear_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "write ok") || !cp_key_cmp(k, "writeable")) {
 		if (cp_get_group_kv_bool(v))
-			set_share_flag(share, CIFSD_SHARE_WRITEABLE);
+			set_share_flag(share, CIFSD_SHARE_FLAG_WRITEABLE);
 		else
-			clear_share_flag(share, CIFSD_SHARE_WRITEABLE);
+			clear_share_flag(share, CIFSD_SHARE_FLAG_WRITEABLE);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "store dos attributes")) {
 		if (cp_get_group_kv_bool(v))
-			set_share_flag(share, CIFSD_SHARE_STORE_DOS_ATTRS);
+			set_share_flag(share, CIFSD_SHARE_FLAG_STORE_DOS_ATTRS);
 		else
-			clear_share_flag(share, CIFSD_SHARE_STORE_DOS_ATTRS);
+			clear_share_flag(share, CIFSD_SHARE_FLAG_STORE_DOS_ATTRS);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "oplocks")) {
 		if (cp_get_group_kv_bool(v))
-			set_share_flag(share, CIFSD_SHARE_OPLOCKS);
+			set_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
 		else
-			clear_share_flag(share, CIFSD_SHARE_OPLOCKS);
+			clear_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
 		return;
 	}
 
@@ -338,7 +338,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			parse_list(share->maps[CIFSD_SHARE_VALID_USERS_MAP],
 			           cp_get_group_kv_list(v));
 		if (share->maps[CIFSD_SHARE_VALID_USERS_MAP] == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -347,7 +347,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			parse_list(share->maps[CIFSD_SHARE_INVALID_USERS_MAP],
 			           cp_get_group_kv_list(v));
 		if (share->maps[CIFSD_SHARE_INVALID_USERS_MAP] == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -356,7 +356,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			parse_list(share->maps[CIFSD_SHARE_READ_LIST_MAP],
 				   cp_get_group_kv_list(v));
 		if (share->maps[CIFSD_SHARE_READ_LIST_MAP] == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -365,7 +365,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			parse_list(share->maps[CIFSD_SHARE_WRITE_LIST_MAP],
 				   cp_get_group_kv_list(v));
 		if (share->maps[CIFSD_SHARE_WRITE_LIST_MAP] == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -374,7 +374,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			parse_list(share->maps[CIFSD_SHARE_ADMIN_USERS_MAP],
 				   cp_get_group_kv_list(v));
 		if (share->maps[CIFSD_SHARE_ADMIN_USERS_MAP] == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -382,7 +382,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		share->hosts_allow_map = parse_list(share->hosts_allow_map,
 						    cp_get_group_kv_list(v));
 		if (share->hosts_allow_map == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -390,7 +390,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		share->hosts_deny_map = parse_list(share->hosts_deny_map,
 						   cp_get_group_kv_list(v));
 		if (share->hosts_deny_map == NULL)
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		return;
 	}
 
@@ -402,7 +402,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (!cp_key_cmp(k, "veto files")) {
 		share->veto_list = cp_get_group_kv_string(v + 1);
 		if (share->veto_list == NULL) {
-			set_share_flag(share, CIFSD_SHARE_INVALID);
+			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 		} else {
 			share->veto_list_sz = strlen(share->veto_list);
 			make_veto_list(share);
@@ -416,10 +416,10 @@ static int init_share_from_group(struct cifsd_share *share,
 {
 	share->name = strdup(group->name);
 
-	set_share_flag(share, CIFSD_SHARE_AVAILABLE);
-	set_share_flag(share, CIFSD_SHARE_BROWSEABLE);
-	set_share_flag(share, CIFSD_SHARE_OPLOCKS);
-	set_share_flag(share, CIFSD_SHARE_READONLY);
+	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
+	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
+	set_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
+	set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
 
 	g_hash_table_foreach(group->kv, process_group_kv, share);
 }
@@ -433,7 +433,7 @@ int shm_add_new_share(struct smbconf_group *group)
 		return -ENOMEM;
 
 	init_share_from_group(share, group);
-	if (get_share_flag(share, CIFSD_SHARE_INVALID)) {
+	if (get_share_flag(share, CIFSD_SHARE_FLAG_INVALID)) {
 		pr_err("Invalid share %s\n", share->name);
 		kill_cifsd_share(share);
 		return 0;

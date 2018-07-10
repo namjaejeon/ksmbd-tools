@@ -224,7 +224,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
-	if (get_share_flag(share, CIFSD_SHARE_GUEST_OK)) {
+	if (get_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK)) {
 		user = usm_lookup_user(share->guest_account);
 		if (user) {
 			set_conn_flag(conn, CIFSD_USER_FLAG_GUEST_ACCOUNT);
