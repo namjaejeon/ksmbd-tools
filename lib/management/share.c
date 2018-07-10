@@ -416,6 +416,11 @@ static int init_share_from_group(struct cifsd_share *share,
 {
 	share->name = strdup(group->name);
 
+	set_share_flag(share, CIFSD_SHARE_AVAILABLE);
+	set_share_flag(share, CIFSD_SHARE_BROWSEABLE);
+	set_share_flag(share, CIFSD_SHARE_OPLOCKS);
+	set_share_flag(share, CIFSD_SHARE_READONLY);
+
 	g_hash_table_foreach(group->kv, process_group_kv, share);
 }
 
