@@ -81,8 +81,7 @@ struct cifsd_tree_connect_request {
 struct cifsd_tree_connect_response {
 	__u32	handle;
 	__u16	status;
-	__u16	flags;
-	__u32	connection_flags;
+	__u16	connection_flags;
 	__u64	connection_id;
 } __align;
 
