@@ -25,63 +25,12 @@
 
 #include <config_parser.h>
 #include <management/tree_conn.h>
+#include <management/session.h>
 #include <management/share.h>
 #include <management/user.h>
 #include <cifsdtools.h>
 
-static GHashTable	*conns_table;
-static GRWLock		conns_table_lock;
-
-static GMutex			conn_id_lock;
-/* Exclude SMB1 ids */
-static unsigned long long	smb2_conn_id = 0xFFFF + 1;
-static unsigned short		smb1_conn_id = 1;
-static int			num_avail_smb1_conn_ids = 0xFFFF - 2;
-
-static unsigned short __get_next_smb1_conn_id(void)
-{
-	unsigned short ret;
-
-	if (num_avail_smb1_conn_ids == 0)
-		return 0;
-
-	do {
-		ret = smb1_conn_id++;
-		/* SMB1 id cannot be 0 or 0xFFFE */
-	} while (ret == 0 || ret == 0xfffe);
-
-	num_avail_smb1_conn_ids--;
-	return ret;
-}
-
-static unsigned long long get_next_conn_id(int type)
-{
-	unsigned long long ret;
-
-again:
-	g_mutex_lock(&conn_id_lock);
-	if (type & CIFSD_TREE_CONN_FLAG_REQUEST_SMB2)
-		ret = smb2_conn_id++;
-	else
-		ret = __get_next_smb1_conn_id();
-
-	if (smb2_conn_id == 0)
-		smb2_conn_id = 0xFFFF + 1;
-	g_mutex_unlock(&conn_id_lock);
-
-	if (ret != 0) {
-		if (tcm_lookup_conn(ret))
-			goto again;
-	}
-	return ret;
-}
-
-static void kill_cifsd_tree_conn(struct cifsd_tree_conn *conn)
-{
-	free(conn);
-}
-
-static struct cifsd_tree_conn *new_cifsd_tree_conn(int type)
+static struct cifsd_tree_conn *new_cifsd_tree_conn(void)
 {
 	struct cifsd_tree_conn *conn = malloc(sizeof(struct cifsd_tree_conn));
 
@@ -89,79 +38,14 @@ static struct cifsd_tree_conn *new_cifsd_tree_conn(int type)
 		return NULL;
 
 	memset(conn, 0x00, sizeof(struct cifsd_tree_conn));
-	conn->id = get_next_conn_id(type);
-	if (conn->id == 0) {
-		free(conn);
-		conn = NULL;
-	}
+	conn->id = 0;
 	return conn;
 }
 
-static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
+void tcm_tree_conn_free(struct cifsd_tree_conn *conn)
 {
-	kill_cifsd_tree_conn(s);
-}
-
-static void tcm_clear_conns(void)
-{
-	g_rw_lock_writer_lock(&conns_table_lock);
-	g_hash_table_foreach(conns_table, free_hash_entry, NULL);
-	g_rw_lock_writer_unlock(&conns_table_lock);
-}
-
-void tcm_destroy(void)
-{
-	tcm_clear_conns();
-	g_hash_table_destroy(conns_table);
-	g_rw_lock_clear(&conns_table_lock);
-}
-
-int tcm_init(void)
-{
-	conns_table = g_hash_table_new(g_int64_hash, g_int64_equal);
-	if (!conns_table)
-		return -ENOMEM;
-	g_rw_lock_init(&conns_table_lock);
-	return 0;
-}
-
-static int __tcm_remove_conn(struct cifsd_tree_conn *conn)
-{
-	int ret = -EINVAL;
-
-	g_rw_lock_writer_lock(&conns_table_lock);
-	if (g_hash_table_remove(conns_table, &conn->id)) {
-		ret = 0;
-
-		g_mutex_lock(&conn_id_lock);
-		if (conn->id < USHRT_MAX) {
-			smb1_conn_id = conn->id;
-			num_avail_smb1_conn_ids++;
-		} else {
-			smb1_conn_id = conn->id;
-		}
-		g_mutex_unlock(&conn_id_lock);
-	}
-	g_rw_lock_writer_unlock(&conns_table_lock);
-
-	if (!ret)
-		kill_cifsd_tree_conn(conn);
-	return ret;
-}
-
-static struct cifsd_tree_conn *__tcm_lookup_conn(unsigned long long id)
-{
-	return g_hash_table_lookup(conns_table, &id);
-}
-
-struct cifsd_tree_conn *tcm_lookup_conn(unsigned long long id)
-{
-	struct cifsd_tree_conn *conn;
-
-	g_rw_lock_reader_lock(&conns_table_lock);
-	conn = __tcm_lookup_conn(id);
-	g_rw_lock_reader_unlock(&conns_table_lock);
-	return conn;
+	put_cifsd_share(conn->share);
+	free(conn);
 }
 
 int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
@@ -169,7 +53,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 {
 	struct cifsd_user *user = NULL;
 	struct cifsd_share *share = NULL;
-	struct cifsd_tree_conn *conn = new_cifsd_tree_conn(req->flags);
+	struct cifsd_tree_conn *conn = new_cifsd_tree_conn();
 	int ret;
 
 	if (!conn) {
@@ -296,51 +180,25 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	}
 
 bind:
-	g_rw_lock_writer_lock(&conns_table_lock);
-	if (__tcm_lookup_conn(conn->id)) {
-		g_rw_lock_writer_unlock(&conns_table_lock);
-		pr_info("conn already exists %lld\n", conn->id);
-		resp->status = CIFSD_TREE_CONN_STATUS_CONN_EXIST;
-		goto out_error;
-	}
-
-	if (!g_hash_table_insert(conns_table, &conn->id, conn)) {
-		g_rw_lock_writer_unlock(&conns_table_lock);
-		resp->status = CIFSD_TREE_CONN_STATUS_ERROR;
-		goto out_error;
-	}
-	g_rw_lock_writer_unlock(&conns_table_lock);
-
+	conn->id = req->connect_id;
+	conn->share = share;
 	resp->status = CIFSD_TREE_CONN_STATUS_OK;
 	resp->connection_flags = conn->flags;
 
-	conn->share = share;
-	conn->user = user;
-	usm_bind_connection(user, conn);
-	shm_bind_connection(share, conn);
+	if (sm_handle_tree_connect(req->session_id, user, conn))
+		pr_err("ERROR: we were unable to bind tree connection\n");
 	return 0;
 
 out_error:
-	kill_cifsd_tree_conn(conn);
-	shm_bind_connection_error(share);
+	tcm_tree_conn_free(conn);
 	put_cifsd_share(share);
 	put_cifsd_user(user);
 	return -EINVAL;
 }
 
-int tcm_handle_tree_disconnect(unsigned long long id)
+int tcm_handle_tree_disconnect(unsigned long long sess_id,
+			       unsigned long long tree_conn_id)
 {
-	struct cifsd_tree_conn *conn = tcm_lookup_conn(id);
-
-	if (!conn)
-		return -ENOENT;
-
-	usm_unbind_connection(conn->user, conn);
-	shm_unbind_connection(conn->share, conn);
-
-	put_cifsd_share(conn->share);
-	put_cifsd_user(conn->user);
-
-	__tcm_remove_conn(conn);
+	sm_handle_tree_disconnect(sess_id, tree_conn_id);
 	return 0;
 }

@@ -37,12 +37,12 @@ static void __free_func(gpointer data, gpointer user_data)
 	struct cifsd_tree_conn *tree_conn;
 
 	tree_conn = (struct cifsd_tree_conn *)data;
-	/* free(data); */
+	tcm_tree_conn_free(tree_conn);
 }
 
 static void kill_cifsd_session(struct cifsd_session *sess)
 {
-	g_list_foreach (sess->tree_conns, __free_func, NULL);
+	g_list_foreach(sess->tree_conns, __free_func, NULL);
 	g_rw_lock_clear(&sess->update_lock);
 	put_cifsd_user(sess->user);
 	free(sess);
@@ -197,7 +197,7 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 			      unsigned long long tree_conn_id)
 {
 	struct cifsd_session *sess;
-	GList *tree_conn;
+	GList *tc_list;
 	int drop;
 
 	sess = sm_lookup_session(sess_id);
@@ -205,15 +205,17 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 		return 0;
 
 	g_rw_lock_writer_lock(&sess->update_lock);
-	tree_conn = g_list_find_custom(sess->tree_conns,
-				       (gconstpointer)tree_conn_id,
-				       lookup_tree_conn);
-	if (tree_conn) {
+	tc_list = g_list_find_custom(sess->tree_conns,
+				     (gconstpointer)tree_conn_id,
+				     lookup_tree_conn);
+	if (tc_list) {
+		struct cifsd_tree_conn *tree_conn;
+
+		tree_conn = (struct cifsd_tree_conn *)tc_list->data;
 		sess->tree_conns = g_list_remove(sess->tree_conns, tree_conn);
 		sess->ref_counter--;
-		///
-		/* free tc */
-		///
+		put_cifsd_user(sess->user);
+		tcm_tree_conn_free(tree_conn);
 	}
 	g_rw_lock_writer_unlock(&sess->update_lock);
 

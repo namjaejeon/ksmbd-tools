@@ -23,15 +23,12 @@
 
 #include <glib.h>
 
-struct cifsd_user;
 struct cifsd_share;
 
 struct cifsd_tree_conn {
 	unsigned long long	id;
 
-	struct cifsd_user	*user;
 	struct cifsd_share	*share;
-
 	unsigned int		flags;
 };
 
@@ -50,7 +47,7 @@ static inline int test_conn_flag(struct cifsd_tree_conn *conn, int bit)
 	conn->flags & bit;
 }
 
-struct cifsd_tree_conn *tcm_lookup_conn(unsigned long long id);
+void tcm_tree_conn_free(struct cifsd_tree_conn *conn);
 
 struct cifsd_tree_connect_request;
 struct cifsd_tree_connect_response;
@@ -58,9 +55,6 @@ struct cifsd_tree_connect_response;
 int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 			    struct cifsd_tree_connect_response *resp);
 
-int tcm_handle_tree_disconnect(unsigned long long id);
-
-void tcm_destroy(void);
-int tcm_init(void);
-
+int tcm_handle_tree_disconnect(unsigned long long sess_id,
+			       unsigned long long tree_conn_id);
 #endif /* __MANAGEMENT_TREE_CONN_H__ */

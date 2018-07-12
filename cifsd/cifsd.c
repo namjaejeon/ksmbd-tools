@@ -30,6 +30,7 @@
 #include <worker_pool.h>
 #include <management/user.h>
 #include <management/share.h>
+#include <management/session.h>
 #include <management/tree_conn.h>
 
 static void usage(void)
@@ -107,7 +108,7 @@ int main(int argc, char *argv[])
 	if (ret)
 		goto out;
 
-	ret = tcm_init();
+	ret = sm_init();
 	if (ret)
 		goto out;
 
@@ -127,7 +128,7 @@ out:
 	 */
 	ipc_destroy();
 	wp_destroy();
-	tcm_destroy();
+	sm_destroy();
 	shm_destroy();
 	usm_destroy();
 	return ret;

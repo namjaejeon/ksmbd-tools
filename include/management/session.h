@@ -35,4 +35,15 @@ struct cifsd_session {
 	int			ref_counter;
 };
 
+struct cifsd_tree_conn;
+
+int sm_handle_tree_connect(unsigned long long id,
+			   struct cifsd_user *user,
+			   struct cifsd_tree_conn *tree_conn);
+int sm_handle_tree_disconnect(unsigned long long sess_id,
+			      unsigned long long tree_conn_id);
+
+void sm_destroy(void);
+int sm_init(void);
+
 #endif /* __MANAGEMENT_TCONNECTION_H__ */
