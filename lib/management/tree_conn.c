@@ -44,6 +44,7 @@ static struct cifsd_tree_conn *new_cifsd_tree_conn(void)
 
 void tcm_tree_conn_free(struct cifsd_tree_conn *conn)
 {
+	shm_close_connection(conn->share);
 	put_cifsd_share(conn->share);
 	free(conn);
 }
@@ -90,7 +91,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_READONLY))
 		set_conn_flag(conn, CIFSD_SHARE_FLAG_READONLY);
 
-	if (shm_prebind_connection(share)) {
+	if (shm_open_connection(share)) {
 		resp->status = CIFSD_TREE_CONN_STATUS_TOO_MANY_CONNS;
 		goto out_error;
 	}
@@ -191,6 +192,7 @@ bind:
 
 out_error:
 	tcm_tree_conn_free(conn);
+	shm_close_connection(share);
 	put_cifsd_share(share);
 	put_cifsd_user(user);
 	return -EINVAL;

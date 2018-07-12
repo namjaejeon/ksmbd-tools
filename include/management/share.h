@@ -51,9 +51,7 @@ struct cifsd_share {
 	int		max_connections;
 	int		num_connections;
 
-	GList		*conns;
-	GRWLock		conns_lock;
-
+	GRWLock		update_lock;
 	int		ref_count;
 
 	int		create_mask;
@@ -114,13 +112,8 @@ int shm_lookup_hosts_map(struct cifsd_share *share,
 			  enum share_hosts map,
 			  char *host);
 
-struct cifsd_tree_conn;
-int shm_prebind_connection(struct cifsd_share *share);
-int shm_bind_connection(struct cifsd_share *share,
-			struct cifsd_tree_conn *conn);
-int shm_bind_connection_error(struct cifsd_share *share);
-void shm_unbind_connection(struct cifsd_share *share,
-			   struct cifsd_tree_conn *conn);
+int shm_open_connection(struct cifsd_share *share);
+int shm_close_connection(struct cifsd_share *share);
 
 typedef void (*walk_shares)(struct cifsd_share *share);
 void for_each_cifsd_share(walk_shares cb);

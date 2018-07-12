@@ -77,7 +77,7 @@ static void kill_cifsd_share(struct cifsd_share *share)
 	free(share->comment);
 	free(share->veto_list);
 	free(share->guest_account);
-	g_rw_lock_clear(&share->conns_lock);
+	g_rw_lock_clear(&share->update_lock);
 	free(share);
 }
 
@@ -97,19 +97,29 @@ static int __shm_remove_share(struct cifsd_share *share)
 
 static struct cifsd_share *get_cifsd_share(struct cifsd_share *share)
 {
-	if (g_atomic_int_add(&share->ref_count, 1) == 0) {
-		g_atomic_int_add(&share->ref_count, -1);
-		return NULL;
-	}
+	g_rw_lock_writer_lock(&share->update_lock);
+	if (share->ref_count != 0)
+		share->ref_count++;
+	else
+		share = NULL;
+	g_rw_lock_writer_unlock(&share->update_lock);
+
 	return share;
 }
 
 void put_cifsd_share(struct cifsd_share *share)
 {
+	int drop;
+
 	if (!share)
 		return;
 
-	if (!g_atomic_int_dec_and_test(&share->ref_count))
+	g_rw_lock_writer_lock(&share->update_lock);
+	share->ref_count--;
+	drop = !share->ref_count;
+	g_rw_lock_writer_unlock(&share->update_lock);
+
+	if (!drop)
 		return;
 
 	__shm_remove_share(share);
@@ -136,7 +146,7 @@ static struct cifsd_share *new_cifsd_share(void)
 	share->hosts_allow_map = NULL;
 	share->hosts_deny_map = NULL;
 	g_rw_lock_init(&share->maps_lock);
-	g_rw_lock_init(&share->conns_lock);
+	g_rw_lock_init(&share->update_lock);
 
 	return share;
 }
@@ -512,47 +522,29 @@ int shm_lookup_hosts_map(struct cifsd_share *share,
 	return ret;
 }
 
-int shm_prebind_connection(struct cifsd_share *share)
+int shm_open_connection(struct cifsd_share *share)
 {
 	int ret = 0;
 
-	g_rw_lock_writer_lock(&share->conns_lock);
+	g_rw_lock_writer_lock(&share->update_lock);
 	share->num_connections++;
 	if (share->max_connections) {
 		if (share->num_connections >= share->max_connections)
 			ret = -EINVAL;
 	}
-	g_rw_lock_writer_unlock(&share->conns_lock);
+	g_rw_lock_writer_unlock(&share->update_lock);
 	return ret;
 }
 
-int shm_bind_connection(struct cifsd_share *share,
-			struct cifsd_tree_conn *conn)
-{
-	g_rw_lock_writer_lock(&share->conns_lock);
-	share->conns = g_list_insert(share->conns, conn, -1);
-	g_rw_lock_writer_unlock(&share->conns_lock);
-	return 0;
-}
-
-int shm_bind_connection_error(struct cifsd_share *share)
+int shm_close_connection(struct cifsd_share *share)
 {
 	if (!share)
 		return 0;
 
-	g_rw_lock_writer_lock(&share->conns_lock);
+	g_rw_lock_writer_lock(&share->update_lock);
 	share->num_connections--;
-	g_rw_lock_writer_unlock(&share->conns_lock);
+	g_rw_lock_writer_unlock(&share->update_lock);
 	return 0;
-}
-
-void shm_unbind_connection(struct cifsd_share *share,
-			   struct cifsd_tree_conn *conn)
-{
-	g_rw_lock_writer_lock(&share->conns_lock);
-	share->conns = g_list_remove(share->conns, conn);
-	share->num_connections--;
-	g_rw_lock_writer_unlock(&share->conns_lock);
 }
 
 static void hash_walk_cb(gpointer k, gpointer u, gpointer user_data)
