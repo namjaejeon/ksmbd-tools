@@ -37,8 +37,6 @@ struct cifsd_user {
 
 	int		ref_count;
 	int 		flags;
-
-	GList		*conns;
 	GRWLock		update_lock;
 };
 
@@ -58,12 +56,6 @@ struct cifsd_user *usm_lookup_user(char *name);
 
 int usm_add_new_user(char *name, char *pwd);
 int usm_new_user_from_pwdentry(char *data);
-
-struct cifsd_tree_conn;
-int usm_bind_connection(struct cifsd_user *user,
-			struct cifsd_tree_conn *conn);
-void usm_unbind_connection(struct cifsd_user *user,
-			   struct cifsd_tree_conn *conn);
 
 void usm_destroy(void);
 int usm_init(void);

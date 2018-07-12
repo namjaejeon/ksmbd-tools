@@ -57,19 +57,28 @@ static int __usm_remove_user(struct cifsd_user *user)
 
 static struct cifsd_user *get_cifsd_user(struct cifsd_user *user)
 {
-	if (g_atomic_int_add(&user->ref_count, 1) == 0) {
-		g_atomic_int_add(&user->ref_count, -1);
-		return NULL;
-	}
+	g_rw_lock_writer_lock(&user->update_lock);
+	if (user->ref_count != 0)
+		user->ref_count++;
+	else
+		user = NULL;
+	g_rw_lock_writer_unlock(&user->update_lock);
 	return user;
 }
 
 void put_cifsd_user(struct cifsd_user *user)
 {
+	int drop;
+
 	if (!user)
 		return;
 
-	if (!g_atomic_int_dec_and_test(&user->ref_count))
+	g_rw_lock_writer_lock(&user->update_lock);
+	user->ref_count--;
+	drop = !user->ref_count;
+	g_rw_lock_writer_lock(&user->update_lock);
+
+	if (!drop)
 		return;
 
 	__usm_remove_user(user);
@@ -202,23 +211,6 @@ int usm_new_user_from_pwdentry(char *data)
 	if (ret)
 		free(name);
 	return ret;
-}
-
-int usm_bind_connection(struct cifsd_user *user,
-			struct cifsd_tree_conn *conn)
-{
-	g_rw_lock_writer_lock(&user->update_lock);
-	user->conns = g_list_insert(user->conns, conn, -1);
-	g_rw_lock_writer_unlock(&user->update_lock);
-	return 0;
-}
-
-void usm_unbind_connection(struct cifsd_user *user,
-			   struct cifsd_tree_conn *conn)
-{
-	g_rw_lock_writer_lock(&user->update_lock);
-	user->conns = g_list_remove(user->conns, conn);
-	g_rw_lock_writer_unlock(&user->update_lock);
 }
 
 static void walk_users_cb(gpointer k, gpointer u, gpointer user_data)
