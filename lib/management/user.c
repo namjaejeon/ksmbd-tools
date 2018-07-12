@@ -76,7 +76,7 @@ void put_cifsd_user(struct cifsd_user *user)
 	g_rw_lock_writer_lock(&user->update_lock);
 	user->ref_count--;
 	drop = !user->ref_count;
-	g_rw_lock_writer_lock(&user->update_lock);
+	g_rw_lock_writer_unlock(&user->update_lock);
 
 	if (!drop)
 		return;
