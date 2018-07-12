@@ -142,7 +142,7 @@ static int sm_insert_session(struct cifsd_session *sess)
 
 	g_rw_lock_writer_lock(&sessions_table_lock);
 	ret = g_hash_table_insert(sessions_table, &(sess->id), sess);
-	g_rw_lock_writer_lock(&sessions_table_lock);
+	g_rw_lock_writer_unlock(&sessions_table_lock);
 
 	return ret;
 }
