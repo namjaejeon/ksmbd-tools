@@ -6,5 +6,6 @@ libcifsdtools_la_LIBADD = -lresolv
 libcifsdtools_la_SOURCES = management/tree_conn.c \
 			   management/user.c \
 			   management/share.c \
+			   management/session.c \
 			   config_parser.c \
 			   cifsdtools.c

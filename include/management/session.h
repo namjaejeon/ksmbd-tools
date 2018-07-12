@@ -18,49 +18,21 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef __MANAGEMENT_TREE_CONN_H__
-#define __MANAGEMENT_TREE_CONN_H__
+#ifndef __MANAGEMENT_TCONNECTION_H__
+#define __MANAGEMENT_TCONNECTION_H__
 
 #include <glib.h>
 
 struct cifsd_user;
-struct cifsd_share;
 
-struct cifsd_tree_conn {
+struct cifsd_session {
 	unsigned long long	id;
 
 	struct cifsd_user	*user;
-	struct cifsd_share	*share;
 
-	unsigned int		flags;
+	GRWLock			update_lock;
+	GList			*tree_conns;
+	int			ref_counter;
 };
 
-static inline void set_conn_flag(struct cifsd_tree_conn *conn, int bit)
-{
-	conn->flags |= bit;
-}
-
-static inline void clear_conn_flag(struct cifsd_tree_conn *conn, int bit)
-{
-	conn->flags &= ~bit;
-}
-
-static inline int test_conn_flag(struct cifsd_tree_conn *conn, int bit)
-{
-	conn->flags & bit;
-}
-
-struct cifsd_tree_conn *tcm_lookup_conn(unsigned long long id);
-
-struct cifsd_tree_connect_request;
-struct cifsd_tree_connect_response;
-
-int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
-			    struct cifsd_tree_connect_response *resp);
-
-int tcm_handle_tree_disconnect(unsigned long long id);
-
-void tcm_destroy(void);
-int tcm_init(void);
-
-#endif /* __MANAGEMENT_TREE_CONN_H__ */
+#endif /* __MANAGEMENT_TCONNECTION_H__ */

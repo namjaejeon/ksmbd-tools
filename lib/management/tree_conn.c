@@ -313,7 +313,6 @@ bind:
 
 	resp->status = CIFSD_TREE_CONN_STATUS_OK;
 	resp->connection_flags = conn->flags;
-	resp->connection_id = conn->id;
 
 	conn->share = share;
 	conn->user = user;

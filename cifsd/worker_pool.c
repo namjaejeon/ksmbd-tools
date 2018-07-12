@@ -83,7 +83,6 @@ static int tree_connect_request(struct cifsd_ipc_msg *msg)
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 
 	resp->status = CIFSD_TREE_CONN_STATUS_ERROR;
-	resp->connection_id = -1;
 	resp->connection_flags = 0;
 
 	if (VALID_IPC_MSG(msg, struct cifsd_tree_connect_request))
@@ -137,7 +136,7 @@ static int tree_disconnect_request(struct cifsd_ipc_msg *msg)
 		return -EINVAL;
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
-	tcm_handle_tree_disconnect(req->connection_id);
+	tcm_handle_tree_disconnect(req->connect_id);
 
 	return 0;
 }
