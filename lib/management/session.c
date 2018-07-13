@@ -45,7 +45,6 @@ static void kill_cifsd_session(struct cifsd_session *sess)
 	g_list_foreach(sess->tree_conns, __free_func, NULL);
 	g_list_free(sess->tree_conns);
 	g_rw_lock_clear(&sess->update_lock);
-	put_cifsd_user(sess->user);
 	free(sess);
 }
 
