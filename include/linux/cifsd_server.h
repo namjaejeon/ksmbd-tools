@@ -141,8 +141,8 @@ enum CIFSD_TREE_CONN_STATUS {
 /*
  * User config flags.
  */
-#define CIFSD_USER_FLAG_OK		0
-#define CIFSD_USER_FLAG_INVALID		(1 << 0)
+#define CIFSD_USER_FLAG_INVALID		(0)
+#define CIFSD_USER_FLAG_OK		(1 << 0)
 #define CIFSD_USER_FLAG_BAD_PASSWORD	(1 << 1)
 #define CIFSD_USER_FLAG_BAD_UID		(1 << 2)
 #define CIFSD_USER_FLAG_BAD_USER	(1 << 3)
