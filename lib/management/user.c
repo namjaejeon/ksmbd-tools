@@ -272,24 +272,34 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	size_t hash_sz;
 
 	user = usm_lookup_user(req->account);
-	if (!user) {
-		resp->status = CIFSD_USER_FLAG_BAD_USER;
-		return -EINVAL;
+	if (user) {
+		resp->status = user->flags;
+		hash_sz = usm_copy_user_passhash(user,
+						 resp->hash,
+						 sizeof(resp->hash));
+		if (hash_sz > 0) {
+			resp->status = CIFSD_USER_FLAG_OK;
+			resp->hash_sz = hash_sz;
+		}
+
+		put_cifsd_user(user);
+		return 0;
 	}
+
+	resp->status = CIFSD_USER_FLAG_BAD_USER;
+	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
+		return -EINVAL;
+
+	if (global_conf.map_to_guest != CIFSD_CONF_MAP_TO_GUEST_BAD_USER)
+		return -EINVAL;
+
+	user = usm_lookup_user(global_conf.guest_account);
+	if (!user)
+		return -EINVAL;
 
 	resp->status = user->flags;
-	hash_sz = usm_copy_user_passhash(user, resp->hash, sizeof(resp->hash));
-	if (hash_sz > 0) {
-		resp->status = CIFSD_USER_FLAG_OK;
-		resp->hash_sz = hash_sz;
-	}
-
-	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT)) {
-		if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
-			resp->status = CIFSD_USER_FLAG_BAD_USER;
-		else
-			resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
-	}
+	resp->status |= CIFSD_USER_FLAG_OK;
+	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
 
 	put_cifsd_user(user);
 	return 0;
