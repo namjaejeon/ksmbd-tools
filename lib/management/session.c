@@ -214,7 +214,6 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 		tree_conn = (struct cifsd_tree_conn *)tc_list->data;
 		sess->tree_conns = g_list_remove(sess->tree_conns, tree_conn);
 		sess->ref_counter--;
-		put_cifsd_user(sess->user);
 		tcm_tree_conn_free(tree_conn);
 	}
 	g_rw_lock_writer_unlock(&sess->update_lock);
