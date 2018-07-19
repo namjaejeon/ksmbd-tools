@@ -276,6 +276,8 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 
 	user = usm_lookup_user(req->account);
 	if (user) {
+		resp->gid = user->gid;
+		resp->uid = user->uid;
 		resp->status = user->flags;
 		resp->status |= CIFSD_USER_FLAG_OK;
 
@@ -302,6 +304,8 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	if (!user)
 		return -EINVAL;
 
+	resp->gid = 9999;
+	resp->uid = 9999;
 	resp->status = user->flags;
 	resp->status |= CIFSD_USER_FLAG_OK;
 	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
