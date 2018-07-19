@@ -417,6 +417,8 @@ static int cp_add_ipc_share(void)
 
 	ret = add_new_group(strdup("[IPC$]"));
 	ret |= add_group_key_value(strdup("comment = IPC share"));
+	if (ret)
+		pr_err("Unable to add IPC$ share\n");
 	return ret;
 }
 
