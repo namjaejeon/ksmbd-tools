@@ -32,6 +32,7 @@
 #include <management/user.h>
 #include <management/share.h>
 
+struct smbconf_global global_conf;
 static struct smbconf_parser parser;
 
 static int is_ascii_spacei_tab(char c)

@@ -50,7 +50,7 @@ struct smbconf_global {
 	char			*server_max_protocol;
 };
 
-static struct smbconf_global global_conf;
+extern struct smbconf_global global_conf;
 
 int cp_parse_pwddb(const char *pwddb);
 int cp_parse_smbconf(const char *smbconf);
