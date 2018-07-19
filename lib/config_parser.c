@@ -263,6 +263,9 @@ static void release_smbconf_group(gpointer k, gpointer v, gpointer user_data)
 
 static void release_smbconf_parser(void)
 {
+	if (!parser.groups)
+		return;
+
 	g_hash_table_foreach(parser.groups, release_smbconf_group, NULL);
 	g_hash_table_destroy(parser.groups);
 	parser.groups = NULL;
@@ -414,12 +417,29 @@ static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
 
 static int cp_add_ipc_share(void)
 {
-	int ret;
+	struct cifsd_share *share;
+	int ret = 0;
+
+	ret = init_smbconf_parser();
+	if (ret)
+		return ret;
+
+	share = shm_lookup_share("IPC$");
+	if (share) {
+		put_cifsd_share(share);
+		goto out;
+	}
 
 	ret = add_new_group(strdup("[IPC$]"));
 	ret |= add_group_key_value(strdup("comment = IPC share"));
-	if (ret)
+	if (ret) {
 		pr_err("Unable to add IPC$ share\n");
+		goto out;
+	}
+
+	g_hash_table_foreach(parser.groups, groups_callback, NULL);
+out:
+	release_smbconf_parser();
 	return ret;
 }
 
@@ -431,12 +451,10 @@ int cp_parse_smbconf(const char *smbconf)
 
 	ret = __mmap_parse_file(smbconf, process_smbconf_entry);
 	if (!ret)
-		ret = cp_add_ipc_share();
-	if (!ret)
 		g_hash_table_foreach(parser.groups, groups_callback, NULL);
-
 	release_smbconf_parser();
-	return ret;
+
+	return cp_add_ipc_share();
 }
 
 int cp_parse_pwddb(const char *pwddb)
