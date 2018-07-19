@@ -253,7 +253,10 @@ static int usm_copy_user_passhash(struct cifsd_user *user,
 				  char *pass,
 				  size_t sz)
 {
-	int ret = 0;
+	int ret = -ENOSPC;
+
+	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
+		return 0;
 
 	g_rw_lock_reader_lock(&user->update_lock);
 	if (sz >= user->pass_sz) {
@@ -274,13 +277,15 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	user = usm_lookup_user(req->account);
 	if (user) {
 		resp->status = user->flags;
+		resp->status |= CIFSD_USER_FLAG_OK;
+
 		hash_sz = usm_copy_user_passhash(user,
 						 resp->hash,
 						 sizeof(resp->hash));
-		if (hash_sz > 0) {
-			resp->status = CIFSD_USER_FLAG_OK;
+		if (hash_sz > 0)
 			resp->hash_sz = hash_sz;
-		}
+		if (hash_sz < 0)
+			resp->status = CIFSD_USER_FLAG_INVALID;
 
 		put_cifsd_user(user);
 		return 0;
