@@ -102,6 +102,8 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 	user->name = name;
 	user->pass_b64 = pass;
 	user->ref_count = 1;
+	user->gid = 9999;
+	user->uid = 9999;
 	passwd = getpwnam(name);
 	if (passwd) {
 		user->uid = passwd->pw_uid;
@@ -304,8 +306,8 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	if (!user)
 		return -EINVAL;
 
-	resp->gid = 9999;
-	resp->uid = 9999;
+	resp->gid = user->gid;
+	resp->uid = user->uid;
 	resp->status = user->flags;
 	resp->status |= CIFSD_USER_FLAG_OK;
 	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
