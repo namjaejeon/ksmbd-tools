@@ -270,6 +270,19 @@ static int usm_copy_user_passhash(struct cifsd_user *user,
 	return ret;
 }
 
+static int usm_copy_user_account(struct cifsd_user *user,
+				 char *account,
+				 size_t sz)
+{
+	int account_sz = strlen(user->name);
+
+	if (sz >= account_sz) {
+		memcpy(account, user->name, account_sz);
+		return 0;
+	}
+	return -ENOSPC;
+}
+
 int usm_handle_login_request(struct cifsd_login_request *req,
 			     struct cifsd_login_response *resp)
 {
@@ -296,6 +309,11 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 		if (hash_sz < 0)
 			resp->status = CIFSD_USER_FLAG_INVALID;
 
+		if (usm_copy_user_account(user,
+					  resp->account,
+					  sizeof(resp->account)))
+			resp->status = CIFSD_USER_FLAG_INVALID;
+
 		put_cifsd_user(user);
 		return 0;
 	}
@@ -317,6 +335,9 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	resp->status = user->flags;
 	resp->status |= CIFSD_USER_FLAG_OK;
 	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
+
+	if (usm_copy_user_account(user, resp->account, sizeof(resp->account)))
+		resp->status = CIFSD_USER_FLAG_INVALID;
 
 	put_cifsd_user(user);
 	return 0;
