@@ -30,32 +30,36 @@
 #define __align		__attribute__((__aligned__(4)))
 #endif
 
+#define CIFSD_REQ_MAX_ACCOUNT_NAME_SZ	48
+#define CIFSD_REQ_MAX_HASH_SZ		18
+#define CIFSD_REQ_MAX_SHARE_NAME	64
+
 struct cifsd_heartbeat {
 	__u32	handle;
 } __align;
 
 struct cifsd_startup_shutdown {
-	__s8	reserved[8];
+	__s8	reserved[4];
 } __align;
 
 struct cifsd_login_request {
 	__u32	handle;
-	__s8	account[64];
+	__s8	account[CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
 } __align;
 
 struct cifsd_login_response {
 	__u32	handle;
 	__u32	gid;
 	__u32	uid;
-	__s8	account[64];
+	__s8	account[CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
 	__u16	status;
 	__u16	hash_sz;
-	__s8	hash[64];
+	__s8	hash[CIFSD_REQ_MAX_HASH_SZ];
 } __align;
 
 struct cifsd_share_config_request {
 	__u32	handle;
-	__s8	share_name[64];
+	__s8	share_name[CIFSD_REQ_MAX_SHARE_NAME];
 } __align;
 
 struct cifsd_share_config_response {
@@ -78,8 +82,8 @@ struct cifsd_tree_connect_request {
 	__u16	flags;
 	__u64	session_id;
 	__u64	connect_id;
-	__s8	account[64];
-	__s8	share[64];
+	__s8	account[CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
+	__s8	share[CIFSD_REQ_MAX_SHARE_NAME];
 	__s8	peer_addr[64];
 } __align;
 
@@ -95,7 +99,7 @@ struct cifsd_tree_disconnect_request {
 } __align;
 
 struct cifsd_logout_request {
-	__s8	account[64];
+	__s8	account[CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
 } __align;
 
 /*
