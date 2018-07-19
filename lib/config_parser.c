@@ -310,6 +310,29 @@ void cp_group_kv_list_free(char **list)
 	g_strfreev(list);
 }
 
+static int cp_add_global_guest_account(gpointer _v)
+{
+	struct cifsd_user *user;
+
+	if (usm_add_new_user(cp_get_group_kv_string(_v),
+			     strdup("NULL"))) {
+		pr_err("Unable to add guest account\n");
+		return -ENOMEM;
+	}
+
+	user = usm_lookup_user(_v);
+	if (!user) {
+		pr_err("Fatal error: unable to find `%s' account.\n",
+			_v);
+		return -EINVAL;
+	}
+
+	set_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT);
+	put_cifsd_user(user);
+	global_conf.guest_account = cp_get_group_kv_string(_v);
+	return 0;
+}
+
 static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 {
 	if (!cp_key_cmp(_k, "server string")) {
@@ -343,20 +366,7 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(_k, "guest account")) {
-		struct cifsd_user *user;
-
-		if (usm_add_new_user(cp_get_group_kv_string(_v),
-				     strdup("NULL"))) {
-			pr_err("Unable to add guest account\n");
-			return;
-		}
-
-		user = usm_lookup_user(_v);
-		if (user) {
-			set_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT);
-			put_cifsd_user(user);
-		}
-		global_conf.guest_account = cp_get_group_kv_string(_v);
+		cp_add_global_guest_account(_v);
 		return;
 	}
 
@@ -386,7 +396,28 @@ static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
 		shm_add_new_share((struct smbconf_group *)_v);
 	else {
 		global_group((struct smbconf_group *)_v);
+
+		if (!global_conf.guest_account) {
+			int ret;
+
+			ret = cp_add_global_guest_account("nobody");
+			if (ret)
+				ret = cp_add_global_guest_account("ftp");
+			if (ret)
+				pr_err("Fatal error: %s [%d]\n",
+					"Cannot set a global guest account",
+					ret);
+		}
 	}
+}
+
+static int cp_add_ipc_share(void)
+{
+	int ret;
+
+	ret = add_new_group(strdup("[IPC$]"));
+	ret |= add_group_key_value(strdup("comment = IPC share"));
+	return ret;
 }
 
 int cp_parse_smbconf(const char *smbconf)
@@ -396,10 +427,8 @@ int cp_parse_smbconf(const char *smbconf)
 		return ret;
 
 	ret = __mmap_parse_file(smbconf, process_smbconf_entry);
-	if (!ret) {
-		ret = add_new_group(strdup("[IPC$]"));
-		ret |= add_group_key_value(strdup("comment = IPC share"));
-	}
+	if (!ret)
+		ret = cp_add_ipc_share();
 	if (!ret)
 		g_hash_table_foreach(parser.groups, groups_callback, NULL);
 
