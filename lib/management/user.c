@@ -273,10 +273,15 @@ static int usm_copy_user_passhash(struct cifsd_user *user,
 int usm_handle_login_request(struct cifsd_login_request *req,
 			     struct cifsd_login_response *resp)
 {
-	struct cifsd_user *user;
+	struct cifsd_user *user = NULL;
 	size_t hash_sz;
+	int guest_login = 0;
 
-	user = usm_lookup_user(req->account);
+	if (req->account[0] == '\0')
+		guest_login = 1;
+
+	if (!guest_login)
+		user = usm_lookup_user(req->account);
 	if (user) {
 		resp->gid = user->gid;
 		resp->uid = user->uid;
@@ -296,13 +301,14 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	}
 
 	resp->status = CIFSD_USER_FLAG_BAD_USER;
-	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
+	if (!guest_login &&
+		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
 		return -EINVAL;
 
-	if (global_conf.map_to_guest != CIFSD_CONF_MAP_TO_GUEST_BAD_USER)
-		return -EINVAL;
+	if (guest_login || (!guest_login &&
+		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER))
+		user = usm_lookup_user(global_conf.guest_account);
 
-	user = usm_lookup_user(global_conf.guest_account);
 	if (!user)
 		return -EINVAL;
 
