@@ -193,17 +193,38 @@ enum CIFSD_TREE_CONN_STATUS {
 
 /* NOTE: we don't support extended headers at the moment */
 
-#define PFC_FIRST_FRAG           0x01  /* First fragment */
-#define PFC_LAST_FRAG            0x02  /* Last fragment */
-#define PFC_PENDING_CANCEL       0x04  /* Cancel was pending at sender */
-#define PFC_RESERVED_1           0x08
-#define PFC_CONC_MPX             0x10  /* supports concurrent multiplexing
+#define DCE_PTYPE_RPC_REQUEST		0x00
+#define DCE_PTYPE_RPC_PING		0x01
+#define DCE_PTYPE_RPC_RESPONSE		0x02
+#define DCE_PTYPE_RPC_FAULT		0x03
+#define DCE_PTYPE_RPC_WORKING		0x04
+#define DCE_PTYPE_RPC_NOCALL		0x05
+#define DCE_PTYPE_RPC_REJECT		0x06
+#define DCE_PTYPE_RPC_ACK		0x07
+#define DCE_PTYPE_RPC_CL_CANCEL		0x08
+#define DCE_PTYPE_RPC_FACK		0x09
+#define DCE_PTYPE_RPC_CANCEL_ACK	0x0A
+#define DCE_PTYPE_RPC_BIND		0x0B
+#define DCE_PTYPE_RPC_BINDACK		0x0C
+#define DCE_PTYPE_RPC_BINDNACK		0x0D
+#define DCE_PTYPE_RPC_ALTCONT		0x0E
+#define DCE_PTYPE_RPC_ALTCONTRESP	0x0F
+#define DCE_PTYPE_RPC_AUTH3		0x10
+#define DCE_PTYPE_RPC_SHUTDOWN		0x11
+#define DCE_PTYPE_RPC_CO_CANCEL		0x12
+#define DCE_PTYPE_RPC_ORPHANED		0x13
+
+#define DCE_PFC_FIRST_FRAG	0x01  /* First fragment */
+#define DCE_PFC_LAST_FRAG	0x02  /* Last fragment */
+#define DCE_PFC_PENDING_CANCEL	0x04  /* Cancel was pending at sender */
+#define DCE_PFC_RESERVED_1	0x08
+#define DCE_PFC_CONC_MPX	0x10  /* supports concurrent multiplexing
                                         * of a single connection. */
-#define PFC_DID_NOT_EXECUTE      0x20  /* only meaningful on `fault' packet;
+#define DCE_PFC_DID_NOT_EXECUTE	0x20  /* only meaningful on `fault' packet;
                                         * if true, guaranteed call did not
                                         * execute. */
-#define PFC_MAYBE                0x40  /* `maybe' call semantics requested */
-#define PFC_OBJECT_UUID          0x80  /* if true, a non-nil object UUID
+#define DCE_PFC_MAYBE		0x40  /* `maybe' call semantics requested */
+#define DCE_PFC_OBJECT_UUID	0x80  /* if true, a non-nil object UUID
                                         * was specified in the handle, and
                                         * is present in the optional object
                                         * field. If false, the object field
