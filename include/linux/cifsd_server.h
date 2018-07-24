@@ -185,4 +185,28 @@ enum CIFSD_TREE_CONN_STATUS {
 #define CIFSD_TREE_CONN_FLAG_WRITABLE		(1 << 2)
 #define CIFSD_TREE_CONN_FLAG_ADMIN_ACCOUNT	(1 << 3)
 
+/*
+ * DCE 1.1 RPC
+ *
+ * http://pubs.opengroup.org/onlinepubs/9629399/
+ */
+
+/* NOTE: we don't support extended headers at the moment */
+
+struct dcerpc_bind_hdr {
+	/* start 8-octet aligned */
+
+	/* common fields */
+	__u8	rpc_vers;            /* 00:01 RPC version */
+	__u8	rpc_vers_minor;      /* 01:01 minor version */
+	__u8	PTYPE;               /* 02:01 bind PDU */
+	__u8	pfc_flags;           /* 03:01 flags */
+	__s8	packed_drep[4];      /* 04:04 NDR data rep format label*/
+	__u16	frag_length;         /* 08:02 total length of fragment */
+	__u16	auth_length;         /* 10:02 length of auth_value */
+	__u32	call_id;             /* 12:04 call identifier */
+
+	/* end common fields */
+};
+
 #endif /* _LINUX_CIFSD_SERVER_H */
