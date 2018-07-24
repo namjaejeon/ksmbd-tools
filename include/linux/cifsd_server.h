@@ -193,6 +193,22 @@ enum CIFSD_TREE_CONN_STATUS {
 
 /* NOTE: we don't support extended headers at the moment */
 
+#define PFC_FIRST_FRAG           0x01  /* First fragment */
+#define PFC_LAST_FRAG            0x02  /* Last fragment */
+#define PFC_PENDING_CANCEL       0x04  /* Cancel was pending at sender */
+#define PFC_RESERVED_1           0x08
+#define PFC_CONC_MPX             0x10  /* supports concurrent multiplexing
+                                        * of a single connection. */
+#define PFC_DID_NOT_EXECUTE      0x20  /* only meaningful on `fault' packet;
+                                        * if true, guaranteed call did not
+                                        * execute. */
+#define PFC_MAYBE                0x40  /* `maybe' call semantics requested */
+#define PFC_OBJECT_UUID          0x80  /* if true, a non-nil object UUID
+                                        * was specified in the handle, and
+                                        * is present in the optional object
+                                        * field. If false, the object field
+                                        * is omitted. */
+
 struct dcerpc_bind_hdr {
 	/* start 8-octet aligned */
 
