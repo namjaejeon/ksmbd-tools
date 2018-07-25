@@ -115,8 +115,10 @@ int shm_lookup_hosts_map(struct cifsd_share *share,
 int shm_open_connection(struct cifsd_share *share);
 int shm_close_connection(struct cifsd_share *share);
 
-typedef void (*walk_shares)(struct cifsd_share *share);
-void for_each_cifsd_share(walk_shares cb);
+typedef void (*walk_shares)(gpointer key,
+			    gpointer value,
+			    gpointer user_data);
+void for_each_cifsd_share(walk_shares cb, gpointer user_data);
 
 struct cifsd_share_config_response;
 
