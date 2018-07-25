@@ -60,8 +60,10 @@ int usm_new_user_from_pwdentry(char *data);
 void usm_destroy(void);
 int usm_init(void);
 
-typedef void (*walk_users)(struct cifsd_user *user);
-void for_each_cifsd_user(walk_users cb);
+typedef void (*walk_users)(gpointer key,
+			   gpointer value,
+			   gpointer user_data);
+void for_each_cifsd_user(walk_users cb, gpointer user_data);
 
 int usm_update_user_password(struct cifsd_user *user, char *pass);
 

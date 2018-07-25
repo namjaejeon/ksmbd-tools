@@ -215,16 +215,10 @@ int usm_new_user_from_pwdentry(char *data)
 	return ret;
 }
 
-static void walk_users_cb(gpointer k, gpointer u, gpointer user_data)
-{
-	walk_users cb = (walk_users)user_data;
-	cb(u);
-}
-
-void for_each_cifsd_user(walk_users cb)
+void for_each_cifsd_user(walk_users cb, gpointer user_data)
 {
 	g_rw_lock_reader_lock(&users_table_lock);
-	g_hash_table_foreach(users_table, walk_users_cb, cb);
+	g_hash_table_foreach(users_table, cb, user_data);
 	g_rw_lock_reader_unlock(&users_table_lock);
 }
 

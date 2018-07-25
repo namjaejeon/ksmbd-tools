@@ -295,17 +295,22 @@ static void write_user(struct cifsd_user *user)
 	free(data);
 }
 
-static void write_user_cb(struct cifsd_user *user)
+static void write_user_cb(gpointer key, gpointer value, gpointer user_data)
 {
+	struct cifsd_user *user = (struct cifsd_user *)value;
 	write_user(user);
 }
 
-static void write_remove_user_cb(struct cifsd_user *user)
+static void write_remove_user_cb(gpointer key,
+				 gpointer value,
+				 gpointer user_data)
 {
+	struct cifsd_user *user = (struct cifsd_user *)value;
+
 	if (!g_ascii_strncasecmp(user->name, account, strlen(account)))
 		return;
 
-	write_user_cb(user);
+	write_user_cb(key, value, user_data);
 }
 
 static int command_add_user(char *pwddb)
@@ -343,7 +348,7 @@ static int command_add_user(char *pwddb)
 		return -EINVAL;
 	}
 
-	for_each_cifsd_user(write_user_cb);
+	for_each_cifsd_user(write_user_cb, NULL);
 	close(conf_fd);
 	return 0;
 }
@@ -363,7 +368,7 @@ static int command_del_user(char *pwddb)
 		return -EINVAL;
 	}
 
-	for_each_cifsd_user(write_remove_user_cb);
+	for_each_cifsd_user(write_remove_user_cb, NULL);
 	close(conf_fd);
 	return 0;
 }
@@ -406,7 +411,7 @@ static int command_update_user(char *pwddb)
 		return -EINVAL;
 	}
 
-	for_each_cifsd_user(write_user_cb);
+	for_each_cifsd_user(write_user_cb, NULL);
 	close(conf_fd);
 	return 0;
 }
