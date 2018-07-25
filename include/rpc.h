@@ -39,7 +39,7 @@ struct cifsd_dcerpc {
 	char			*payload;
 };
 
-int cifsd_rpc_share_enum_all(void);
+int cifsd_rpc_share_enum_all(int level);
 
 void cifsd_dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags,

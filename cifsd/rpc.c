@@ -26,6 +26,12 @@
 #include <rpc.h>
 #include <cifsdtools.h>
 
+/*
+ * We need a proper DCE RPC (ndr/ndr64) parser. Maybe someone smart
+ * and cool enough can do it for us. The one you can find here is
+ * just a very simple implementation, which sort of works for us,
+ * but we do realize that it sucks.
+ */
 
 /*
  * RPC
@@ -154,7 +160,6 @@ static int dcerpc_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 	return 0;
 }
 
-
 static int dcerpc_write_vstring(struct cifsd_dcerpc *dce, char *value)
 {
 	gchar *out;
@@ -170,14 +175,13 @@ static int dcerpc_write_vstring(struct cifsd_dcerpc *dce, char *value)
 
 	if (!value)
 		raw_value = "";
+	raw_len = strlen(raw_value);
 
 	if (!(dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN))
 		charset = CHARSET_UTF16BE;
 
-	raw_len = strlen(raw_value);
-	if (dce->flags & CIFSD_DCERPC_ASCII_STRING) {
+	if (dce->flags & CIFSD_DCERPC_ASCII_STRING)
 		charset = CHARSET_UTF8;
-	}
 
 	out = g_convert(raw_value,
 			raw_len,
@@ -218,7 +222,7 @@ out:
 	return ret;
 }
 
-int cifsd_rpc_share_enum_all(void)
+int cifsd_rpc_share_enum_all(int level)
 {
 
 }
