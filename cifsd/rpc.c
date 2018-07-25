@@ -79,7 +79,7 @@ static int try_realloc_payload(struct cifsd_dcerpc *dce, size_t data_sz)
 	return 0;
 }
 
-static int write_int16(struct cifsd_dcerpc *dce, short value)
+static int dcerpc_write_int16(struct cifsd_dcerpc *dce, short value)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
@@ -97,7 +97,7 @@ static int write_int16(struct cifsd_dcerpc *dce, short value)
 	return 0;
 }
 
-static int write_int32(struct cifsd_dcerpc *dce, int value)
+static int dcerpc_write_int32(struct cifsd_dcerpc *dce, int value)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
@@ -113,7 +113,7 @@ static int write_int32(struct cifsd_dcerpc *dce, int value)
 	return 0;
 }
 
-static int write_int64(struct cifsd_dcerpc *dce, long long value)
+static int dcerpc_write_int64(struct cifsd_dcerpc *dce, long long value)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
@@ -127,7 +127,7 @@ static int write_int64(struct cifsd_dcerpc *dce, long long value)
 	return 0;
 }
 
-static int write_union(struct cifsd_dcerpc *dce, int value)
+static int dcerpc_write_union(struct cifsd_dcerpc *dce, int value)
 {
 	int ret;
 
@@ -138,13 +138,13 @@ static int write_union(struct cifsd_dcerpc *dce, int value)
 	 * argument list; and once as the first part of the union
 	 * representation.
 	 */
-	ret = write_int32(dce, value);
+	ret = dcerpc_write_int32(dce, value);
 	if (ret)
 		return ret;
-	return write_int32(dce, value);
+	return dcerpc_write_int32(dce, value);
 }
 
-static int write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
+static int dcerpc_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
@@ -155,7 +155,7 @@ static int write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 }
 
 
-static int write_vstring(struct cifsd_dcerpc *dce, char *value)
+static int dcerpc_write_vstring(struct cifsd_dcerpc *dce, char *value)
 {
 	gchar *out;
 	gsize bytes_read = 0;
@@ -203,10 +203,10 @@ static int write_vstring(struct cifsd_dcerpc *dce, char *value)
 	 * The third integer gives the actual number of elements being
 	 * passed, including the terminator.
 	 */
-	ret = write_int32(dce, bytes_written / 2);
-	ret |= write_int32(dce, 0);
-	ret |= write_int32(dce, bytes_written / 2);
-	ret |= write_bytes(dce, out, bytes_written);
+	ret = dcerpc_write_int32(dce, bytes_written / 2);
+	ret |= dcerpc_write_int32(dce, 0);
+	ret |= dcerpc_write_int32(dce, bytes_written / 2);
+	ret |= dcerpc_write_bytes(dce, out, bytes_written);
 
 	if (dce->flags & CIFSD_DCERPC_ALIGN4)
 		dce->offset = __ALIGN(dce->offset, 4);
