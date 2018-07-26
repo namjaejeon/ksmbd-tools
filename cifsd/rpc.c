@@ -36,6 +36,22 @@
  * us, but we do realize that it sucks.
  */
 
+#define SHARE_TYPE_TEMP			0x40000000
+#define SHARE_TYPE_HIDDEN		0x80000000
+
+#define SHARE_TYPE_DISKTREE		0
+#define SHARE_TYPE_DISKTREE_TEMP	(SHARE_TYPE_DISKTREE|SHARE_TYPE_TEMP)
+#define SHARE_TYPE_DISKTREE_HIDDEN	(SHARE_TYPE_DISKTREE|SHARE_TYPE_HIDDEN)
+#define SHARE_TYPE_PRINTQ 		1
+#define SHARE_TYPE_PRINTQ_TEMP		(SHARE_TYPE_PRINTQ|SHARE_TYPE_TEMP)
+#define SHARE_TYPE_PRINTQ_HIDDEN	(SHARE_TYPE_PRINTQ|SHARE_TYPE_HIDDEN)
+#define SHARE_TYPE_DEVICE		2
+#define SHARE_TYPE_DEVICE_TEMP		(SHARE_TYPE_DEVICE|SHARE_TYPE_TEMP)
+#define SHARE_TYPE_DEVICE_HIDDEN	(SHARE_TYPE_DEVICE|SHARE_TYPE_HIDDEN)
+#define SHARE_TYPE_IPC			3
+#define SHARE_TYPE_IPC_TEMP		(SHARE_TYPE_IPC|SHARE_TYPE_TEMP)
+#define SHARE_TYPE_IPC_HIDDEN		(SHARE_TYPE_IPC|SHARE_TYPE_HIDDEN)
+
 #define PAYLOAD_HEAD(d)	((d)->payload + (d)->offset)
 
 #define __ALIGN(x, a)							\
@@ -346,6 +362,15 @@ struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
 	return dce;
 }
 
+static int __share_type(struct cifsd_share *share)
+{
+	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
+		return SHARE_TYPE_IPC;
+	if (!g_ascii_strncasecmp(share->name, "IPC", strlen("IPC")))
+		return SHARE_TYPE_IPC;
+	return SHARE_TYPE_DISKTREE;
+}
+
 static int __share_entry_size_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
@@ -376,7 +401,7 @@ static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	int ret;
 
 	ret = dcerpc_write_int32(dce, 1);
-	ret |= dcerpc_write_int32(dce, 0); // FIXME
+	ret |= dcerpc_write_int32(dce, __share_type(share));
 	ret |= dcerpc_write_int32(dce, 1);
 	return ret;
 }
