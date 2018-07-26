@@ -95,7 +95,7 @@ static int __shm_remove_share(struct cifsd_share *share)
 	return ret;
 }
 
-static struct cifsd_share *get_cifsd_share(struct cifsd_share *share)
+struct cifsd_share *get_cifsd_share(struct cifsd_share *share)
 {
 	g_rw_lock_writer_lock(&share->update_lock);
 	if (share->ref_count != 0)

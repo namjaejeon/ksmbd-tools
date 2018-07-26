@@ -95,6 +95,7 @@ static int test_share_flag(struct cifsd_share *share, int flag)
 	return share->flags & flag;
 }
 
+struct cifsd_share *get_cifsd_share(struct cifsd_share *share);
 void put_cifsd_share(struct cifsd_share *share);
 struct cifsd_share *shm_lookup_share(char *name);
 
