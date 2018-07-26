@@ -385,7 +385,7 @@ cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 	struct cifsd_dcerpc *dce;
 	int ret;
 
-	dce = cifsd_dcerpc_alloc(flags, max_preferred_size);
+	dce = dcerpc_alloc(flags, max_preferred_size);
 	if (!dce)
 		return NULL;
 
@@ -445,13 +445,13 @@ struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
 
 	if (ret) {
 		pipe->id = (unsigned int)-1;
-		cifsd_rpc_pipe_free(pipe);
+		rpc_pipe_free(pipe);
 		pipe = NULL;
 	}
 	return pipe;
 }
 
-void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 {
 	if (pipe->entry_processed) {
 		while (pipe->num_entries)
@@ -474,7 +474,7 @@ void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
 	free(dce);
 }
 
-struct cifsd_dcerpc *cifsd_dcerpc_alloc(unsigned int flags, int sz)
+struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
 {
 	struct cifsd_dcerpc *dce;
 
@@ -509,7 +509,7 @@ int rpc_init(void)
 
 static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
 {
-	cifsd_rpc_pipe_free(s);
+	rpc_pipe_free(s);
 }
 
 static void __clear_pipes_table(void)
