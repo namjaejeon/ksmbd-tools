@@ -34,6 +34,11 @@
  * Maybe someone smart and cool enough can do it for us. The one you can
  * find here is just a very simple implementation, which sort of works for
  * us, but we do realize that it sucks.
+ *
+ * Documentation:
+ *
+ * http://pubs.opengroup.org/onlinepubs/9629399/chap14.htm#tagfcjh_39
+ * https://msdn.microsoft.com/en-us/library/cc243858.aspx
  */
 
 #define SHARE_TYPE_TEMP			0x40000000
