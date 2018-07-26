@@ -426,6 +426,7 @@ out:
 struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
 {
 	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
+	int ret;
 
 	if (!pipe)
 		return NULL;
@@ -438,18 +439,32 @@ struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
 		return NULL;
 	}
 
+	g_rw_lock_writer_lock(&pipes_table_lock);
+	ret = g_hash_table_insert(pipes_table, &(pipe->id), pipe);
+	g_rw_lock_writer_unlock(&pipes_table_lock);
+
+	if (ret) {
+		pipe->id = (unsigned int)-1;
+		cifsd_rpc_pipe_free(pipe);
+		pipe = NULL;
+	}
 	return pipe;
 }
 
 void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 {
-	int i;
-
 	if (pipe->entry_processed) {
 		while (pipe->num_entries)
 			pipe->entry_processed(pipe, 0);
 	}
+
 	g_array_free(pipe->entries, 0);
+
+	if (pipe->id != (unsigned int)-1) {
+		g_rw_lock_writer_lock(&pipes_table_lock);
+		g_hash_table_remove(pipes_table, &pipe->id);
+		g_rw_lock_writer_unlock(&pipes_table_lock);
+	}
 	free(pipe);
 }
 
