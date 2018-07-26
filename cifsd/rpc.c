@@ -95,49 +95,25 @@ static int try_realloc_payload(struct cifsd_dcerpc *dce, size_t data_sz)
 	return 0;
 }
 
-static int dcerpc_write_int16(struct cifsd_dcerpc *dce, short value)
-{
-	if (try_realloc_payload(dce, sizeof(short)))
-		return -ENOMEM;
-
-	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)
-		*(__le16 *)PAYLOAD_HEAD(dce) = (__le16)value;
-	else
-		*(__be16 *)PAYLOAD_HEAD(dce) = (__le16)value;
-
-	dce->offset += sizeof(short);
-	align_offset(dce);
-	return 0;
+#define DCERPC_WRITE_INT(name, type, bt, lt)				\
+static int dcerpc_write_##name(struct cifsd_dcerpc *dce, type value)	\
+{									\
+	if (try_realloc_payload(dce, sizeof(value)))			\
+		return -ENOMEM;						\
+									\
+	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)			\
+		*(lt *)PAYLOAD_HEAD(dce) = (lt)value;			\
+	else								\
+		*(bt *)PAYLOAD_HEAD(dce) = (bt)value;			\
+									\
+	dce->offset += sizeof(value);					\
+	align_offset(dce);						\
+	return 0;							\
 }
 
-static int dcerpc_write_int32(struct cifsd_dcerpc *dce, int value)
-{
-	if (try_realloc_payload(dce, sizeof(short)))
-		return -ENOMEM;
-
-	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)
-		*(__le32 *)PAYLOAD_HEAD(dce) = (__le32)value;
-	else
-		*(__be32 *)PAYLOAD_HEAD(dce) = (__be32)value;
-
-	dce->offset += sizeof(int);
-	align_offset(dce);
-	return 0;
-}
-
-static int dcerpc_write_int64(struct cifsd_dcerpc *dce, long long value)
-{
-	if (try_realloc_payload(dce, sizeof(short)))
-		return -ENOMEM;
-
-	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)
-		*(__le64 *)PAYLOAD_HEAD(dce) = (__le64)value;
-	else
-		*(__be64 *)PAYLOAD_HEAD(dce) = (__be64)value;
-
-	dce->offset += sizeof(long long);
-	return 0;
-}
+DCERPC_WRITE_INT(int16, __s16, __be16, __le16);
+DCERPC_WRITE_INT(int32, __s32, __be32, __le32);
+DCERPC_WRITE_INT(int64, __s64, __be64, __le64);
 
 static int dcerpc_write_union(struct cifsd_dcerpc *dce, int value)
 {
