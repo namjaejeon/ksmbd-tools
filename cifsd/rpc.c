@@ -103,7 +103,7 @@ static int dcerpc_write_int16(struct cifsd_dcerpc *dce, short value)
 	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)
 		*(__le16 *)PAYLOAD_HEAD(dce) = (__le16)value;
 	else
-		*(short *)PAYLOAD_HEAD(dce) = value;
+		*(__be16 *)PAYLOAD_HEAD(dce) = (__le16)value;
 
 	dce->offset += sizeof(short);
 	align_offset(dce);
@@ -118,7 +118,7 @@ static int dcerpc_write_int32(struct cifsd_dcerpc *dce, int value)
 	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)
 		*(__le32 *)PAYLOAD_HEAD(dce) = (__le32)value;
 	else
-		*(int *)PAYLOAD_HEAD(dce) = value;
+		*(__be32 *)PAYLOAD_HEAD(dce) = (__be32)value;
 
 	dce->offset += sizeof(int);
 	align_offset(dce);
@@ -131,9 +131,9 @@ static int dcerpc_write_int64(struct cifsd_dcerpc *dce, long long value)
 		return -ENOMEM;
 
 	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)
-		*(__le64*)PAYLOAD_HEAD(dce) = (__le64)value;
+		*(__le64 *)PAYLOAD_HEAD(dce) = (__le64)value;
 	else
-		*(long long*)PAYLOAD_HEAD(dce) = value;
+		*(__be64 *)PAYLOAD_HEAD(dce) = (__be64)value;
 
 	dce->offset += sizeof(long long);
 	return 0;
