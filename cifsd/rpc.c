@@ -28,6 +28,9 @@
 #include <rpc.h>
 #include <cifsdtools.h>
 
+static GHashTable	*pipes_table;
+static GRWLock		pipes_table_lock;
+
 /*
  * We need a proper DCE RPC (ndr/ndr64) parser. And we also need a proper
  * IDL support...
@@ -283,66 +286,6 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 	return has_more_data;
 }
 
-struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
-{
-	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
-
-	if (!pipe)
-		return NULL;
-
-	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
-	pipe->id = id;
-	pipe->entries = g_array_new(0, 0, sizeof(void *));
-	if (!pipe->entries) {
-		free(pipe);
-		return NULL;
-	}
-
-	return pipe;
-}
-
-void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
-{
-	int i;
-
-	if (pipe->entry_processed) {
-		while (pipe->num_entries)
-			pipe->entry_processed(pipe, 0);
-	}
-	g_array_free(pipe->entries, 0);
-	free(pipe);
-}
-
-void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
-{
-	free(dce->payload);
-	free(dce);
-}
-
-struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
-{
-	struct cifsd_dcerpc *dce;
-
-	dce = malloc(sizeof(struct cifsd_dcerpc));
-	if (!dce)
-		return NULL;
-
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = malloc(sz);
-	if (!dce->payload) {
-		free(dce);
-		return NULL;
-	}
-
-	memset(dce->payload, sz, 0x00);
-	dce->payload_sz = sz;
-	dce->flags = flags;
-
-	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
-		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
-	return dce;
-}
-
 static int __share_type(struct cifsd_share *share)
 {
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
@@ -478,4 +421,92 @@ out:
 	ndr_write_int32(dce, ret);
 
 	return dce;
+}
+
+struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
+{
+	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
+
+	if (!pipe)
+		return NULL;
+
+	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
+	pipe->id = id;
+	pipe->entries = g_array_new(0, 0, sizeof(void *));
+	if (!pipe->entries) {
+		free(pipe);
+		return NULL;
+	}
+
+	return pipe;
+}
+
+void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+{
+	int i;
+
+	if (pipe->entry_processed) {
+		while (pipe->num_entries)
+			pipe->entry_processed(pipe, 0);
+	}
+	g_array_free(pipe->entries, 0);
+	free(pipe);
+}
+
+void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
+{
+	free(dce->payload);
+	free(dce);
+}
+
+struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
+{
+	struct cifsd_dcerpc *dce;
+
+	dce = malloc(sizeof(struct cifsd_dcerpc));
+	if (!dce)
+		return NULL;
+
+	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
+	dce->payload = malloc(sz);
+	if (!dce->payload) {
+		free(dce);
+		return NULL;
+	}
+
+	memset(dce->payload, sz, 0x00);
+	dce->payload_sz = sz;
+	dce->flags = flags;
+
+	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
+		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
+	return dce;
+}
+
+int cifsd_pipe_table_init(void)
+{
+	pipes_table = g_hash_table_new(g_int_hash, g_int_equal);
+	if (!pipes_table)
+		return -ENOMEM;
+	g_rw_lock_init(&pipes_table_lock);
+	return 0;
+}
+
+static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
+{
+	cifsd_rpc_pipe_free(s);
+}
+
+static void __clear_pipes_table(void)
+{
+	g_rw_lock_writer_lock(&pipes_table_lock);
+	g_hash_table_foreach(pipes_table, free_hash_entry, NULL);
+	g_rw_lock_writer_unlock(&pipes_table_lock);
+}
+
+void cifsd_pipe_table_destroy(void)
+{
+	__clear_pipes_table();
+	g_hash_table_destroy(pipes_table);
+	g_rw_lock_clear(&pipes_table_lock);
 }
