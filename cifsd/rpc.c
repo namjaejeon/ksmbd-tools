@@ -23,48 +23,18 @@
 #include <errno.h>
 #include <linux/cifsd_server.h>
 
+#include <management/share.h>
+
 #include <rpc.h>
 #include <cifsdtools.h>
 
 /*
- * We need a proper DCE RPC (ndr/ndr64) parser. Maybe someone smart
- * and cool enough can do it for us. The one you can find here is
- * just a very simple implementation, which sort of works for us,
- * but we do realize that it sucks.
+ * We need a proper DCE RPC (ndr/ndr64) parser. And we also need a proper
+ * IDL support...
+ * Maybe someone smart and cool enough can do it for us. The one you can
+ * find here is just a very simple implementation, which sort of works for
+ * us, but we do realize that it sucks.
  */
-
-/*
- * RPC
- *
- * Server Service Remote Protocol
- */
-struct srvsvc_share_info0 {
-	__u16				*shi0_netname;
-};
-
-struct srvsvc_share_container0 {
-	__u32 				entries_read;
-	struct srvsvc_share_info0	*buffer;
-};
-
-struct srvsvc_share_info1 {
-	__u16				*shi1_netname;
-	__u32				shi1_type;
-	__u16				*shi1_remark;
-};
-
-struct srvsvc_share_container1 {
-	__u32				entries_read;
-	struct srvsvc_share_info1	*buffer;
-};
-
-struct srvsvc_share_container {
-	__u32					level;
-	union {
-		struct srvsvc_share_container0	level0;
-		struct srvsvc_share_container1	level1;
-	} share_info;
-};
 
 #define PAYLOAD_HEAD(d)	((d)->payload + (d)->offset)
 
@@ -94,10 +64,18 @@ static int try_realloc_payload(struct cifsd_dcerpc *dce, size_t data_sz)
 	if (dce->offset < dce->payload_sz - data_sz)
 		return 0;
 
-	n = realloc(dce->payload, 2 * dce->payload_sz);
+	if (dce->flags & CIFSD_DCERPC_FIXED_PAYLOAD_SZ) {
+		pr_err("DCE RPC: fixed payload buffer overflow\n");
+		return -ENOMEM;
+	}
+
+	n = realloc(dce->payload, dce->payload_sz + 4096);
 	if (!n)
 		return -ENOMEM;
+
 	dce->payload = n;
+	dce->payload_sz += 4096;
+	memset(dce->payload + dce->offset, 0, dce->payload_sz - dce->offset);
 	return 0;
 }
 
@@ -230,9 +208,111 @@ out:
 	return ret;
 }
 
-int cifsd_rpc_share_enum_all(int level)
+static int dcerpc_write_array_of_structs(struct cifsd_dcerpc *dce,
+					 struct cifsd_rpc_pipe *pipe)
 {
+	int current_size;
+	int max_entry_nr;
+	int i, ret, has_more_data = 0;
 
+	/*
+	 * In the NDR representation of a structure that contains a
+	 * conformant and varying array, the maximum counts for dimensions
+	 * of the array are moved to the beginning of the structure, but
+	 * the offsets and actual counts remain in place at the end of the
+	 * structure, immediately preceding the array elements.
+	 */
+
+	max_entry_nr = pipe->num_entries;
+	if (dce->flags & CIFSD_DCERPC_FIXED_PAYLOAD_SZ && dce->entry_size) {
+		current_size = 0;
+
+		for (i = 0; i < pipe->num_entries; i++) {
+			gpointer entry;
+
+			entry = g_array_index(pipe->entries,  gpointer, i);
+			current_size += dce->entry_size(dce, entry);
+
+			if (current_size < 2 * dce->payload_sz / 3)
+				continue;
+
+			max_entry_nr = i;
+			has_more_data = CIFSD_DCERPC_ERROR_MORE_DATA;
+			break;
+		}
+	}
+
+	/*
+	 * ARRAY representation [per dimension]
+	 *    max_count
+	 *    offset
+	 *    actual_count
+	 *    element representation [1..N]
+	 *    actual elements [1..N]
+	 */
+	dcerpc_write_int32(dce, max_entry_nr);
+	dcerpc_write_int32(dce, 1);
+	dcerpc_write_int32(dce, max_entry_nr);
+
+	if (max_entry_nr == 0) {
+		pr_err("DCERPC: can't fit any data, buffer is too small\n");
+		return CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+	}
+
+	for (i = 0; i < max_entry_nr; i++) {
+		gpointer entry;
+
+		entry = g_array_index(pipe->entries,  gpointer, i);
+		ret = dce->entry_rep(dce, entry);
+
+		if (ret != 0)
+			return CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+	}
+
+	for (i = 0; i < max_entry_nr; i++) {
+		gpointer entry;
+
+		entry = g_array_index(pipe->entries,  gpointer, i);
+		ret = dce->entry_data(dce, entry);
+
+		if (ret != 0)
+			return CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+	}
+
+	if (pipe->entry_processed) {
+		for (i = 0; i < max_entry_nr; i++)
+			pipe->entry_processed(pipe, 0);
+	}
+	return has_more_data;
+}
+
+struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(void)
+{
+	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
+
+	if (!pipe)
+		return NULL;
+
+	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
+	pipe->entries = g_array_new(0, 0, sizeof(void *));
+	if (!pipe->entries) {
+		free(pipe);
+		return NULL;
+	}
+
+	return pipe;
+}
+
+void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+{
+	int i;
+
+	if (pipe->entry_processed) {
+		while (pipe->num_entries)
+			pipe->entry_processed(pipe, 0);
+	}
+	g_array_free(pipe->entries, 0);
+	free(pipe);
 }
 
 void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
@@ -241,8 +321,7 @@ void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
 	free(dce);
 }
 
-struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags,
-					   size_t default_sz)
+struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
 {
 	struct cifsd_dcerpc *dce;
 
@@ -251,12 +330,152 @@ struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags,
 		return NULL;
 
 	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = malloc(default_sz);
+	dce->payload = malloc(sz);
 	if (!dce->payload) {
 		free(dce);
 		return NULL;
 	}
 
-	dce->payload_sz = default_sz;
+	memset(dce->payload, sz, 0x00);
+	dce->payload_sz = sz;
+	dce->flags = flags;
+
+	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
+		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
+
+	return dce;
+}
+
+static int __share_entry_size_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
+{
+	struct cifsd_share *share = entry;
+
+	return strlen(share->name) * 2 + 4 * sizeof(__u32);
+}
+
+static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
+{
+	struct cifsd_share *share = entry;
+	int sz;
+
+	sz = strlen(share->name) * 2 + strlen(share->comment) * 2;
+	sz += 9 * sizeof(__u32);
+	return sz;
+}
+
+static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
+{
+	struct cifsd_share *share = entry;
+
+	return dcerpc_write_int32(dce, 1);
+}
+
+static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
+{
+	struct cifsd_share *share = entry;
+	int ret;
+
+	ret = dcerpc_write_int32(dce, 1);
+	ret |= dcerpc_write_int32(dce, 0); // FIXME
+	ret |= dcerpc_write_int32(dce, 1);
+	return ret;
+}
+
+static int __share_entry_data_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
+{
+	struct cifsd_share *share = entry;
+
+	return dcerpc_write_vstring(dce, share->name);
+}
+
+static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
+{
+	struct cifsd_share *share = entry;
+	int ret;
+
+	ret = dcerpc_write_vstring(dce, share->name);
+	ret |= dcerpc_write_vstring(dce, share->comment);
+	return ret;
+}
+
+static int __share_entry_processed(struct cifsd_rpc_pipe *pipe, int i)
+{
+	struct cifsd_share *share;
+
+	share = g_array_index(pipe->entries,  gpointer, i);
+	pipe->entries = g_array_remove_index(pipe->entries, i);
+	pipe->num_entries--;
+	put_cifsd_share(share);
+}
+
+static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
+{
+	struct cifsd_rpc_pipe *pipe = (struct cifsd_rpc_pipe *)user_data;
+	struct cifsd_share *share = (struct cifsd_share *)value;
+
+	if (!get_cifsd_share(share))
+		return;
+
+	pipe->entries = g_array_append_val(pipe->entries, share);
+	pipe->num_entries++;
+}
+
+struct cifsd_rpc_pipe *cifsd_rpc_share_enum_all(void)
+{
+	struct cifsd_rpc_pipe *pipe;
+
+	pipe = cifsd_rpc_pipe_alloc();
+	if (!pipe)
+		return NULL;
+
+	for_each_cifsd_share(__enum_all_shares, pipe);
+	pipe->entry_processed = __share_entry_processed;
+	return pipe;
+}
+
+struct cifsd_dcerpc *
+cifsd_rpc_DCE_share_enum_all(struct cifsd_rpc_pipe *pipe,
+			     int level,
+			     unsigned int flags,
+			     int max_preferred_size)
+{
+	struct cifsd_dcerpc *dce;
+	int ret;
+
+	dce = cifsd_dcerpc_allocate(flags, max_preferred_size);
+	if (!dce)
+		return NULL;
+
+	if (level == 0) {
+		dce->entry_size = __share_entry_size_ctr0;
+		dce->entry_rep = __share_entry_rep_ctr0;
+		dce->entry_data = __share_entry_data_ctr0;
+	} else if (level == 1) {
+		dce->entry_size = __share_entry_size_ctr1;
+		dce->entry_rep = __share_entry_rep_ctr1;
+		dce->entry_data = __share_entry_data_ctr1;
+	} else {
+		ret = CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+		goto out;
+	}
+
+	dcerpc_write_union(dce, level);
+	dcerpc_write_int32(dce, pipe->num_entries);
+
+	ret = dcerpc_write_array_of_structs(dce, pipe);
+
+out:
+	/*
+	 * [out] DWORD* TotalEntries
+	 * [out, unique] DWORD* ResumeHandle
+	 * [out] DWORD Return value/code
+	 */
+	dcerpc_write_int32(dce, pipe->num_entries);
+	if (ret == CIFSD_DCERPC_ERROR_MORE_DATA)
+		dcerpc_write_int32(dce, 0x01);
+	else
+		dcerpc_write_int32(dce, 0x00);
+	dcerpc_write_int32(dce, ret);
+
 	return dce;
 }
