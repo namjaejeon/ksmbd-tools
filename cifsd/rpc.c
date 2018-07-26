@@ -423,6 +423,17 @@ out:
 	return dce;
 }
 
+struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
+{
+	struct cifsd_rpc_pipe *pipe;
+
+	g_rw_lock_reader_lock(&pipes_table_lock);
+	pipe = g_hash_table_lookup(pipes_table, &id);
+	g_rw_lock_reader_unlock(&pipes_table_lock);
+
+	return pipe;
+}
+
 struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
 {
 	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));

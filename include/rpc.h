@@ -92,6 +92,8 @@ struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
 struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id);
 void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
+struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
+
 int rpc_share_enum_all(struct cifsd_rpc_pipe *pipe);
 struct cifsd_dcerpc *
 rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
