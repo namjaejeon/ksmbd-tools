@@ -55,7 +55,7 @@ static int __usm_remove_user(struct cifsd_user *user)
 	return ret;
 }
 
-static struct cifsd_user *get_cifsd_user(struct cifsd_user *user)
+struct cifsd_user *get_cifsd_user(struct cifsd_user *user)
 {
 	g_rw_lock_writer_lock(&user->update_lock);
 	if (user->ref_count != 0)

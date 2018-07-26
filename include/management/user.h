@@ -50,6 +50,7 @@ static inline int test_user_flag(struct cifsd_user *user, int bit)
 	return user->flags & bit;
 }
 
+struct cifsd_user *get_cifsd_user(struct cifsd_user *user);
 void put_cifsd_user(struct cifsd_user *user);
 
 struct cifsd_user *usm_lookup_user(char *name);
