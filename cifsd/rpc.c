@@ -283,7 +283,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 	return has_more_data;
 }
 
-struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(void)
+struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
 {
 	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
 
@@ -291,6 +291,7 @@ struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(void)
 		return NULL;
 
 	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
+	pipe->id = id;
 	pipe->entries = g_array_new(0, 0, sizeof(void *));
 	if (!pipe->entries) {
 		free(pipe);
@@ -339,7 +340,6 @@ struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
 
 	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
 		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
-
 	return dce;
 }
 
@@ -426,17 +426,11 @@ static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
 	pipe->num_entries++;
 }
 
-struct cifsd_rpc_pipe *cifsd_rpc_share_enum_all(void)
+int cifsd_rpc_share_enum_all(struct cifsd_rpc_pipe *pipe)
 {
-	struct cifsd_rpc_pipe *pipe;
-
-	pipe = cifsd_rpc_pipe_alloc();
-	if (!pipe)
-		return NULL;
-
 	for_each_cifsd_share(__enum_all_shares, pipe);
 	pipe->entry_processed = __share_entry_processed;
-	return pipe;
+	return 0;
 }
 
 struct cifsd_dcerpc *

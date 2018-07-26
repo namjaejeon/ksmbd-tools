@@ -86,15 +86,14 @@ struct cifsd_dcerpc {
 					      gpointer entry);
 };
 
-struct cifsd_rpc_pipe *cifsd_rpc_share_enum_all(void);
-
 void cifsd_dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags,
 					   int sz);
 
-struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(void);
+struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id);
 void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
+int cifsd_rpc_share_enum_all(struct cifsd_rpc_pipe *pipe);
 struct cifsd_dcerpc *
 cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 				int level,
