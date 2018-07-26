@@ -87,7 +87,7 @@ struct cifsd_dcerpc {
 };
 
 void cifsd_dcerpc_free(struct cifsd_dcerpc *dce);
-struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags,
+struct cifsd_dcerpc *cifsd_dcerpc_alloc(unsigned int flags,
 					   int sz);
 
 struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id);

@@ -385,7 +385,7 @@ cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 	struct cifsd_dcerpc *dce;
 	int ret;
 
-	dce = cifsd_dcerpc_allocate(flags, max_preferred_size);
+	dce = cifsd_dcerpc_alloc(flags, max_preferred_size);
 	if (!dce)
 		return NULL;
 
@@ -459,7 +459,7 @@ void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
 	free(dce);
 }
 
-struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
+struct cifsd_dcerpc *cifsd_dcerpc_alloc(unsigned int flags, int sz)
 {
 	struct cifsd_dcerpc *dce;
 
