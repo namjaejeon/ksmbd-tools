@@ -483,7 +483,7 @@ struct cifsd_dcerpc *cifsd_dcerpc_allocate(unsigned int flags, int sz)
 	return dce;
 }
 
-int cifsd_pipe_table_init(void)
+int cifsd_rpc_pipe_table_init(void)
 {
 	pipes_table = g_hash_table_new(g_int_hash, g_int_equal);
 	if (!pipes_table)
@@ -504,7 +504,7 @@ static void __clear_pipes_table(void)
 	g_rw_lock_writer_unlock(&pipes_table_lock);
 }
 
-void cifsd_pipe_table_destroy(void)
+void cifsd_rpc_pipe_table_destroy(void)
 {
 	__clear_pipes_table();
 	g_hash_table_destroy(pipes_table);
