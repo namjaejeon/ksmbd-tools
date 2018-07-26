@@ -27,6 +27,7 @@
 #include <cifsdtools.h>
 
 #include <ipc.h>
+#include <rpc.h>
 #include <worker_pool.h>
 #include <management/user.h>
 #include <management/share.h>
@@ -116,6 +117,10 @@ int main(int argc, char *argv[])
 	if (ret)
 		goto out;
 
+	ret = rpc_init();
+	if (ret)
+		goto out;
+
 	ret = ipc_init();
 	if (ret)
 		goto out;
@@ -127,6 +132,7 @@ out:
 	 * values. User management should be destroyed last.
 	 */
 	ipc_destroy();
+	rpc_destroy();
 	wp_destroy();
 	sm_destroy();
 	shm_destroy();

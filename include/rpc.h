@@ -100,6 +100,6 @@ cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 				unsigned int flags,
 				int max_preferred_size);
 
-int cifsd_rpc_pipe_table_init(void);
-void cifsd_rpc_pipe_table_destroy(void);
+int rpc_init(void);
+void rpc_destroy(void);
 #endif /* __CIFSD_RPC_H__ */
