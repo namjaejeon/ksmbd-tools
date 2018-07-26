@@ -68,8 +68,24 @@ struct srvsvc_share_container {
 
 #define PAYLOAD_HEAD(d)	((d)->payload + (d)->offset)
 
-#define __ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a) - 1)
+#define __ALIGN(x, a)							\
+	({								\
+		typeof(x) ret = (x);					\
+		if (((x) & ((typeof(x))(a) - 1)) != 0)			\
+			ret = __ALIGN_MASK(x, (typeof(x))(a) - 1);	\
+		ret;							\
+	})
+
 #define __ALIGN_MASK(x, mask)	(((x) + (mask)) & ~(mask))
+
+static void align_offset(struct cifsd_dcerpc *dce)
+{
+	if (dce->flags & CIFSD_DCERPC_ALIGN8) {
+		dce->offset = __ALIGN(dce->offset, 8);
+	} else if (dce->flags & CIFSD_DCERPC_ALIGN4) {
+		dce->offset = __ALIGN(dce->offset, 4);
+	}
+}
 
 static int try_realloc_payload(struct cifsd_dcerpc *dce, size_t data_sz)
 {
@@ -96,10 +112,7 @@ static int dcerpc_write_int16(struct cifsd_dcerpc *dce, short value)
 		*(short *)PAYLOAD_HEAD(dce) = value;
 
 	dce->offset += sizeof(short);
-	if (dce->flags & CIFSD_DCERPC_ALIGN4)
-		dce->offset = __ALIGN(dce->offset, 4);
-	if (dce->flags & CIFSD_DCERPC_ALIGN8)
-		dce->offset = __ALIGN(dce->offset, 8);
+	align_offset(dce);
 	return 0;
 }
 
@@ -114,8 +127,7 @@ static int dcerpc_write_int32(struct cifsd_dcerpc *dce, int value)
 		*(int *)PAYLOAD_HEAD(dce) = value;
 
 	dce->offset += sizeof(int);
-	if (dce->flags & CIFSD_DCERPC_ALIGN8)
-		dce->offset = __ALIGN(dce->offset, 8);
+	align_offset(dce);
 	return 0;
 }
 
@@ -212,11 +224,7 @@ static int dcerpc_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	ret |= dcerpc_write_int32(dce, bytes_written / 2);
 	ret |= dcerpc_write_bytes(dce, out, bytes_written);
 
-	if (dce->flags & CIFSD_DCERPC_ALIGN4)
-		dce->offset = __ALIGN(dce->offset, 4);
-	if (dce->flags & CIFSD_DCERPC_ALIGN8)
-		dce->offset = __ALIGN(dce->offset, 8);
-
+	align_offset(dce);
 out:
 	g_free(out);
 	return ret;
