@@ -95,8 +95,8 @@ static int try_realloc_payload(struct cifsd_dcerpc *dce, size_t data_sz)
 	return 0;
 }
 
-#define DCERPC_WRITE_INT(name, type, bt, lt)				\
-static int dcerpc_write_##name(struct cifsd_dcerpc *dce, type value)	\
+#define NDR_WRITE_INT(name, type, bt, lt)				\
+static int ndr_write_##name(struct cifsd_dcerpc *dce, type value)	\
 {									\
 	if (try_realloc_payload(dce, sizeof(value)))			\
 		return -ENOMEM;						\
@@ -111,11 +111,11 @@ static int dcerpc_write_##name(struct cifsd_dcerpc *dce, type value)	\
 	return 0;							\
 }
 
-DCERPC_WRITE_INT(int16, __s16, __be16, __le16);
-DCERPC_WRITE_INT(int32, __s32, __be32, __le32);
-DCERPC_WRITE_INT(int64, __s64, __be64, __le64);
+NDR_WRITE_INT(int16, __s16, __be16, __le16);
+NDR_WRITE_INT(int32, __s32, __be32, __le32);
+NDR_WRITE_INT(int64, __s64, __be64, __le64);
 
-static int dcerpc_write_union(struct cifsd_dcerpc *dce, int value)
+static int ndr_write_union(struct cifsd_dcerpc *dce, int value)
 {
 	int ret;
 
@@ -126,13 +126,13 @@ static int dcerpc_write_union(struct cifsd_dcerpc *dce, int value)
 	 * argument list; and once as the first part of the union
 	 * representation.
 	 */
-	ret = dcerpc_write_int32(dce, value);
+	ret = ndr_write_int32(dce, value);
 	if (ret)
 		return ret;
-	return dcerpc_write_int32(dce, value);
+	return ndr_write_int32(dce, value);
 }
 
-static int dcerpc_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
+static int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
@@ -142,7 +142,7 @@ static int dcerpc_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 	return 0;
 }
 
-static int dcerpc_write_vstring(struct cifsd_dcerpc *dce, char *value)
+static int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 {
 	gchar *out;
 	gsize bytes_read = 0;
@@ -189,10 +189,10 @@ static int dcerpc_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	 * The third integer gives the actual number of elements being
 	 * passed, including the terminator.
 	 */
-	ret = dcerpc_write_int32(dce, bytes_written / 2);
-	ret |= dcerpc_write_int32(dce, 0);
-	ret |= dcerpc_write_int32(dce, bytes_written / 2);
-	ret |= dcerpc_write_bytes(dce, out, bytes_written);
+	ret = ndr_write_int32(dce, bytes_written / 2);
+	ret |= ndr_write_int32(dce, 0);
+	ret |= ndr_write_int32(dce, bytes_written / 2);
+	ret |= ndr_write_bytes(dce, out, bytes_written);
 
 	align_offset(dce);
 out:
@@ -200,7 +200,7 @@ out:
 	return ret;
 }
 
-static int dcerpc_write_array_of_structs(struct cifsd_dcerpc *dce,
+static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 					 struct cifsd_rpc_pipe *pipe)
 {
 	int current_size;
@@ -242,9 +242,9 @@ static int dcerpc_write_array_of_structs(struct cifsd_dcerpc *dce,
 	 *    element representation [1..N]
 	 *    actual elements [1..N]
 	 */
-	dcerpc_write_int32(dce, max_entry_nr);
-	dcerpc_write_int32(dce, 1);
-	dcerpc_write_int32(dce, max_entry_nr);
+	ndr_write_int32(dce, max_entry_nr);
+	ndr_write_int32(dce, 1);
+	ndr_write_int32(dce, max_entry_nr);
 
 	if (max_entry_nr == 0) {
 		pr_err("DCERPC: can't fit any data, buffer is too small\n");
@@ -368,7 +368,7 @@ static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
 
-	return dcerpc_write_int32(dce, 1);
+	return ndr_write_int32(dce, 1);
 }
 
 static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
@@ -376,9 +376,9 @@ static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	struct cifsd_share *share = entry;
 	int ret;
 
-	ret = dcerpc_write_int32(dce, 1);
-	ret |= dcerpc_write_int32(dce, __share_type(share));
-	ret |= dcerpc_write_int32(dce, 1);
+	ret = ndr_write_int32(dce, 1);
+	ret |= ndr_write_int32(dce, __share_type(share));
+	ret |= ndr_write_int32(dce, 1);
 	return ret;
 }
 
@@ -386,7 +386,7 @@ static int __share_entry_data_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
 
-	return dcerpc_write_vstring(dce, share->name);
+	return ndr_write_vstring(dce, share->name);
 }
 
 static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
@@ -394,8 +394,8 @@ static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	struct cifsd_share *share = entry;
 	int ret;
 
-	ret = dcerpc_write_vstring(dce, share->name);
-	ret |= dcerpc_write_vstring(dce, share->comment);
+	ret = ndr_write_vstring(dce, share->name);
+	ret |= ndr_write_vstring(dce, share->comment);
 	return ret;
 }
 
@@ -435,10 +435,10 @@ struct cifsd_rpc_pipe *cifsd_rpc_share_enum_all(void)
 }
 
 struct cifsd_dcerpc *
-cifsd_rpc_DCE_share_enum_all(struct cifsd_rpc_pipe *pipe,
-			     int level,
-			     unsigned int flags,
-			     int max_preferred_size)
+cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
+				int level,
+				unsigned int flags,
+				int max_preferred_size)
 {
 	struct cifsd_dcerpc *dce;
 	int ret;
@@ -460,10 +460,10 @@ cifsd_rpc_DCE_share_enum_all(struct cifsd_rpc_pipe *pipe,
 		goto out;
 	}
 
-	dcerpc_write_union(dce, level);
-	dcerpc_write_int32(dce, pipe->num_entries);
+	ndr_write_union(dce, level);
+	ndr_write_int32(dce, pipe->num_entries);
 
-	ret = dcerpc_write_array_of_structs(dce, pipe);
+	ret = ndr_write_array_of_structs(dce, pipe);
 
 out:
 	/*
@@ -471,12 +471,12 @@ out:
 	 * [out, unique] DWORD* ResumeHandle
 	 * [out] DWORD Return value/code
 	 */
-	dcerpc_write_int32(dce, pipe->num_entries);
+	ndr_write_int32(dce, pipe->num_entries);
 	if (ret == CIFSD_DCERPC_ERROR_MORE_DATA)
-		dcerpc_write_int32(dce, 0x01);
+		ndr_write_int32(dce, 0x01);
 	else
-		dcerpc_write_int32(dce, 0x00);
-	dcerpc_write_int32(dce, ret);
+		ndr_write_int32(dce, 0x00);
+	ndr_write_int32(dce, ret);
 
 	return dce;
 }

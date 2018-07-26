@@ -96,9 +96,9 @@ struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(void);
 void cifsd_rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
 struct cifsd_dcerpc *
-cifsd_rpc_DCE_share_enum_all(struct cifsd_rpc_pipe *pipe,
-			     int level,
-			     unsigned int flags,
-			     int max_preferred_size);
+cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
+				int level,
+				unsigned int flags,
+				int max_preferred_size);
 
 #endif /* __CIFSD_RPC_H__ */
