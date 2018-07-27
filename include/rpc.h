@@ -105,8 +105,8 @@ rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  unsigned int flags,
 			  int max_preferred_size);
 
-int rpc_srvsvc_parse_header(struct cifsd_dcerpc *dce,
-			    struct dcerpc_ndr_header *hdr);
+int rpc_srvsvc_parse_ndr_header(struct cifsd_dcerpc *dce,
+				struct dcerpc_ndr_header *hdr);
 
 int rpc_init(void);
 void rpc_destroy(void);

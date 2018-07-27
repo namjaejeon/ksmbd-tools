@@ -614,8 +614,8 @@ struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
 	return dce;
 }
 
-int rpc_srvsvc_parse_header(struct cifsd_dcerpc *dce,
-			    struct dcerpc_ndr_header *hdr)
+int rpc_srvsvc_parse_ndr_header(struct cifsd_dcerpc *dce,
+				struct dcerpc_ndr_header *hdr)
 {
 	/* Common Type Header for the Serialization Stream */
 
