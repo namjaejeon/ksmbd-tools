@@ -463,9 +463,9 @@ int rpc_share_enum_all(struct cifsd_rpc_pipe *pipe)
 
 struct cifsd_dcerpc *
 rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
-				int level,
-				unsigned int flags,
-				int max_preferred_size)
+			  int level,
+			  unsigned int flags,
+			  int max_preferred_size)
 {
 	struct cifsd_dcerpc *dce;
 	int ret;
@@ -539,7 +539,7 @@ struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id)
 	ret = g_hash_table_insert(pipes_table, &(pipe->id), pipe);
 	g_rw_lock_writer_unlock(&pipes_table_lock);
 
-	if (ret) {
+	if (!ret) {
 		pipe->id = (unsigned int)-1;
 		rpc_pipe_free(pipe);
 		pipe = NULL;
@@ -547,7 +547,7 @@ struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id)
 	return pipe;
 }
 
-void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+static void __rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 {
 	if (pipe->entry_processed) {
 		while (pipe->num_entries)
@@ -555,13 +555,18 @@ void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 	}
 
 	g_array_free(pipe->entries, 0);
+	free(pipe);
+}
 
+void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+{
 	if (pipe->id != (unsigned int)-1) {
 		g_rw_lock_writer_lock(&pipes_table_lock);
-		g_hash_table_remove(pipes_table, &pipe->id);
+		g_hash_table_remove(pipes_table, &(pipe->id));
 		g_rw_lock_writer_unlock(&pipes_table_lock);
 	}
-	free(pipe);
+
+	__rpc_pipe_free(pipe);
 }
 
 void dcerpc_free(struct cifsd_dcerpc *dce)
@@ -605,7 +610,7 @@ int rpc_init(void)
 
 static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
 {
-	rpc_pipe_free(s);
+	__rpc_pipe_free(s);
 }
 
 static void __clear_pipes_table(void)
