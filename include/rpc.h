@@ -27,6 +27,7 @@
 #define CIFSD_DCERPC_ALIGN8		(1 << 3)
 #define CIFSD_DCERPC_ASCII_STRING	(1 << 4)
 #define CIFSD_DCERPC_FIXED_PAYLOAD_SZ	(1 << 5)
+#define CIFSD_DCERPC_EXTERNAL_PAYLOAD	(1 << 6)
 
 #define CIFSD_DCERPC_MAX_PREFERRED_SIZE -1
 
@@ -88,6 +89,7 @@ struct cifsd_dcerpc {
 
 void dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
+struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz);
 
 struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id);
 void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);

@@ -568,7 +568,8 @@ void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 
 void dcerpc_free(struct cifsd_dcerpc *dce)
 {
-	free(dce->payload);
+	if (!(dce->flags & CIFSD_DCERPC_EXTERNAL_PAYLOAD))
+		free(dce->payload);
 	free(dce);
 }
 
@@ -593,6 +594,23 @@ struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
 
 	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
 		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
+	return dce;
+}
+
+struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
+{
+	struct cifsd_dcerpc *dce;
+
+	dce = malloc(sizeof(struct cifsd_dcerpc));
+	if (!dce)
+		return NULL;
+
+	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
+	dce->payload = pl;
+	dce->payload_sz = sz;
+
+	dce->flags |= CIFSD_DCERPC_EXTERNAL_PAYLOAD;
+	dce->flags |= CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
 	return dce;
 }
 
