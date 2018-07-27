@@ -186,7 +186,6 @@ static int ndr_read_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 {
 	memcpy(value, PAYLOAD_HEAD(dce), sz);
 	dce->offset += sz;
-	align_offset(dce);
 	return 0;
 }
 
