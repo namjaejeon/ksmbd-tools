@@ -87,7 +87,11 @@ struct cifsd_dcerpc {
 					      gpointer entry);
 };
 
-struct dcerpc_ndr_header;
+struct dcerpc_header;
+
+struct dcerpc_request_header {
+
+};
 
 void dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
@@ -105,8 +109,8 @@ rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  unsigned int flags,
 			  int max_preferred_size);
 
-int rpc_srvsvc_parse_ndr_header(struct cifsd_dcerpc *dce,
-				struct dcerpc_ndr_header *hdr);
+int rpc_srvsvc_parse_dcerpc_header(struct cifsd_dcerpc *dce,
+				   struct dcerpc_header *hdr);
 
 int rpc_init(void);
 void rpc_destroy(void);

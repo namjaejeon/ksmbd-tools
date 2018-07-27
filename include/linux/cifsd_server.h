@@ -235,7 +235,7 @@ enum CIFSD_TREE_CONN_STATUS {
 #define DCERPC_SERIALIZATION_LITTLE_ENDIAN	0x11
 #define DCERPC_SERIALIZATION_BIG_ENDIAN		0x00
 
-struct dcerpc_ndr_header {
+struct dcerpc_header {
 	/* start 8-octet aligned */
 
 	/* common fields */

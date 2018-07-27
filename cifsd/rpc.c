@@ -614,15 +614,27 @@ struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
 	return dce;
 }
 
-int rpc_srvsvc_parse_ndr_header(struct cifsd_dcerpc *dce,
-				struct dcerpc_ndr_header *hdr)
+int rpc_srvsvc_parse_dcerpc_header(struct cifsd_dcerpc *dce,
+				   struct dcerpc_header *hdr)
 {
 	/* Common Type Header for the Serialization Stream */
+
 
 	ndr_read_bytes(dce, &hdr->rpc_vers, sizeof(hdr->rpc_vers));
 	ndr_read_bytes(dce, &hdr->rpc_vers_minor, sizeof(hdr->rpc_vers_minor));
 	ndr_read_bytes(dce, &hdr->ptype, sizeof(hdr->ptype));
 	ndr_read_bytes(dce, &hdr->pfc_flags, sizeof(hdr->pfc_flags));
+	/*
+	 * This common type header MUST be presented by using
+	 * little-endian format in the octet stream. The first
+	 * byte of the common type header MUST be equal to 1 to
+	 * indicate level 1 of type serialization.
+	 *
+	 * Type serialization version 1 can use either a little-endian
+	 * or big-endian integer and floating-pointer byte order but
+	 * MUST use the IEEE floating-point format representation and
+	 * ASCII character format. See the following figure.
+	 */
 	ndr_read_bytes(dce, &hdr->packed_drep, sizeof(hdr->packed_drep));
 
 	if (hdr->packed_drep[0] == DCERPC_SERIALIZATION_TYPE2) {
@@ -631,14 +643,20 @@ int rpc_srvsvc_parse_ndr_header(struct cifsd_dcerpc *dce,
 		return -EINVAL;
 	}
 
-	if (hdr->packed_drep[1] == DCERPC_SERIALIZATION_LITTLE_ENDIAN)
-		dce->flags |= CIFSD_DCERPC_LITTLE_ENDIAN;
-
 	dce->flags |= CIFSD_DCERPC_ALIGN4;
+	dce->flags |= CIFSD_DCERPC_LITTLE_ENDIAN;
+	if (hdr->packed_drep[1] != DCERPC_SERIALIZATION_LITTLE_ENDIAN)
+		dce->flags &= ~CIFSD_DCERPC_LITTLE_ENDIAN;
 
 	hdr->frag_length = ndr_read_int16(dce);
 	hdr->auth_length = ndr_read_int16(dce);
 	hdr->call_id = ndr_read_int32(dce);
+
+	return 0;
+}
+
+int rpc_srvsrv_parse_dcerpc_request_header(struct cifsd_dcerpc *dce)
+{
 	return 0;
 }
 
