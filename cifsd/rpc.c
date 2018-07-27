@@ -614,6 +614,34 @@ struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
 	return dce;
 }
 
+int rpc_srvsvc_parse_header(struct cifsd_dcerpc *dce,
+			    struct dcerpc_ndr_header *hdr)
+{
+	/* Common Type Header for the Serialization Stream */
+
+	ndr_read_bytes(dce, &hdr->rpc_vers, sizeof(hdr->rpc_vers));
+	ndr_read_bytes(dce, &hdr->rpc_vers_minor, sizeof(hdr->rpc_vers_minor));
+	ndr_read_bytes(dce, &hdr->ptype, sizeof(hdr->ptype));
+	ndr_read_bytes(dce, &hdr->pfc_flags, sizeof(hdr->pfc_flags));
+	ndr_read_bytes(dce, &hdr->packed_drep, sizeof(hdr->packed_drep));
+
+	if (hdr->packed_drep[0] == DCERPC_SERIALIZATION_TYPE2) {
+		pr_err("DCERPC: unsupported serialization type %d\n",
+				hdr->packed_drep[0]);
+		return -EINVAL;
+	}
+
+	if (hdr->packed_drep[1] == DCERPC_SERIALIZATION_LITTLE_ENDIAN)
+		dce->flags |= CIFSD_DCERPC_LITTLE_ENDIAN;
+
+	dce->flags |= CIFSD_DCERPC_ALIGN4;
+
+	hdr->frag_length = ndr_read_int16(dce);
+	hdr->auth_length = ndr_read_int16(dce);
+	hdr->call_id = ndr_read_int32(dce);
+	return 0;
+}
+
 int rpc_init(void)
 {
 	pipes_table = g_hash_table_new(g_int_hash, g_int_equal);

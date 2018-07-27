@@ -230,13 +230,18 @@ enum CIFSD_TREE_CONN_STATUS {
                                         * field. If false, the object field
                                         * is omitted. */
 
-struct dcerpc_bind_hdr {
+#define DCERPC_SERIALIZATION_TYPE1		1
+#define DCERPC_SERIALIZATION_TYPE2		2
+#define DCERPC_SERIALIZATION_LITTLE_ENDIAN	0x11
+#define DCERPC_SERIALIZATION_BIG_ENDIAN		0x00
+
+struct dcerpc_ndr_header {
 	/* start 8-octet aligned */
 
 	/* common fields */
 	__u8	rpc_vers;            /* 00:01 RPC version */
 	__u8	rpc_vers_minor;      /* 01:01 minor version */
-	__u8	PTYPE;               /* 02:01 bind PDU */
+	__u8	ptype;               /* 02:01 bind PDU */
 	__u8	pfc_flags;           /* 03:01 flags */
 	__s8	packed_drep[4];      /* 04:04 NDR data rep format label*/
 	__u16	frag_length;         /* 08:02 total length of fragment */

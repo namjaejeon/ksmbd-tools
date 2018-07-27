@@ -66,6 +66,47 @@ static int parse_configs(char *pwddb, char *smbconf)
 	return 0;
 }
 
+#include <management/share.h>
+#include <rpc.h>
+
+void __test(void)
+{
+	struct cifsd_rpc_pipe *pipe = rpc_pipe_alloc(1);
+
+	if (!pipe)
+		return;
+	struct cifsd_dcerpc *dce;
+	rpc_share_enum_all(pipe);
+	
+	dce = rpc_srvsvc_share_enum_all(pipe, 1,
+			CIFSD_DCERPC_ALIGN4 | CIFSD_DCERPC_LITTLE_ENDIAN | CIFSD_DCERPC_FIXED_PAYLOAD_SZ,
+			4096);
+
+	if (!dce)
+		return;
+
+	int i;
+
+	for (i = 0; i < dce->offset; i++) {
+		char c = dce->payload[i];
+
+		if (c >= ' ' && c <= '~')
+			printf("%c", c);
+		else
+			printf(".");
+	}
+	printf("\n");
+
+	for (i = 0; i < dce->offset; i++) {
+		char c = dce->payload[i];
+		printf("%x", c);
+	}
+	printf("\n");
+
+	dcerpc_free(dce);
+	rpc_pipe_free(pipe);
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
@@ -120,6 +161,10 @@ int main(int argc, char *argv[])
 	ret = rpc_init();
 	if (ret)
 		goto out;
+
+
+	__test();
+
 
 	ret = ipc_init();
 	if (ret)
