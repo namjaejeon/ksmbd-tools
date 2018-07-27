@@ -111,9 +111,9 @@ static int ndr_write_##name(struct cifsd_dcerpc *dce, type value)	\
 		return -ENOMEM;						\
 									\
 	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)			\
-		*PAYLOAD_HEAD(dce) = le(value);			\
+		*PAYLOAD_HEAD(dce) = le(value);				\
 	else								\
-		*PAYLOAD_HEAD(dce) = be(value);			\
+		*PAYLOAD_HEAD(dce) = be(value);				\
 									\
 	dce->offset += sizeof(value);					\
 	align_offset(dce);						\
@@ -121,8 +121,8 @@ static int ndr_write_##name(struct cifsd_dcerpc *dce, type value)	\
 }
 
 NDR_WRITE_INT(int16, __s16, htobe16, htole16);
-NDR_WRITE_INT(int32, __s32, htobe32, htobe32);
-NDR_WRITE_INT(int64, __s64, htobe64, htobe64);
+NDR_WRITE_INT(int32, __s32, htobe32, htole32);
+NDR_WRITE_INT(int64, __s64, htobe64, htole64);
 
 #define NDR_READ_INT(name, type, be, le)				\
 static type ndr_read_##name(struct cifsd_dcerpc *dce)			\
@@ -140,8 +140,8 @@ static type ndr_read_##name(struct cifsd_dcerpc *dce)			\
 }
 
 NDR_READ_INT(int16, __s16, htobe16, htole16);
-NDR_READ_INT(int32, __s32, htobe32, htobe32);
-NDR_READ_INT(int64, __s64, htobe64, htobe64);
+NDR_READ_INT(int32, __s32, htobe32, htole32);
+NDR_READ_INT(int64, __s64, htobe64, htole64);
 
 static int ndr_write_union(struct cifsd_dcerpc *dce, int value)
 {
@@ -288,8 +288,6 @@ static char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 
 	dce->offset += raw_len * 2;
 	align_offset(dce);
-
-	g_free(out);
 	return out;
 }
 
