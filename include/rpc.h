@@ -21,6 +21,8 @@
 #ifndef __CIFSD_RPC_H__
 #define __CIFSD_RPC_H__
 
+#include <linux/types.h>
+
 #define CIFSD_DCERPC_LITTLE_ENDIAN	(1 << 0)
 #define CIFSD_DCERPC_ALIGN2		(1 << 1)
 #define CIFSD_DCERPC_ALIGN4		(1 << 2)
@@ -90,7 +92,13 @@ struct cifsd_dcerpc {
 struct dcerpc_header;
 
 struct dcerpc_request_header {
-
+	__u32 alloc_hint;
+	__u16 context_id;
+	__u16 opnum;
+	/*
+	 * SWITCH dcerpc_object object;
+	 * PAYLOAD_BLOB;
+	 */
 };
 
 void dcerpc_free(struct cifsd_dcerpc *dce);
@@ -109,8 +117,11 @@ rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  unsigned int flags,
 			  int max_preferred_size);
 
-int rpc_srvsvc_parse_dcerpc_header(struct cifsd_dcerpc *dce,
-				   struct dcerpc_header *hdr);
+int rpc_srvsvc_parse_dcerpc_hde(struct cifsd_dcerpc *dce,
+				struct dcerpc_header *hdr);
+
+int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
+					struct dcerpc_request_header *hdr);
 
 int rpc_init(void);
 void rpc_destroy(void);

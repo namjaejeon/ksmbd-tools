@@ -614,8 +614,8 @@ struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
 	return dce;
 }
 
-int rpc_srvsvc_parse_dcerpc_header(struct cifsd_dcerpc *dce,
-				   struct dcerpc_header *hdr)
+int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
+				struct dcerpc_header *hdr)
 {
 	/* Common Type Header for the Serialization Stream */
 
@@ -655,8 +655,13 @@ int rpc_srvsvc_parse_dcerpc_header(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-int rpc_srvsrv_parse_dcerpc_request_header(struct cifsd_dcerpc *dce)
+int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
+					struct dcerpc_request_header *hdr)
 {
+	hdr->alloc_hint = ndr_read_int32(dce);
+	hdr->context_id = ndr_read_int16(dce);
+	hdr->opnum = ndr_read_int16(dce);
+
 	return 0;
 }
 
