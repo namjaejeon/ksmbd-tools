@@ -241,11 +241,56 @@ static int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	ret |= ndr_write_int32(dce, 0);
 	ret |= ndr_write_int32(dce, bytes_written / 2);
 	ret |= ndr_write_bytes(dce, out, bytes_written);
-
-	align_offset(dce);
 out:
 	g_free(out);
 	return ret;
+}
+
+static char *ndr_read_vstring(struct cifsd_dcerpc *dce)
+{
+	gchar *out;
+	gsize bytes_read = 0;
+	gsize bytes_written = 0;
+	GError *err = NULL;
+
+	size_t raw_len;
+	char *charset = CHARSET_UTF16LE;
+	int ret;
+
+	raw_len = ndr_read_int32(dce);
+	ndr_read_int32(dce); /* read in offset */
+	ndr_read_int32(dce);
+
+	if (!(dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN))
+		charset = CHARSET_UTF16BE;
+
+	if (dce->flags & CIFSD_DCERPC_ASCII_STRING)
+		charset = CHARSET_UTF8;
+
+	if (raw_len == 0) {
+		out = strdup("");
+		return out;
+	}
+
+	out = g_convert(PAYLOAD_HEAD(dce),
+			raw_len * 2,
+			CHARSET_DEFAULT,
+			charset,
+			&bytes_read,
+			&bytes_written,
+			&err);
+
+	if (err) {
+		pr_err("Can't convert string: %s\n", err->message);
+		g_error_free(err);
+		return NULL;
+	}
+
+	dce->offset += raw_len * 2;
+	align_offset(dce);
+
+	g_free(out);
+	return out;
 }
 
 static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
@@ -409,7 +454,7 @@ static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
 	pipe->num_entries++;
 }
 
-int cifsd_rpc_share_enum_all(struct cifsd_rpc_pipe *pipe)
+int rpc_share_enum_all(struct cifsd_rpc_pipe *pipe)
 {
 	for_each_cifsd_share(__enum_all_shares, pipe);
 	pipe->entry_processed = __share_entry_processed;
@@ -417,7 +462,7 @@ int cifsd_rpc_share_enum_all(struct cifsd_rpc_pipe *pipe)
 }
 
 struct cifsd_dcerpc *
-cifsd_rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
+rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 				int level,
 				unsigned int flags,
 				int max_preferred_size)
@@ -474,7 +519,7 @@ struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
 	return pipe;
 }
 
-struct cifsd_rpc_pipe *cifsd_rpc_pipe_alloc(unsigned int id)
+struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id)
 {
 	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
 	int ret;
@@ -519,7 +564,7 @@ void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 	free(pipe);
 }
 
-void cifsd_dcerpc_free(struct cifsd_dcerpc *dce)
+void dcerpc_free(struct cifsd_dcerpc *dce)
 {
 	free(dce->payload);
 	free(dce);
