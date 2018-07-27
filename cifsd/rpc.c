@@ -161,6 +161,17 @@ static int ndr_write_union(struct cifsd_dcerpc *dce, int value)
 	return ndr_write_int32(dce, value);
 }
 
+static int ndr_read_union(struct cifsd_dcerpc *dce)
+{
+	/*
+	 * We need to read 2 __s32 ints and move offset twice
+	 */
+	int ret = ndr_read_int32(dce);
+	if (ndr_read_int32(dce) != ret)
+		pr_err("NDR: union level and switch mismatch %d\n", ret);
+	return ret;
+}
+
 static int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
