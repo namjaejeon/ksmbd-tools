@@ -619,7 +619,6 @@ int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
 {
 	/* Common Type Header for the Serialization Stream */
 
-
 	ndr_read_bytes(dce, &hdr->rpc_vers, sizeof(hdr->rpc_vers));
 	ndr_read_bytes(dce, &hdr->rpc_vers_minor, sizeof(hdr->rpc_vers_minor));
 	ndr_read_bytes(dce, &hdr->ptype, sizeof(hdr->ptype));

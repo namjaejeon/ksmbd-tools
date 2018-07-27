@@ -101,6 +101,31 @@ struct dcerpc_request_header {
 	 */
 };
 
+/*
+ * http://pubs.opengroup.org/onlinepubs/9629399/chap14.htm
+ *
+ * We refer to pointers that are parameters in remote procedure calls as
+ * top-level pointers and we refer to pointers that are elements of arrays,
+ * members of structures, or members of unions as embedded pointers.
+ *
+ *  NDR represents a null full pointer as an unsigned long integer with the
+ *  value 0 (zero).
+ *  NDR represents the first instance in a octet stream of a non-null full
+ *  pointer in two parts: the first part is a non-zero unsigned long integer
+ *  that identifies the referent; the second part is the representation of
+ *  the referent. NDR represents subsequent instances in the same octet
+ *  stream of the same pointer only by the referent identifier.
+ */
+struct srvsvc_request_header {
+	int			level;
+
+	__u32			server_name_ptr_referent;
+	char			*server_name;
+
+	__u32			share_name_ptr_referent;
+	char			*share_name;
+};
+
 void dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
 struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz);
