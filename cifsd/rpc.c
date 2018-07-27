@@ -136,7 +136,6 @@ static type ndr_read_##name(struct cifsd_dcerpc *dce)			\
 									\
 	dce->offset += sizeof(type);					\
 	align_offset(dce);						\
-									\
 	return ret;							\
 }
 
@@ -179,6 +178,7 @@ static int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 
 	memcpy(PAYLOAD_HEAD(dce), value, sz);
 	dce->offset += sz;
+	align_offset(dce);
 	return 0;
 }
 
