@@ -19,6 +19,7 @@
  */
 
 #include <memory.h>
+#include <endian.h>
 #include <glib.h>
 #include <errno.h>
 #include <linux/cifsd_server.h>
@@ -103,25 +104,45 @@ static int try_realloc_payload(struct cifsd_dcerpc *dce, size_t data_sz)
 	return 0;
 }
 
-#define NDR_WRITE_INT(name, type, bt, lt)				\
+#define NDR_WRITE_INT(name, type, be, le)				\
 static int ndr_write_##name(struct cifsd_dcerpc *dce, type value)	\
 {									\
 	if (try_realloc_payload(dce, sizeof(value)))			\
 		return -ENOMEM;						\
 									\
 	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)			\
-		*(lt *)PAYLOAD_HEAD(dce) = (lt)value;			\
+		*PAYLOAD_HEAD(dce) = le(value);			\
 	else								\
-		*(bt *)PAYLOAD_HEAD(dce) = (bt)value;			\
+		*PAYLOAD_HEAD(dce) = be(value);			\
 									\
 	dce->offset += sizeof(value);					\
 	align_offset(dce);						\
 	return 0;							\
 }
 
-NDR_WRITE_INT(int16, __s16, __be16, __le16);
-NDR_WRITE_INT(int32, __s32, __be32, __le32);
-NDR_WRITE_INT(int64, __s64, __be64, __le64);
+NDR_WRITE_INT(int16, __s16, htobe16, htole16);
+NDR_WRITE_INT(int32, __s32, htobe32, htobe32);
+NDR_WRITE_INT(int64, __s64, htobe64, htobe64);
+
+#define NDR_READ_INT(name, type, be, le)				\
+static type ndr_read_##name(struct cifsd_dcerpc *dce)			\
+{									\
+	type ret;							\
+									\
+	if (dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN)			\
+		ret = le(*PAYLOAD_HEAD(dce));				\
+	else								\
+		ret = be(*PAYLOAD_HEAD(dce));				\
+									\
+	dce->offset += sizeof(type);					\
+	align_offset(dce);						\
+									\
+	return ret;							\
+}
+
+NDR_READ_INT(int16, __s16, htobe16, htole16);
+NDR_READ_INT(int32, __s32, htobe32, htobe32);
+NDR_READ_INT(int64, __s64, htobe64, htobe64);
 
 static int ndr_write_union(struct cifsd_dcerpc *dce, int value)
 {
