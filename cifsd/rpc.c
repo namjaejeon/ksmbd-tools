@@ -290,6 +290,32 @@ static char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 	return out;
 }
 
+static void ndr_read_vstring_ptr(struct cifsd_dcerpc *dce,
+				 struct ndr_char_ptr *ctr)
+{
+	ctr->ptr = ndr_read_vstring(dce);
+}
+
+static void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
+				     struct ndr_uniq_char_ptr *ctr)
+{
+	ctr->ref_id = ndr_read_int32(dce);
+	ctr->ptr = ndr_read_vstring(dce);
+}
+
+static void ndr_read_ptr(struct cifsd_dcerpc *dce,
+			 struct ndr_ptr *ctr)
+{
+	ctr->ptr = ndr_read_int32(dce);
+}
+
+static void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce,
+			      struct ndr_uniq_ptr *ctr)
+{
+	ctr->ref_id = ndr_read_int32(dce);
+	ctr->ptr = ndr_read_int32(dce);
+}
+
 static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 					 struct cifsd_rpc_pipe *pipe)
 {
@@ -654,13 +680,25 @@ int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
+int rpc_srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
+				    int opnum,
+				    struct srvsvc_share_info_request *hdr)
+{
+	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
+
+	if (opnum == 0x10) {
+		ndr_read_vstring_ptr(dce, &hdr->share_name);
+		hdr->level = ndr_read_int32(dce);
+	}
+	return 0;
+}
+
 int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
 					struct dcerpc_request_header *hdr)
 {
 	hdr->alloc_hint = ndr_read_int32(dce);
 	hdr->context_id = ndr_read_int16(dce);
 	hdr->opnum = ndr_read_int16(dce);
-
 	return 0;
 }
 

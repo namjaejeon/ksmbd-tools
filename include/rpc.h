@@ -116,14 +116,31 @@ struct dcerpc_request_header {
  *  the referent. NDR represents subsequent instances in the same octet
  *  stream of the same pointer only by the referent identifier.
  */
-struct srvsvc_request_header {
-	int			level;
+struct ndr_ptr {
+	__u32	ptr;
+};
 
-	__u32			server_name_ptr_referent;
-	char			*server_name;
+struct ndr_uniq_ptr {
+	__u32	ref_id;
+	__u32	ptr;
+};
 
-	__u32			share_name_ptr_referent;
-	char			*share_name;
+struct ndr_char_ptr {
+	char	*ptr;
+};
+
+struct ndr_uniq_char_ptr {
+	__u32	ref_id;
+	char	*ptr;
+};
+
+struct srvsvc_share_info_request {
+	int				level;
+
+	struct ndr_uniq_char_ptr	server_name;
+	struct ndr_char_ptr		share_name;
+
+	struct ndr_uniq_ptr		payload_handle;
 };
 
 void dcerpc_free(struct cifsd_dcerpc *dce);
