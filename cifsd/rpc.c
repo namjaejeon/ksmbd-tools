@@ -432,7 +432,7 @@ static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
 
-	return ndr_write_int32(dce, 1);
+	return ndr_write_int32(dce, 1); /* ref pointer */
 }
 
 static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
@@ -440,9 +440,9 @@ static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	struct cifsd_share *share = entry;
 	int ret;
 
-	ret = ndr_write_int32(dce, 1);
+	ret = ndr_write_int32(dce, 1); /* ref pointer */
 	ret |= ndr_write_int32(dce, __share_type(share));
-	ret |= ndr_write_int32(dce, 1);
+	ret |= ndr_write_int32(dce, 1); /* ref pointer */
 	return ret;
 }
 
