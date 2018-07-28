@@ -300,6 +300,10 @@ static void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
 				     struct ndr_uniq_char_ptr *ctr)
 {
 	ctr->ref_id = ndr_read_int32(dce);
+	if (ctr->ref_id == 0) {
+		ctr->ptr = 0;
+		return;
+	}
 	ctr->ptr = ndr_read_vstring(dce);
 }
 
@@ -313,6 +317,10 @@ static void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce,
 			      struct ndr_uniq_ptr *ctr)
 {
 	ctr->ref_id = ndr_read_int32(dce);
+	if (ctr->ref_id = 0) {
+		ctr->ptr = 0;
+		return;
+	}
 	ctr->ptr = ndr_read_int32(dce);
 }
 
