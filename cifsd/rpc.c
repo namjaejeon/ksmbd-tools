@@ -324,8 +324,30 @@ static void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce,
 	ctr->ptr = ndr_read_int32(dce);
 }
 
+static int __max_entries(struct cifsd_dcerpc *dce, struct cifsd_rpc_pipe *pipe)
+{
+	int current_size, i;
+
+	if (!(dce->flags & CIFSD_DCERPC_FIXED_PAYLOAD_SZ && dce->entry_size))
+		return pipe->num_entries;
+
+	current_size = 0;
+	for (i = 0; i < pipe->num_entries; i++) {
+		gpointer entry;
+
+		entry = g_array_index(pipe->entries,  gpointer, i);
+		current_size += dce->entry_size(dce, entry);
+
+		if (current_size < 4 * dce->payload_sz / 5)
+			continue;
+		return i;
+	}
+
+	return pipe->num_entries;
+}
+
 static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
-					 struct cifsd_rpc_pipe *pipe)
+				      struct cifsd_rpc_pipe *pipe)
 {
 	int current_size;
 	int max_entry_nr;
@@ -339,24 +361,9 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 	 * structure, immediately preceding the array elements.
 	 */
 
-	max_entry_nr = pipe->num_entries;
-	if (dce->flags & CIFSD_DCERPC_FIXED_PAYLOAD_SZ && dce->entry_size) {
-		current_size = 0;
-
-		for (i = 0; i < pipe->num_entries; i++) {
-			gpointer entry;
-
-			entry = g_array_index(pipe->entries,  gpointer, i);
-			current_size += dce->entry_size(dce, entry);
-
-			if (current_size < 2 * dce->payload_sz / 3)
-				continue;
-
-			max_entry_nr = i;
-			has_more_data = CIFSD_DCERPC_ERROR_MORE_DATA;
-			break;
-		}
-	}
+	max_entry_nr = __max_entries(dce, pipe);
+	if (max_entry_nr != pipe->num_entries)
+		has_more_data = CIFSD_DCERPC_ERROR_MORE_DATA;
 
 	/*
 	 * ARRAY representation [per dimension]
