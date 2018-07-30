@@ -41,6 +41,80 @@
 #define CIFSD_DCERPC_ERROR_MORE_DATA		0x000000EA
 #define CIFSD_DCERPC_ERROR_INVALID_LEVEL	0x0000007C
 
+#define DCERPC_PTYPE_RPC_REQUEST	0x00
+#define DCERPC_PTYPE_RPC_PING		0x01
+#define DCERPC_PTYPE_RPC_RESPONSE	0x02
+#define DCERPC_PTYPE_RPC_FAULT		0x03
+#define DCERPC_PTYPE_RPC_WORKING	0x04
+#define DCERPC_PTYPE_RPC_NOCALL		0x05
+#define DCERPC_PTYPE_RPC_REJECT		0x06
+#define DCERPC_PTYPE_RPC_ACK		0x07
+#define DCERPC_PTYPE_RPC_CL_CANCEL	0x08
+#define DCERPC_PTYPE_RPC_FACK		0x09
+#define DCERPC_PTYPE_RPC_CANCEL_ACK	0x0A
+#define DCERPC_PTYPE_RPC_BIND		0x0B
+#define DCERPC_PTYPE_RPC_BINDACK	0x0C
+#define DCERPC_PTYPE_RPC_BINDNACK	0x0D
+#define DCERPC_PTYPE_RPC_ALTCONT	0x0E
+#define DCERPC_PTYPE_RPC_ALTCONTRESP	0x0F
+#define DCERPC_PTYPE_RPC_AUTH3		0x10
+#define DCERPC_PTYPE_RPC_SHUTDOWN	0x11
+#define DCERPC_PTYPE_RPC_CO_CANCEL	0x12
+#define DCERPC_PTYPE_RPC_ORPHANED	0x13
+
+#define DCERPC_PFC_FIRST_FRAG	0x01  /* First fragment */
+#define DCERPC_PFC_LAST_FRAG	0x02  /* Last fragment */
+#define DCERPC_PFC_PENDING_CANCEL	0x04  /* Cancel was pending at sender */
+#define DCERPC_PFC_RESERVED_1	0x08
+#define DCERPC_PFC_CONC_MPX	0x10  /* supports concurrent multiplexing
+                                        * of a single connection. */
+#define DCERPC_PFC_DID_NOT_EXECUTE	0x20  /* only meaningful on `fault' packet;
+                                        * if true, guaranteed call did not
+                                        * execute. */
+#define DCERPC_PFC_MAYBE		0x40  /* `maybe' call semantics requested */
+#define DCERPC_PFC_OBJECT_UUID	0x80  /* if true, a non-nil object UUID
+                                        * was specified in the handle, and
+                                        * is present in the optional object
+                                        * field. If false, the object field
+                                        * is omitted. */
+
+#define DCERPC_SERIALIZATION_TYPE1		1
+#define DCERPC_SERIALIZATION_TYPE2		2
+#define DCERPC_SERIALIZATION_LITTLE_ENDIAN	0x11
+#define DCERPC_SERIALIZATION_BIG_ENDIAN		0x00
+
+struct dcerpc_header {
+	/* start 8-octet aligned */
+
+	/* common fields */
+	__u8	rpc_vers;            /* 00:01 RPC version */
+	__u8	rpc_vers_minor;      /* 01:01 minor version */
+	__u8	ptype;               /* 02:01 bind PDU */
+	__u8	pfc_flags;           /* 03:01 flags */
+	__s8	packed_drep[4];      /* 04:04 NDR data rep format label*/
+	__u16	frag_length;         /* 08:02 total length of fragment */
+	__u16	auth_length;         /* 10:02 length of auth_value */
+	__u32	call_id;             /* 12:04 call identifier */
+
+	/* end common fields */
+};
+
+struct dcerpc_request_header {
+	__u32 alloc_hint;
+	__u16 context_id;
+	__u16 opnum;
+	/*
+	 * SWITCH dcerpc_object object;
+	 * PAYLOAD_BLOB;
+	 */
+};
+
+struct srvsvc_rpc_request {
+	struct dcerpc_header		dce_hdr;
+	struct dcerpc_request_header	dce_req_hdr;
+	void				*srvsvc_req;
+};
+
 /*
  * So how this is expected to work. First, you need to obtain a snapshot
  * of the data that you want to push to the wire. The data snapshot goes
@@ -69,6 +143,7 @@ struct cifsd_dcerpc {
 	size_t			offset;
 	size_t			payload_sz;
 	char			*payload;
+	unsigned int		num_pointers;
 	/*
 	 * Find out the estimated entry size under the given container level
 	 * restriction
@@ -87,18 +162,6 @@ struct cifsd_dcerpc {
 	 */
 	int			(*entry_data)(struct cifsd_dcerpc *,
 					      gpointer entry);
-};
-
-struct dcerpc_header;
-
-struct dcerpc_request_header {
-	__u32 alloc_hint;
-	__u16 context_id;
-	__u16 opnum;
-	/*
-	 * SWITCH dcerpc_object object;
-	 * PAYLOAD_BLOB;
-	 */
 };
 
 /*
@@ -136,6 +199,7 @@ struct ndr_uniq_char_ptr {
 
 struct srvsvc_share_info_request {
 	int				level;
+	int				max_size;
 
 	struct ndr_uniq_char_ptr	server_name;
 	struct ndr_char_ptr		share_name;
@@ -152,7 +216,7 @@ void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
 struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
 
-int rpc_srvsvc_parse_dcerpc_hde(struct cifsd_dcerpc *dce,
+int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
 				struct dcerpc_header *hdr);
 
 int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
@@ -166,7 +230,6 @@ rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  int level,
 			  unsigned int flags,
 			  int max_preferred_size);
-
 
 int rpc_init(void);
 void rpc_destroy(void);

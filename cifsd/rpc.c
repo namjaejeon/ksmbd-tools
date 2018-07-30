@@ -73,6 +73,9 @@ static GRWLock		pipes_table_lock;
 
 #define __ALIGN_MASK(x, mask)	(((x) + (mask)) & ~(mask))
 
+#define SRVSVC_OPNUM_SHARE_ENUM_ALL	15
+#define SRBSVC_OPNUM_GET_SHARE_INFO	16
+
 static void align_offset(struct cifsd_dcerpc *dce)
 {
 	if (dce->flags & CIFSD_DCERPC_ALIGN8) {
@@ -439,7 +442,8 @@ static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
 
-	return ndr_write_int32(dce, 1); /* ref pointer */
+	dce->num_pointers++;
+	return ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
 }
 
 static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
@@ -447,9 +451,11 @@ static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	struct cifsd_share *share = entry;
 	int ret;
 
-	ret = ndr_write_int32(dce, 1); /* ref pointer */
+	dce->num_pointers++;
+	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
 	ret |= ndr_write_int32(dce, __share_type(share));
-	ret |= ndr_write_int32(dce, 1); /* ref pointer */
+	dce->num_pointers++;
+	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
 	return ret;
 }
 
@@ -716,11 +722,32 @@ int rpc_srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 {
 	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
 
-	if (opnum == 0x10) {
+	if (opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL) {
+		int ptr;
+
+		hdr->level = ndr_read_int32(dce);
+		ndr_read_int32(dce); // read switch selector
+		ndr_read_int32(dce); // read container pointer ref id
+		ndr_read_int32(dce); // read container array size
+		ptr =ndr_read_int32(dce); // read container array pointer
+					  // it should be null
+		if (ptr != 0x00) {
+			pr_err("SRVSVC: container array pointer is %p\n",
+				ptr);
+			return -EINVAL;
+		}
+		hdr->max_size = ndr_read_int32(dce);
+		ndr_read_uniq_ptr(dce, &hdr->payload_handle);
+		return 0;
+	}
+
+	if (opnum == SRBSVC_OPNUM_GET_SHARE_INFO) {
 		ndr_read_vstring_ptr(dce, &hdr->share_name);
 		hdr->level = ndr_read_int32(dce);
+		return 0;
 	}
-	return 0;
+
+	return -ENOTSUP;
 }
 
 int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
@@ -730,6 +757,41 @@ int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
 	hdr->context_id = ndr_read_int16(dce);
 	hdr->opnum = ndr_read_int16(dce);
 	return 0;
+}
+
+int rpc_process_srvsvc_req(void *req, int sz)
+{
+	struct cifsd_dcerpc *dce = dcerpc_parser_alloc(req, sz);
+	struct srvsvc_rpc_request *dce_req;
+	int ret;
+
+	if (!dce)
+		return -EINVAL;
+
+	dce_req = malloc(sizeof(struct srvsvc_rpc_request));
+	if (!ret) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	memset(dce_req, 0x00, sizeof(struct srvsvc_rpc_request));
+	ret = rpc_srvsvc_parse_dcerpc_hdr(dce, &dce_req->dce_hdr);
+	if (ret)
+		goto out;
+	ret = rpc_srvsrv_parse_dcerpc_request_hdr(dce, &dce_req->dce_req_hdr);
+	if (ret)
+		goto out;
+
+	if (dce_req->dce_hdr.ptype == DCERPC_PTYPE_RPC_REQUEST) {
+
+	}
+
+out:
+	if (dce_req)
+		free(dce_req->srvsvc_req);
+	free(dce_req);
+	dcerpc_free(dce);
+	return ret;
 }
 
 int rpc_init(void)
