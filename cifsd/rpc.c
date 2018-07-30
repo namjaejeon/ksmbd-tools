@@ -438,12 +438,17 @@ static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	return sz;
 }
 
+/*
+ * Embedded Reference Pointers
+ *
+ * An embedded reference pointer is represented in two parts, a 4 octet
+ * value in place and a possibly deferred representation of the referent.
+ */
 static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
 
-	dce->num_pointers++;
-	return ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	return ndr_write_int32(dce, 1); /* ref pointer */
 }
 
 static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
@@ -451,11 +456,9 @@ static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	struct cifsd_share *share = entry;
 	int ret;
 
-	dce->num_pointers++;
-	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	ret = ndr_write_int32(dce, 1); /* ref pointer */
 	ret |= ndr_write_int32(dce, __share_type(share));
-	dce->num_pointers++;
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	ret |= ndr_write_int32(dce, 1); /* ref pointer */
 	return ret;
 }
 
