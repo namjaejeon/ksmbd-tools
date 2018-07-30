@@ -152,18 +152,21 @@ void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
 struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
 
+int rpc_srvsvc_parse_dcerpc_hde(struct cifsd_dcerpc *dce,
+				struct dcerpc_header *hdr);
+
+int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
+					struct dcerpc_request_header *hdr);
+
 int rpc_share_enum_all(struct cifsd_rpc_pipe *pipe);
+int rpc_share_get_info(struct cifsd_rpc_pipe *pipe,
+		       struct srvsvc_share_info_request *hdr);
 struct cifsd_dcerpc *
 rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  int level,
 			  unsigned int flags,
 			  int max_preferred_size);
 
-int rpc_srvsvc_parse_dcerpc_hde(struct cifsd_dcerpc *dce,
-				struct dcerpc_header *hdr);
-
-int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
-					struct dcerpc_request_header *hdr);
 
 int rpc_init(void);
 void rpc_destroy(void);

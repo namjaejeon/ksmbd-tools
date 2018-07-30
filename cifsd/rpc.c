@@ -546,6 +546,21 @@ out:
 	return dce;
 }
 
+int rpc_share_get_info(struct cifsd_rpc_pipe *pipe,
+		       struct srvsvc_share_info_request *hdr)
+{
+	struct cifsd_share *share;
+
+	share = shm_lookup_share(hdr->share_name.ptr);
+	if (!share)
+		return -EINVAL;
+
+	pipe->entries = g_array_append_val(pipe->entries, share);
+	pipe->num_entries++;
+	pipe->entry_processed = __share_entry_processed;
+	return 0;
+}
+
 struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
 {
 	struct cifsd_rpc_pipe *pipe;
