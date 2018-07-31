@@ -21,6 +21,12 @@
 #ifndef __CIFSD_IPC_H__
 #define __CIFSD_IPC_H__
 
+/*
+ * Older [prior to 4.9] kernels had max NL recv msg size of 16k.
+ * It has been bumped to 32K later on.
+ */
+#define CIFSD_IPC_MAX_MESSAGE_SIZE	(16 * 1024)
+
 struct cifsd_ipc_msg {
 	unsigned int	type;
 	unsigned int	sz;
