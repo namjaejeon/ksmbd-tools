@@ -25,6 +25,7 @@
 #include <cifsdtools.h>
 #include <worker_pool.h>
 #include <ipc.h>
+#include <rpc.h>
 
 #include <management/user.h>
 #include <management/share.h>
@@ -173,6 +174,36 @@ out:
 	return 0;
 }
 
+static int srvsvc_request(struct cifsd_ipc_msg *msg)
+{
+	struct cifsd_rpc_command *req;
+	struct cifsd_rpc_command *resp;
+	struct cifsd_dcerpc *dce;
+	struct cifsd_ipc_msg *resp_msg;
+
+	req = CIFSD_IPC_MSG_PAYLOAD(msg);
+	dce = rpc_srvsvc_request(req);
+	if (!dce)
+		return -EINVAL;
+
+	resp_msg = ipc_msg_alloc(sizeof(struct cifsd_rpc_command) +
+				 dce->offset);
+	if (!resp_msg)
+		goto out;
+
+	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
+	memcpy(resp->payload, dce->payload, dce->offset);
+	resp_msg->type = CIFSD_RPC_COMMAND_SRVSVC_RESPONSE;
+	resp->handle = req->handle;
+	resp->payload_sz = dce->offset;
+
+	ipc_msg_send(resp_msg);
+out:
+	dcerpc_free(dce);
+	ipc_msg_free(resp_msg);
+	return 0;
+}
+
 static void worker_pool_fn(gpointer event, gpointer user_data)
 {
 	struct cifsd_ipc_msg *msg = (struct cifsd_ipc_msg *)event;
@@ -196,6 +227,10 @@ static void worker_pool_fn(gpointer event, gpointer user_data)
 
 	case CIFSD_EVENT_SHARE_CONFIG_REQUEST:
 		share_config_request(msg);
+		break;
+
+	case CIFSD_RPC_COMMAND_SRVSVC_REQUEST:
+		srvsvc_request(msg);
 		break;
 
 	case CIFSD_EVENT_HEARTBEAT_REQUEST:

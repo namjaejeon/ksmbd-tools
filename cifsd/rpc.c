@@ -762,19 +762,20 @@ int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-int rpc_process_srvsvc_req(void *req, int sz)
+struct cifsd_dcerpc *rpc_srvsvc_request(struct cifsd_rpc_command *req)
 {
-	struct cifsd_dcerpc *dce = dcerpc_parser_alloc(req, sz);
+	struct cifsd_dcerpc *dce;
 	struct srvsvc_rpc_request *dce_req;
 	int ret;
 
+	dce = dcerpc_parser_alloc(req->payload, req->payload_sz);
 	if (!dce)
-		return -EINVAL;
+		return NULL;
 
 	dce_req = malloc(sizeof(struct srvsvc_rpc_request));
 	if (!ret) {
-		ret = -ENOMEM;
-		goto out;
+		dcerpc_free(dce);
+		return NULL;
 	}
 
 	memset(dce_req, 0x00, sizeof(struct srvsvc_rpc_request));
@@ -794,7 +795,8 @@ out:
 		free(dce_req->srvsvc_req);
 	free(dce_req);
 	dcerpc_free(dce);
-	return ret;
+
+	return NULL;
 }
 
 int rpc_init(void)
