@@ -74,7 +74,7 @@ static GRWLock		pipes_table_lock;
 #define __ALIGN_MASK(x, mask)	(((x) + (mask)) & ~(mask))
 
 #define SRVSVC_OPNUM_SHARE_ENUM_ALL	15
-#define SRBSVC_OPNUM_GET_SHARE_INFO	16
+#define SRVSVC_OPNUM_GET_SHARE_INFO	16
 
 static void align_offset(struct cifsd_dcerpc *dce)
 {
@@ -331,8 +331,13 @@ static int __max_entries(struct cifsd_dcerpc *dce, struct cifsd_rpc_pipe *pipe)
 {
 	int current_size, i;
 
-	if (!(dce->flags & CIFSD_DCERPC_FIXED_PAYLOAD_SZ && dce->entry_size))
+	if (!(dce->flags & CIFSD_DCERPC_FIXED_PAYLOAD_SZ))
 		return pipe->num_entries;
+
+	if (!dce->entry_size) {
+		pr_err("No ->entry_size() callback was provided\n");
+		return 0;
+	}
 
 	current_size = 0;
 	for (i = 0; i < pipe->num_entries; i++) {
@@ -662,7 +667,9 @@ struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
 	return dce;
 }
 
-struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
+struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
+				      void *payload,
+				      int payload_sz)
 {
 	struct cifsd_dcerpc *dce;
 
@@ -671,16 +678,75 @@ struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz)
 		return NULL;
 
 	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = pl;
-	dce->payload_sz = sz;
+	dce->payload = payload;
+	dce->payload_sz = payload_sz;
 
+	dce->flags = flags;
 	dce->flags |= CIFSD_DCERPC_EXTERNAL_PAYLOAD;
 	dce->flags |= CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
 	return dce;
 }
 
-int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
-				struct dcerpc_header *hdr)
+int rpc_parse_share_info_req(struct cifsd_dcerpc *dce,
+			     int opnum,
+			     struct srvsvc_share_info_request *hdr)
+{
+	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
+
+	if (opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL) {
+		int ptr;
+
+		hdr->level = ndr_read_int32(dce);
+		ndr_read_int32(dce); // read switch selector
+		ndr_read_int32(dce); // read container pointer ref id
+		ndr_read_int32(dce); // read container array size
+		ptr = ndr_read_int32(dce); // read container array pointer
+					   // it should be null
+		if (ptr != 0x00) {
+			pr_err("SRVSVC: container array pointer is %p\n",
+				ptr);
+			return -EINVAL;
+		}
+		hdr->max_size = ndr_read_int32(dce);
+		ndr_read_uniq_ptr(dce, &hdr->payload_handle);
+		return 0;
+	}
+
+	if (opnum == SRVSVC_OPNUM_GET_SHARE_INFO) {
+		ndr_read_vstring_ptr(dce, &hdr->share_name);
+		hdr->level = ndr_read_int32(dce);
+		return 0;
+	}
+
+	return -ENOTSUP;
+}
+
+int srvsvc_share_info(struct cifsd_dcerpc *dce,
+		      struct cifsd_rpc_command *resp,
+		      int max_resp_sz)
+{
+	struct srvsvc_share_info_request srvsvc_hdr;
+
+	if (rpc_parse_share_info_req(dce, dce->req_hdr.opnum, &srvsvc_hdr))
+		return -EINVAL;
+
+	if (srvsvc_hdr.max_size < (unsigned int)max_resp_sz)
+		max_resp_sz = srvsvc_hdr.max_size;
+	dce->payload = resp->payload;
+	dce->payload_sz = max_resp_sz;
+	/*
+	 * Reserve space for response NDR header. We don't know yet if
+	 * the payload buffer is big enough. This will determine if we
+	 * can set DCERPC_PFC_FIRST_FRAG|DCERPC_PFC_LAST_FRAG or if we
+	 * will have a multi-part response.
+	 */
+	dce->offset = sizeof(struct dcerpc_header);
+
+	return 0;
+}
+
+int rpc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
+			 struct dcerpc_header *hdr)
 {
 	/* Common Type Header for the Serialization Stream */
 
@@ -719,42 +785,8 @@ int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-int rpc_srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
-				    int opnum,
-				    struct srvsvc_share_info_request *hdr)
-{
-	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
-
-	if (opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL) {
-		int ptr;
-
-		hdr->level = ndr_read_int32(dce);
-		ndr_read_int32(dce); // read switch selector
-		ndr_read_int32(dce); // read container pointer ref id
-		ndr_read_int32(dce); // read container array size
-		ptr =ndr_read_int32(dce); // read container array pointer
-					  // it should be null
-		if (ptr != 0x00) {
-			pr_err("SRVSVC: container array pointer is %p\n",
-				ptr);
-			return -EINVAL;
-		}
-		hdr->max_size = ndr_read_int32(dce);
-		ndr_read_uniq_ptr(dce, &hdr->payload_handle);
-		return 0;
-	}
-
-	if (opnum == SRBSVC_OPNUM_GET_SHARE_INFO) {
-		ndr_read_vstring_ptr(dce, &hdr->share_name);
-		hdr->level = ndr_read_int32(dce);
-		return 0;
-	}
-
-	return -ENOTSUP;
-}
-
-int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
-					struct dcerpc_request_header *hdr)
+int rpc_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
+				 struct dcerpc_request_header *hdr)
 {
 	hdr->alloc_hint = ndr_read_int32(dce);
 	hdr->context_id = ndr_read_int16(dce);
@@ -762,41 +794,47 @@ int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-struct cifsd_dcerpc *rpc_srvsvc_request(struct cifsd_rpc_command *req)
+int rpc_srvsvc_request(struct cifsd_rpc_command *req,
+		       struct cifsd_rpc_command *resp,
+		       int max_resp_sz)
 {
 	struct cifsd_dcerpc *dce;
-	struct srvsvc_rpc_request *dce_req;
 	int ret;
 
-	dce = dcerpc_parser_alloc(req->payload, req->payload_sz);
+	dce = dcerpc_ext_alloc(CIFSD_DCERPC_LITTLE_ENDIAN|CIFSD_DCERPC_ALIGN4,
+			       req->payload,
+			       req->payload_sz);
 	if (!dce)
-		return NULL;
+		return -EINVAL;
 
-	dce_req = malloc(sizeof(struct srvsvc_rpc_request));
-	if (!ret) {
-		dcerpc_free(dce);
-		return NULL;
+	ret = rpc_parse_dcerpc_hdr(dce, &dce->hdr);
+	ret |= rpc_parse_dcerpc_request_hdr(dce, &dce->req_hdr);
+	if (ret)
+		goto out;
+
+	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST) {
+		pr_err("SRVSVC: unsupported ptype: %d\n",
+			dce->hdr.ptype);
+		ret = 0;
+		goto out;
 	}
 
-	memset(dce_req, 0x00, sizeof(struct srvsvc_rpc_request));
-	ret = rpc_srvsvc_parse_dcerpc_hdr(dce, &dce_req->dce_hdr);
-	if (ret)
-		goto out;
-	ret = rpc_srvsrv_parse_dcerpc_request_hdr(dce, &dce_req->dce_req_hdr);
-	if (ret)
-		goto out;
-
-	if (dce_req->dce_hdr.ptype == DCERPC_PTYPE_RPC_REQUEST) {
-
+	switch (dce->req_hdr.opnum) {
+	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
+	case SRVSVC_OPNUM_GET_SHARE_INFO:
+		ret = srvsvc_share_info(dce,
+					resp,
+					max_resp_sz);
+		break;
+	default:
+		pr_err("SRVSVC: unsupported method %d\n",
+			dce->req_hdr.opnum);
+		break;
 	}
 
 out:
-	if (dce_req)
-		free(dce_req->srvsvc_req);
-	free(dce_req);
 	dcerpc_free(dce);
-
-	return NULL;
+	return ret;
 }
 
 int rpc_init(void)

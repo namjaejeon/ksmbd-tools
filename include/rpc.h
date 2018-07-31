@@ -109,12 +109,6 @@ struct dcerpc_request_header {
 	 */
 };
 
-struct srvsvc_rpc_request {
-	struct dcerpc_header		dce_hdr;
-	struct dcerpc_request_header	dce_req_hdr;
-	void				*srvsvc_req;
-};
-
 /*
  * So how this is expected to work. First, you need to obtain a snapshot
  * of the data that you want to push to the wire. The data snapshot goes
@@ -139,11 +133,15 @@ struct cifsd_rpc_pipe {
 };
 
 struct cifsd_dcerpc {
-	unsigned int		flags;
-	size_t			offset;
-	size_t			payload_sz;
-	char			*payload;
-	unsigned int		num_pointers;
+	unsigned int			flags;
+	size_t				offset;
+	size_t				payload_sz;
+	char				*payload;
+	unsigned int			num_pointers;
+
+	struct dcerpc_header		hdr;
+	struct dcerpc_request_header	req_hdr;
+
 	/*
 	 * Find out the estimated entry size under the given container level
 	 * restriction
@@ -199,7 +197,7 @@ struct ndr_uniq_char_ptr {
 
 struct srvsvc_share_info_request {
 	int				level;
-	int				max_size;
+	size_t				max_size;
 
 	struct ndr_uniq_char_ptr	server_name;
 	struct ndr_char_ptr		share_name;
@@ -209,18 +207,20 @@ struct srvsvc_share_info_request {
 
 void dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
-struct cifsd_dcerpc *dcerpc_parser_alloc(void *pl, int sz);
+struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
+				      void *payload,
+				      int payload_sz);
 
 struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id);
 void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
 struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
 
-int rpc_srvsvc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
-				struct dcerpc_header *hdr);
+int rpc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
+			 struct dcerpc_header *hdr);
 
-int rpc_srvsrv_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
-					struct dcerpc_request_header *hdr);
+int rpc_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
+				 struct dcerpc_request_header *hdr);
 
 int rpc_share_enum_all(struct cifsd_rpc_pipe *pipe);
 int rpc_share_get_info(struct cifsd_rpc_pipe *pipe,
@@ -232,7 +232,9 @@ rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  int max_preferred_size);
 
 struct cifsd_rpc_command;
-struct cifsd_dcerpc *rpc_srvsvc_request(struct cifsd_rpc_command *req);
+int rpc_srvsvc_request(struct cifsd_rpc_command *req,
+		       struct cifsd_rpc_command *resp,
+		       int max_resp_size);
 
 int rpc_init(void);
 void rpc_destroy(void);

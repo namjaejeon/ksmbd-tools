@@ -178,28 +178,24 @@ static int srvsvc_request(struct cifsd_ipc_msg *msg)
 {
 	struct cifsd_rpc_command *req;
 	struct cifsd_rpc_command *resp;
-	struct cifsd_dcerpc *dce;
 	struct cifsd_ipc_msg *resp_msg;
+	int sz;
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
-	dce = rpc_srvsvc_request(req);
-	if (!dce)
-		return -EINVAL;
-
-	resp_msg = ipc_msg_alloc(sizeof(struct cifsd_rpc_command) +
-				 dce->offset);
+	resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE);
 	if (!resp_msg)
 		goto out;
 
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
-	memcpy(resp->payload, dce->payload, dce->offset);
+	sz = rpc_srvsvc_request(req, resp, CIFSD_IPC_MAX_MESSAGE_SIZE);
+		return -EINVAL;
+
 	resp_msg->type = CIFSD_RPC_COMMAND_SRVSVC_RESPONSE;
 	resp->handle = req->handle;
-	resp->payload_sz = dce->offset;
+	resp->payload_sz = sz;
 
 	ipc_msg_send(resp_msg);
 out:
-	dcerpc_free(dce);
 	ipc_msg_free(resp_msg);
 	return 0;
 }
