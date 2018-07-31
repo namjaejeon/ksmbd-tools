@@ -102,6 +102,13 @@ struct cifsd_logout_request {
 	__s8	account[CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
 } __align;
 
+struct cifsd_rpc_command {
+	__u32	handle;
+	__u32	flags;
+	__u32	payload_sz;
+	__u8	payload[0];
+};
+
 /*
  * This also used as NETLINK attribute type value.
  *
@@ -129,6 +136,15 @@ enum cifsd_event {
 	CIFSD_EVENT_TREE_DISCONNECT_REQUEST,
 
 	CIFSD_EVENT_LOGOUT_REQUEST,
+
+	CIFSD_RPC_COMMAND_RAP_REQUEST,
+	CIFSD_RPC_COMMAND_RAP_RESPONSE,
+
+	CIFSD_RPC_COMMAND_SRVSVC_REQUEST,
+	CIFSD_RPC_COMMAND_SRVSVC_RESPONSE,
+
+	CIFSD_RPC_COMMAND_WKS_REQUEST,
+	CIFSD_RPC_COMMAND_WKS_RESPONSE,
 
 	CIFSD_EVENT_MAX
 };
