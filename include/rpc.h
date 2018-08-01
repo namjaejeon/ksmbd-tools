@@ -133,14 +133,18 @@ struct cifsd_rpc_pipe {
 };
 
 struct cifsd_dcerpc {
-	unsigned int			flags;
-	size_t				offset;
-	size_t				payload_sz;
-	char				*payload;
-	unsigned int			num_pointers;
+	unsigned int		flags;
+	size_t			offset;
+	size_t			payload_sz;
+	char			*payload;
+	unsigned int		num_pointers;
 
-	struct dcerpc_header		hdr;
-	struct dcerpc_request_header	req_hdr;
+	union {
+		struct dcerpc_header		hdr;
+	};
+	union {
+		struct dcerpc_request_header	req_hdr;
+	};
 
 	/*
 	 * Find out the estimated entry size under the given container level
