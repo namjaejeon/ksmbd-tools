@@ -110,63 +110,6 @@ struct dcerpc_request_header {
 };
 
 /*
- * So how this is expected to work. First, you need to obtain a snapshot
- * of the data that you want to push to the wire. The data snapshot goes
- * to cifsd_rpc_pipe. Then you perform a protocol specific transformation
- * of the data snapshot. The transformed data goes to a specific protocol
- * dependent structure, e.g. cifsd_dcerpc for DCERPC (ndr/ndr64). Then you
- * write the transformed data snapshot to the wire.
- */
-
-struct cifsd_rpc_pipe {
-	unsigned int		id;
-
-	int 			num_entries;
-	GArray			*entries;
-
-	/*
-	 * Tell pipe that we processed the entry and won't need it
-	 * anymore so it can remove/drop it.
-	 */
-	int			(*entry_processed)(struct cifsd_rpc_pipe *,
-						   int i);
-};
-
-struct cifsd_dcerpc {
-	unsigned int		flags;
-	size_t			offset;
-	size_t			payload_sz;
-	char			*payload;
-	unsigned int		num_pointers;
-
-	union {
-		struct dcerpc_header		hdr;
-	};
-	union {
-		struct dcerpc_request_header	req_hdr;
-	};
-
-	/*
-	 * Find out the estimated entry size under the given container level
-	 * restriction
-	 */
-	int			(*entry_size)(struct cifsd_dcerpc *,
-					      gpointer entry);
-	/*
-	 * Entry representation under the given container level
-	 * restriction for array representation
-	 */
-	int			(*entry_rep)(struct cifsd_dcerpc *,
-					      gpointer entry);
-	/*
-	 * Entry data under the given container level restriction
-	 * for array representation
-	 */
-	int			(*entry_data)(struct cifsd_dcerpc *,
-					      gpointer entry);
-};
-
-/*
  * http://pubs.opengroup.org/onlinepubs/9629399/chap14.htm
  *
  * We refer to pointers that are parameters in remote procedure calls as
@@ -207,6 +150,66 @@ struct srvsvc_share_info_request {
 	struct ndr_char_ptr		share_name;
 
 	struct ndr_uniq_ptr		payload_handle;
+};
+
+/*
+ * So how this is expected to work. First, you need to obtain a snapshot
+ * of the data that you want to push to the wire. The data snapshot goes
+ * to cifsd_rpc_pipe. Then you perform a protocol specific transformation
+ * of the data snapshot. The transformed data goes to a specific protocol
+ * dependent structure, e.g. cifsd_dcerpc for DCERPC (ndr/ndr64). Then you
+ * write the transformed data snapshot to the wire.
+ */
+
+struct cifsd_rpc_pipe {
+	unsigned int		id;
+
+	int 			num_entries;
+	GArray			*entries;
+
+	/*
+	 * Tell pipe that we processed the entry and won't need it
+	 * anymore so it can remove/drop it.
+	 */
+	int			(*entry_processed)(struct cifsd_rpc_pipe *,
+						   int i);
+};
+
+struct cifsd_dcerpc {
+	unsigned int		flags;
+	size_t			offset;
+	size_t			payload_sz;
+	char			*payload;
+	unsigned int		num_pointers;
+
+	union {
+		struct dcerpc_header			hdr;
+	};
+	union {
+		struct dcerpc_request_header		req_hdr;
+	};
+	union {
+		struct srvsvc_share_info_request	req;
+	};
+
+	/*
+	 * Find out the estimated entry size under the given container level
+	 * restriction
+	 */
+	int			(*entry_size)(struct cifsd_dcerpc *,
+					      gpointer entry);
+	/*
+	 * Entry representation under the given container level
+	 * restriction for array representation
+	 */
+	int			(*entry_rep)(struct cifsd_dcerpc *,
+					      gpointer entry);
+	/*
+	 * Entry data under the given container level restriction
+	 * for array representation
+	 */
+	int			(*entry_data)(struct cifsd_dcerpc *,
+					      gpointer entry);
 };
 
 void dcerpc_free(struct cifsd_dcerpc *dce);

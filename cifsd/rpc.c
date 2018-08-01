@@ -725,13 +725,11 @@ int srvsvc_share_info(struct cifsd_dcerpc *dce,
 		      struct cifsd_rpc_command *resp,
 		      int max_resp_sz)
 {
-	struct srvsvc_share_info_request srvsvc_hdr;
-
-	if (rpc_parse_share_info_req(dce, dce->req_hdr.opnum, &srvsvc_hdr))
+	if (rpc_parse_share_info_req(dce, dce->req_hdr.opnum, &dce->req))
 		return -EINVAL;
 
-	if (srvsvc_hdr.max_size < (unsigned int)max_resp_sz)
-		max_resp_sz = srvsvc_hdr.max_size;
+	if (dce->req.max_size < (unsigned int)max_resp_sz)
+		max_resp_sz = dce->req.max_size;
 	dce->payload = resp->payload;
 	dce->payload_sz = max_resp_sz;
 	/*
