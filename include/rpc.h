@@ -169,22 +169,6 @@ struct srvsvc_share_info_request {
  * write the transformed data snapshot to the wire.
  */
 
-struct cifsd_rpc_pipe {
-	unsigned int		id;
-
-	int 			num_entries;
-	GArray			*entries;
-
-	int 			flags;
-
-	/*
-	 * Tell pipe that we processed the entry and won't need it
-	 * anymore so it can remove/drop it.
-	 */
-	int			(*entry_processed)(struct cifsd_rpc_pipe *,
-						   int i);
-};
-
 struct cifsd_rpc_command;
 
 struct cifsd_dcerpc {
@@ -226,6 +210,22 @@ struct cifsd_dcerpc {
 					      gpointer entry);
 };
 
+struct cifsd_rpc_pipe {
+	unsigned int		id;
+
+	int 			num_entries;
+	GArray			*entries;
+
+	struct cifsd_dcerpc	*dce;
+
+	/*
+	 * Tell pipe that we processed the entry and won't need it
+	 * anymore so it can remove/drop it.
+	 */
+	int			(*entry_processed)(struct cifsd_rpc_pipe *,
+						   int i);
+};
+
 void dcerpc_free(struct cifsd_dcerpc *dce);
 struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
 struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
@@ -237,21 +237,6 @@ struct cifsd_rpc_pipe *rpc_pipe_alloc(void);
 void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
 struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
-
-int rpc_parse_dcerpc_hdr(struct cifsd_dcerpc *dce,
-			 struct dcerpc_header *hdr);
-
-int rpc_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
-				 struct dcerpc_request_header *hdr);
-
-int rpc_share_enum_all(struct cifsd_rpc_pipe *pipe);
-int rpc_share_get_info(struct cifsd_rpc_pipe *pipe,
-		       struct srvsvc_share_info_request *hdr);
-struct cifsd_dcerpc *
-rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
-			  int level,
-			  unsigned int flags,
-			  int max_preferred_size);
 
 int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       struct cifsd_rpc_command *resp,
