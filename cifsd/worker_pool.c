@@ -179,7 +179,7 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 	struct cifsd_rpc_command *req;
 	struct cifsd_rpc_command *resp;
 	struct cifsd_ipc_msg *resp_msg;
-	int sz = -ENOTSUP;
+	int ret = -ENOTSUP;
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
 	if (req->flags & CIFSD_RPC_COMMAND_METHOD_INVOKE)
@@ -191,17 +191,17 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 	if (req->flags & CIFSD_RPC_COMMAND_SRVSVC_METHOD_RETURN)
-		sz = rpc_srvsvc_request(req, resp, resp_msg->sz);
+		ret = rpc_srvsvc_request(req, resp, resp_msg->sz);
 
 	if (req->flags & CIFSD_RPC_COMMAND_WKS_METHOD_RETURN)
-		sz = 0;
+		ret = 0;
 
 	if (req->flags & CIFSD_RPC_COMMAND_RAP)
-		sz = 0;
+		ret = 0;
 
 	resp_msg->type = CIFSD_RPC_COMMAND_RESPONSE;
 	resp->handle = req->handle;
-	resp->payload_sz = sz;
+	resp->flags = ret;
 
 	ipc_msg_send(resp_msg);
 out:

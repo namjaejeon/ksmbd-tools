@@ -359,7 +359,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 {
 	int current_size;
 	int max_entry_nr;
-	int i, ret, has_more_data = 0;
+	int i, ret, has_more_data = CIFSD_RPC_COMMAND_OK;
 
 	/*
 	 * In the NDR representation of a structure that contains a
@@ -371,7 +371,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 
 	max_entry_nr = __max_entries(dce, pipe);
 	if (max_entry_nr != pipe->num_entries)
-		has_more_data = CIFSD_DCERPC_ERROR_MORE_DATA;
+		has_more_data = CIFSD_RPC_COMMAND_ERROR_MORE_DATA;
 
 	/*
 	 * ARRAY representation [per dimension]
@@ -387,7 +387,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 
 	if (max_entry_nr == 0) {
 		pr_err("DCERPC: can't fit any data, buffer is too small\n");
-		return CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+		return CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
 	}
 
 	for (i = 0; i < max_entry_nr; i++) {
@@ -397,7 +397,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 		ret = dce->entry_rep(dce, entry);
 
 		if (ret != 0)
-			return CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+			return CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
 	}
 
 	for (i = 0; i < max_entry_nr; i++) {
@@ -407,7 +407,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 		ret = dce->entry_data(dce, entry);
 
 		if (ret != 0)
-			return CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+			return CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
 	}
 
 	if (pipe->entry_processed) {
@@ -765,14 +765,14 @@ static int rpc_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
 static int srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
 {
 	struct cifsd_rpc_pipe *pipe;
-	int ret = -ENOTSUP;
+	int ret;
 
 	if (srvsvc_parse_share_info_req(dce, &dce->req))
-		return -EINVAL;
+		return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 
 	pipe = rpc_pipe_lookup(dce->rpc_req->handle);
 	if (!pipe)
-		return -EINVAL;
+		return CIFSD_RPC_COMMAND_ERROR_BAD_FID;
 
 	if (pipe->dce) {
 		pr_err("SRVSVC: pipe already has associated DCE\n");
@@ -793,13 +793,13 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 			 struct cifsd_rpc_command *resp)
 {
 	struct cifsd_dcerpc *dce;
-	int ret = -ENOTSUP;
+	int ret;
 
 	dce = dcerpc_ext_alloc(CIFSD_DCERPC_LITTLE_ENDIAN|CIFSD_DCERPC_ALIGN4,
 			       req->payload,
 			       req->payload_sz);
 	if (!dce)
-		return -EINVAL;
+		return CIFSD_RPC_COMMAND_ERROR_NOMEM;
 
 	dce->rpc_req = req;
 	dce->rpc_resp = resp;
@@ -808,7 +808,7 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 	ret |= rpc_parse_dcerpc_request_hdr(dce, &dce->req_hdr);
 	if (ret) {
 		dcerpc_free(dce);
-		return ret;
+		return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 	}
 
 	switch (dce->req_hdr.opnum) {
@@ -823,6 +823,7 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 	default:
 		pr_err("SRVSVC: unsupported method %d\n",
 			dce->req_hdr.opnum);
+		ret = CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
 		dcerpc_free(dce);
 		break;
 	}
@@ -852,7 +853,7 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe,
 		dce->entry_rep = __share_entry_rep_ctr1;
 		dce->entry_data = __share_entry_data_ctr1;
 	} else {
-		ret = CIFSD_DCERPC_ERROR_INVALID_LEVEL;
+		ret = CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
 		goto out;
 	}
 
@@ -866,7 +867,7 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe,
 
 	dce->hdr.ptype = DCERPC_PTYPE_RPC_RESPONSE;
 	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
-	if (ret == CIFSD_DCERPC_ERROR_MORE_DATA)
+	if (ret == CIFSD_RPC_COMMAND_ERROR_MORE_DATA)
 		dce->hdr.pfc_flags = 0;
 
 	ndr_write_bytes(dce, &dce->hdr, sizeof(dce->hdr));
@@ -878,7 +879,7 @@ out:
 	 * [out] DWORD Return value/code
 	 */
 	ndr_write_int32(dce, pipe->num_entries);
-	if (ret == CIFSD_DCERPC_ERROR_MORE_DATA)
+	if (ret == CIFSD_RPC_COMMAND_ERROR_MORE_DATA)
 		ndr_write_int32(dce, 0x01);
 	else
 		ndr_write_int32(dce, 0x00);
@@ -893,12 +894,12 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 {
 	struct cifsd_rpc_pipe *pipe;
 	struct cifsd_dcerpc *dce;
-	int ret = -ENOTSUP;
+	int ret;
 
 	pipe = rpc_pipe_lookup(req->handle);
 	if (!pipe || pipe->dce) {
 		pr_err("SRVSVC: no pipe or pipe has no associated DCE\n");
-		return -EINVAL;
+		return CIFSD_RPC_COMMAND_ERROR_BAD_FID;
 	}
 
 	dce = pipe->dce;
@@ -920,6 +921,7 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 	default:
 		pr_err("SRVSVC: unsupported method %d\n",
 			dce->req_hdr.opnum);
+		ret = CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
 		break;
 	}
 	return ret;
