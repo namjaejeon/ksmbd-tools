@@ -869,14 +869,8 @@ static int __srvsvc_return(struct cifsd_rpc_command *req,
 	int ret = -ENOTSUP;
 
 	pipe = rpc_pipe_lookup(req->handle);
-	if (!pipe || pipe->dce)
-		return -EINVAL;
-
-	if (!pipe)
-		return -EINVAL;
-
-	if (!pipe->dce) {
-		pr_err("SRVSVC: pipe has no associated DCE\n");
+	if (!pipe || pipe->dce) {
+		pr_err("SRVSVC: no pipe or pipe has no associated DCE\n");
 		return -EINVAL;
 	}
 
