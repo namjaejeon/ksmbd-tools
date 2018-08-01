@@ -855,7 +855,7 @@ out:
 	else
 		ndr_write_int32(dce, 0x00);
 	ndr_write_int32(dce, ret);
-
+	dce->rpc_resp->payload_sz = dce->offset;
 	return ret;
 }
 
