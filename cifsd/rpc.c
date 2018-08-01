@@ -739,11 +739,11 @@ static int __srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
 	struct cifsd_rpc_pipe *pipe;
 	int ret = -ENOTSUP;
 
-	pipe = rpc_pipe_lookup(dce->rpc_req->handle);
-	if (!pipe)
+	if (srvsvc_parse_share_info_req(dce, &dce->req))
 		return -EINVAL;
 
-	if (srvsvc_parse_share_info_req(dce, &dce->req))
+	pipe = rpc_pipe_lookup(dce->rpc_req->handle);
+	if (!pipe)
 		return -EINVAL;
 
 	if (pipe->dce) {
@@ -758,7 +758,6 @@ static int __srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
 		ret = srvsvc_share_get_info_invoke(pipe, &dce->req);
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL)
 		ret = srvsvc_share_enum_all_invoke(pipe);
-
 	return ret;
 }
 
