@@ -734,7 +734,7 @@ static int rpc_parse_dcerpc_request_hdr(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-static int __srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
+static int srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
 {
 	struct cifsd_rpc_pipe *pipe;
 	int ret = -ENOTSUP;
@@ -761,8 +761,8 @@ static int __srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
 	return ret;
 }
 
-static int __srvsvc_invoke(struct cifsd_rpc_command *req,
-			   struct cifsd_rpc_command *resp)
+static int srvsvc_invoke(struct cifsd_rpc_command *req,
+			 struct cifsd_rpc_command *resp)
 {
 	struct cifsd_dcerpc *dce;
 	int ret = -ENOTSUP;
@@ -790,7 +790,7 @@ static int __srvsvc_invoke(struct cifsd_rpc_command *req,
 		break;
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		ret = __srvsvc_share_info_invoke(dce);
+		ret = srvsvc_share_info_invoke(dce);
 		break;
 	default:
 		pr_err("SRVSVC: unsupported method %d\n",
@@ -802,8 +802,8 @@ static int __srvsvc_invoke(struct cifsd_rpc_command *req,
 	return ret;
 }
 
-static int __srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe,
-				      struct cifsd_dcerpc *dce)
+static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe,
+				    struct cifsd_dcerpc *dce)
 {
 	int ret, payload_offset;
 
@@ -859,9 +859,9 @@ out:
 	return ret;
 }
 
-static int __srvsvc_return(struct cifsd_rpc_command *req,
-			   struct cifsd_rpc_command *resp,
-			   int max_resp_sz)
+static int srvsvc_return(struct cifsd_rpc_command *req,
+			 struct cifsd_rpc_command *resp,
+			 int max_resp_sz)
 {
 	struct cifsd_rpc_pipe *pipe;
 	struct cifsd_dcerpc *dce;
@@ -887,7 +887,7 @@ static int __srvsvc_return(struct cifsd_rpc_command *req,
 		break;
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		ret = __srvsvc_share_info_return(pipe, dce);
+		ret = srvsvc_share_info_return(pipe, dce);
 		break;
 	default:
 		pr_err("SRVSVC: unsupported method %d\n",
@@ -902,9 +902,9 @@ int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       int max_resp_sz)
 {
 	if (req->flags & CIFSD_RPC_COMMAND_METHOD_INVOKE)
-		return __srvsvc_invoke(req, resp);
+		return srvsvc_invoke(req, resp);
 
-	return __srvsvc_return(req, resp, max_resp_sz);
+	return srvsvc_return(req, resp, max_resp_sz);
 }
 
 int rpc_init(void)
