@@ -417,6 +417,158 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 	return has_more_data;
 }
 
+static struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
+{
+	struct cifsd_rpc_pipe *pipe;
+
+	g_rw_lock_reader_lock(&pipes_table_lock);
+	pipe = g_hash_table_lookup(pipes_table, &id);
+	g_rw_lock_reader_unlock(&pipes_table_lock);
+
+	return pipe;
+}
+
+static void dcerpc_free(struct cifsd_dcerpc *dce)
+{
+	if (!(dce->flags & CIFSD_DCERPC_EXTERNAL_PAYLOAD))
+		free(dce->payload);
+	free(dce);
+}
+
+static struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
+{
+	struct cifsd_dcerpc *dce;
+
+	dce = malloc(sizeof(struct cifsd_dcerpc));
+	if (!dce)
+		return NULL;
+
+	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
+	dce->payload = malloc(sz);
+	if (!dce->payload) {
+		free(dce);
+		return NULL;
+	}
+
+	memset(dce->payload, sz, 0x00);
+	dce->payload_sz = sz;
+	dce->flags = flags;
+
+	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
+		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
+	return dce;
+}
+
+static struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
+					     void *payload,
+					     int payload_sz)
+{
+	struct cifsd_dcerpc *dce;
+
+	dce = malloc(sizeof(struct cifsd_dcerpc));
+	if (!dce)
+		return NULL;
+
+	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
+	dce->payload = payload;
+	dce->payload_sz = payload_sz;
+
+	dce->flags = flags;
+	dce->flags |= CIFSD_DCERPC_EXTERNAL_PAYLOAD;
+	dce->flags |= CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
+	return dce;
+}
+
+static void __rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+{
+	if (pipe->entry_processed) {
+		while (pipe->num_entries)
+			pipe->entry_processed(pipe, 0);
+	}
+
+	if (pipe->dce)
+		dcerpc_free(pipe->dce);
+	g_array_free(pipe->entries, 0);
+	free(pipe);
+}
+
+static void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
+{
+	if (pipe->id != (unsigned int)-1) {
+		g_rw_lock_writer_lock(&pipes_table_lock);
+		g_hash_table_remove(pipes_table, &(pipe->id));
+		g_rw_lock_writer_unlock(&pipes_table_lock);
+	}
+
+	__rpc_pipe_free(pipe);
+}
+
+static struct cifsd_rpc_pipe *rpc_pipe_alloc(void)
+{
+	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
+
+	if (!pipe)
+		return NULL;
+
+	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
+	pipe->id = -1;
+	pipe->entries = g_array_new(0, 0, sizeof(void *));
+	if (!pipe->entries) {
+		rpc_pipe_free(pipe);
+		return NULL;
+	}
+	return pipe;
+}
+
+static struct cifsd_rpc_pipe *rpc_pipe_alloc_bind(unsigned int id)
+{
+	struct cifsd_rpc_pipe *pipe = rpc_pipe_alloc();
+	int ret;
+
+	if (!pipe)
+		return NULL;
+
+	pipe->id = id;
+	g_rw_lock_writer_lock(&pipes_table_lock);
+	ret = g_hash_table_insert(pipes_table, &(pipe->id), pipe);
+	g_rw_lock_writer_unlock(&pipes_table_lock);
+
+	if (!ret) {
+		pipe->id = (unsigned int)-1;
+		rpc_pipe_free(pipe);
+		pipe = NULL;
+	}
+	return pipe;
+}
+
+static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
+{
+	__rpc_pipe_free(s);
+}
+
+static void __clear_pipes_table(void)
+{
+	g_rw_lock_writer_lock(&pipes_table_lock);
+	g_hash_table_foreach(pipes_table, free_hash_entry, NULL);
+	g_rw_lock_writer_unlock(&pipes_table_lock);
+}
+
+int rpc_init(void)
+{
+	pipes_table = g_hash_table_new(g_int_hash, g_int_equal);
+	if (!pipes_table)
+		return -ENOMEM;
+	g_rw_lock_init(&pipes_table_lock);
+	return 0;
+}
+
+void rpc_destroy(void)
+{
+	__clear_pipes_table();
+	g_hash_table_destroy(pipes_table);
+	g_rw_lock_clear(&pipes_table_lock);
+}
+
 static int __share_type(struct cifsd_share *share)
 {
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
@@ -526,130 +678,6 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 	pipe->num_entries++;
 	pipe->entry_processed = __share_entry_processed;
 	return 0;
-}
-
-struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
-{
-	struct cifsd_rpc_pipe *pipe;
-
-	g_rw_lock_reader_lock(&pipes_table_lock);
-	pipe = g_hash_table_lookup(pipes_table, &id);
-	g_rw_lock_reader_unlock(&pipes_table_lock);
-
-	return pipe;
-}
-
-struct cifsd_rpc_pipe *rpc_pipe_alloc_bind(unsigned int id)
-{
-	struct cifsd_rpc_pipe *pipe = rpc_pipe_alloc();
-	int ret;
-
-	if (!pipe)
-		return NULL;
-
-	pipe->id = id;
-	g_rw_lock_writer_lock(&pipes_table_lock);
-	ret = g_hash_table_insert(pipes_table, &(pipe->id), pipe);
-	g_rw_lock_writer_unlock(&pipes_table_lock);
-
-	if (!ret) {
-		pipe->id = (unsigned int)-1;
-		rpc_pipe_free(pipe);
-		pipe = NULL;
-	}
-	return pipe;
-}
-
-struct cifsd_rpc_pipe *rpc_pipe_alloc(void)
-{
-	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
-
-	if (!pipe)
-		return NULL;
-
-	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
-	pipe->id = -1;
-	pipe->entries = g_array_new(0, 0, sizeof(void *));
-	if (!pipe->entries) {
-		rpc_pipe_free(pipe);
-		return NULL;
-	}
-	return pipe;
-}
-
-static void __rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
-{
-	if (pipe->entry_processed) {
-		while (pipe->num_entries)
-			pipe->entry_processed(pipe, 0);
-	}
-
-	if (pipe->dce)
-		dcerpc_free(pipe->dce);
-	g_array_free(pipe->entries, 0);
-	free(pipe);
-}
-
-void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
-{
-	if (pipe->id != (unsigned int)-1) {
-		g_rw_lock_writer_lock(&pipes_table_lock);
-		g_hash_table_remove(pipes_table, &(pipe->id));
-		g_rw_lock_writer_unlock(&pipes_table_lock);
-	}
-
-	__rpc_pipe_free(pipe);
-}
-
-void dcerpc_free(struct cifsd_dcerpc *dce)
-{
-	if (!(dce->flags & CIFSD_DCERPC_EXTERNAL_PAYLOAD))
-		free(dce->payload);
-	free(dce);
-}
-
-struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
-{
-	struct cifsd_dcerpc *dce;
-
-	dce = malloc(sizeof(struct cifsd_dcerpc));
-	if (!dce)
-		return NULL;
-
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = malloc(sz);
-	if (!dce->payload) {
-		free(dce);
-		return NULL;
-	}
-
-	memset(dce->payload, sz, 0x00);
-	dce->payload_sz = sz;
-	dce->flags = flags;
-
-	if (sz == CIFSD_DCERPC_MAX_PREFERRED_SIZE)
-		dce->flags &= ~CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
-	return dce;
-}
-
-struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
-				      void *payload,
-				      int payload_sz)
-{
-	struct cifsd_dcerpc *dce;
-
-	dce = malloc(sizeof(struct cifsd_dcerpc));
-	if (!dce)
-		return NULL;
-
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = payload;
-	dce->payload_sz = payload_sz;
-
-	dce->flags = flags;
-	dce->flags |= CIFSD_DCERPC_EXTERNAL_PAYLOAD;
-	dce->flags |= CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
-	return dce;
 }
 
 static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
@@ -905,32 +933,4 @@ int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		return srvsvc_invoke(req, resp);
 
 	return srvsvc_return(req, resp, max_resp_sz);
-}
-
-int rpc_init(void)
-{
-	pipes_table = g_hash_table_new(g_int_hash, g_int_equal);
-	if (!pipes_table)
-		return -ENOMEM;
-	g_rw_lock_init(&pipes_table_lock);
-	return 0;
-}
-
-static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
-{
-	__rpc_pipe_free(s);
-}
-
-static void __clear_pipes_table(void)
-{
-	g_rw_lock_writer_lock(&pipes_table_lock);
-	g_hash_table_foreach(pipes_table, free_hash_entry, NULL);
-	g_rw_lock_writer_unlock(&pipes_table_lock);
-}
-
-void rpc_destroy(void)
-{
-	__clear_pipes_table();
-	g_hash_table_destroy(pipes_table);
-	g_rw_lock_clear(&pipes_table_lock);
 }

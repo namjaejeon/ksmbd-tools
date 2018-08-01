@@ -226,18 +226,6 @@ struct cifsd_rpc_pipe {
 						   int i);
 };
 
-void dcerpc_free(struct cifsd_dcerpc *dce);
-struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz);
-struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
-				      void *payload,
-				      int payload_sz);
-
-struct cifsd_rpc_pipe *rpc_pipe_alloc_bind(unsigned int id);
-struct cifsd_rpc_pipe *rpc_pipe_alloc(void);
-void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
-
-struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
-
 int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       struct cifsd_rpc_command *resp,
 		       int max_resp_sz);
