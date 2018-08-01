@@ -105,7 +105,6 @@ struct cifsd_logout_request {
 struct cifsd_rpc_command {
 	__u32	handle;
 	__u32	flags;
-	__u32	bytes;
 	__u32	payload_sz;
 	__u8	payload[0];
 };
