@@ -174,23 +174,32 @@ out:
 	return 0;
 }
 
-static int srvsvc_request(struct cifsd_ipc_msg *msg)
+static int rpc_request(struct cifsd_ipc_msg *msg)
 {
 	struct cifsd_rpc_command *req;
 	struct cifsd_rpc_command *resp;
 	struct cifsd_ipc_msg *resp_msg;
-	int sz;
+	int sz = -ENOTSUP;
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
-	resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE);
+	if (req->flags & CIFSD_RPC_COMMAND_METHOD_INVOKE)
+		resp_msg = ipc_msg_alloc(1);
+	else
+		resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE);
 	if (!resp_msg)
 		goto out;
 
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
-	sz = rpc_srvsvc_request(req, resp, CIFSD_IPC_MAX_MESSAGE_SIZE);
-		return -EINVAL;
+	if (req->flags & CIFSD_RPC_COMMAND_SRVSVC_METHOD_RETURN)
+		sz = rpc_srvsvc_request(req, resp, resp_msg->sz);
 
-	resp_msg->type = CIFSD_RPC_COMMAND_SRVSVC_RESPONSE;
+	if (req->flags & CIFSD_RPC_COMMAND_WKS_METHOD_RETURN)
+		sz = 0;
+
+	if (req->flags & CIFSD_RPC_COMMAND_RAP)
+		sz = 0;
+
+	resp_msg->type = CIFSD_RPC_COMMAND_RESPONSE;
 	resp->handle = req->handle;
 	resp->payload_sz = sz;
 
@@ -225,8 +234,8 @@ static void worker_pool_fn(gpointer event, gpointer user_data)
 		share_config_request(msg);
 		break;
 
-	case CIFSD_RPC_COMMAND_SRVSVC_REQUEST:
-		srvsvc_request(msg);
+	case CIFSD_RPC_COMMAND_REQUEST:
+		rpc_request(msg);
 		break;
 
 	case CIFSD_EVENT_HEARTBEAT_REQUEST:

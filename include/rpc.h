@@ -62,21 +62,29 @@
 #define DCERPC_PTYPE_RPC_CO_CANCEL	0x12
 #define DCERPC_PTYPE_RPC_ORPHANED	0x13
 
-#define DCERPC_PFC_FIRST_FRAG	0x01  /* First fragment */
-#define DCERPC_PFC_LAST_FRAG	0x02  /* Last fragment */
-#define DCERPC_PFC_PENDING_CANCEL	0x04  /* Cancel was pending at sender */
-#define DCERPC_PFC_RESERVED_1	0x08
-#define DCERPC_PFC_CONC_MPX	0x10  /* supports concurrent multiplexing
-                                        * of a single connection. */
-#define DCERPC_PFC_DID_NOT_EXECUTE	0x20  /* only meaningful on `fault' packet;
-                                        * if true, guaranteed call did not
-                                        * execute. */
-#define DCERPC_PFC_MAYBE		0x40  /* `maybe' call semantics requested */
-#define DCERPC_PFC_OBJECT_UUID	0x80  /* if true, a non-nil object UUID
-                                        * was specified in the handle, and
-                                        * is present in the optional object
-                                        * field. If false, the object field
-                                        * is omitted. */
+/* First fragment */
+#define DCERPC_PFC_FIRST_FRAG		0x01
+/* Last fragment */
+#define DCERPC_PFC_LAST_FRAG		0x02
+/* Cancel was pending at sender */
+#define DCERPC_PFC_PENDING_CANCEL	0x04
+#define DCERPC_PFC_RESERVED_1		0x08
+/* Supports concurrent multiplexing of a single connection. */
+#define DCERPC_PFC_CONC_MPX		0x10
+
+/*
+ * Only meaningful on `fault' packet; if true, guaranteed
+ * call did not execute.
+ */
+#define DCERPC_PFC_DID_NOT_EXECUTE	0x20
+/* `maybe' call semantics requested */
+#define DCERPC_PFC_MAYBE		0x40
+/*
+ * If true, a non-nil object UUID was specified in the handle, and
+ * is present in the optional object field. If false, the object field
+ * is omitted.
+ */
+#define DCERPC_PFC_OBJECT_UUID		0x80
 
 #define DCERPC_SERIALIZATION_TYPE1		1
 #define DCERPC_SERIALIZATION_TYPE2		2
@@ -167,6 +175,8 @@ struct cifsd_rpc_pipe {
 	int 			num_entries;
 	GArray			*entries;
 
+	int 			flags;
+
 	/*
 	 * Tell pipe that we processed the entry and won't need it
 	 * anymore so it can remove/drop it.
@@ -175,12 +185,13 @@ struct cifsd_rpc_pipe {
 						   int i);
 };
 
+struct cifsd_rpc_command;
+
 struct cifsd_dcerpc {
 	unsigned int		flags;
 	size_t			offset;
 	size_t			payload_sz;
 	char			*payload;
-	unsigned int		num_pointers;
 
 	union {
 		struct dcerpc_header			hdr;
@@ -191,6 +202,9 @@ struct cifsd_dcerpc {
 	union {
 		struct srvsvc_share_info_request	req;
 	};
+
+	struct cifsd_rpc_command	*rpc_req;
+	struct cifsd_rpc_command	*rpc_resp;
 
 	/*
 	 * Find out the estimated entry size under the given container level
@@ -218,7 +232,8 @@ struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
 				      void *payload,
 				      int payload_sz);
 
-struct cifsd_rpc_pipe *rpc_pipe_alloc(unsigned int id);
+struct cifsd_rpc_pipe *rpc_pipe_alloc_bind(unsigned int id);
+struct cifsd_rpc_pipe *rpc_pipe_alloc(void);
 void rpc_pipe_free(struct cifsd_rpc_pipe *pipe);
 
 struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id);
@@ -238,10 +253,9 @@ rpc_srvsvc_share_enum_all(struct cifsd_rpc_pipe *pipe,
 			  unsigned int flags,
 			  int max_preferred_size);
 
-struct cifsd_rpc_command;
 int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       struct cifsd_rpc_command *resp,
-		       int max_resp_size);
+		       int max_resp_sz);
 
 int rpc_init(void);
 void rpc_destroy(void);
