@@ -157,6 +157,35 @@ struct srvsvc_share_info_request {
 	struct ndr_uniq_ptr		payload_handle;
 };
 
+struct dcerpc_guid {
+	__u32		time_low;
+	__u16		time_mid;
+	__u16		time_hi_and_version;
+	__u8		clock_seq[2];
+	__u8		node[6];
+};
+
+struct dcerpc_syntax {
+	struct dcerpc_guid	uuid;
+	__u16			ver_major;
+	__u16			ver_minor;
+};
+
+struct dcerpc_context {
+	__u16			id;
+	__u8			num_syntaxes;
+	struct dcerpc_syntax	abstract_syntax;
+	struct dcerpc_syntax    *transfer_syntaxes;
+};
+
+struct srvsvc_bind_request {
+	__u16			max_xmit_frag_sz;
+	__u16			max_recv_frag_sz;
+	__u32			assoc_group_id;
+	__u8			num_contexts;
+	struct dcerpc_context	*list;
+};
+
 /*
  * So how this is expected to work. First, you need to obtain a snapshot
  * of the data that you want to push to the wire. The data snapshot goes
@@ -181,7 +210,8 @@ struct cifsd_dcerpc {
 		struct dcerpc_request_header		req_hdr;
 	};
 	union {
-		struct srvsvc_share_info_request	req;
+		struct srvsvc_share_info_request	si_req;
+		struct srvsvc_bind_request		bi_req;
 	};
 
 	struct cifsd_rpc_command	*rpc_req;
