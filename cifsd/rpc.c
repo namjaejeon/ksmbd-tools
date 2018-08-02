@@ -119,7 +119,6 @@ static int ndr_write_##name(struct cifsd_dcerpc *dce, type value)	\
 		*PAYLOAD_HEAD(dce) = be(value);				\
 									\
 	dce->offset += sizeof(value);					\
-	align_offset(dce);						\
 	return 0;							\
 }
 
@@ -138,7 +137,6 @@ static type ndr_read_##name(struct cifsd_dcerpc *dce)			\
 		ret = be(*PAYLOAD_HEAD(dce));				\
 									\
 	dce->offset += sizeof(type);					\
-	align_offset(dce);						\
 	return ret;							\
 }
 
@@ -181,7 +179,6 @@ static int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 
 	memcpy(PAYLOAD_HEAD(dce), value, sz);
 	dce->offset += sz;
-	align_offset(dce);
 	return 0;
 }
 
@@ -243,6 +240,7 @@ static int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	ret |= ndr_write_int32(dce, 0);
 	ret |= ndr_write_int32(dce, bytes_written / 2);
 	ret |= ndr_write_bytes(dce, out, bytes_written);
+	align_offset(dce);
 out:
 	g_free(out);
 	return ret;
@@ -771,7 +769,20 @@ static int __dcerpc_read_syntax(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-static void srvsvc_bind_req_free(struct srvsvc_bind_request *hdr)
+static int __dcerpc_write_syntax(struct cifsd_dcerpc *dce,
+				 struct dcerpc_syntax *syn)
+{
+	ndr_write_int32(dce, syn->uuid.time_low);
+	ndr_write_int16(dce, syn->uuid.time_mid);
+	ndr_write_int16(dce, syn->uuid.time_hi_and_version);
+	ndr_write_bytes(dce, syn->uuid.clock_seq, sizeof(syn->uuid.clock_seq));
+	ndr_read_bytes(dce, syn->uuid.node, sizeof(syn->uuid.node));
+	ndr_write_int16(dce, syn->ver_major);
+	ndr_write_int16(dce, syn->ver_minor);
+	return 0;
+}
+
+static void srvsvc_bind_req_free(struct dcerpc_bind_request *hdr)
 {
 	int i;
 
@@ -782,7 +793,7 @@ static void srvsvc_bind_req_free(struct srvsvc_bind_request *hdr)
 }
 
 static int srvsvc_parse_bind_req(struct cifsd_dcerpc *dce,
-				 struct srvsvc_bind_request *hdr)
+				 struct dcerpc_bind_request *hdr)
 {
 	int i, j;
 
@@ -819,47 +830,83 @@ static int srvsvc_parse_bind_req(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-static int srvsvc_bind_invoke(struct cifsd_dcerpc *dce)
+static int srvsvc_bind_invoke(struct cifsd_rpc_pipe *pipe)
 {
-	struct cifsd_rpc_pipe *pipe;
+	struct cifsd_dcerpc *dce;
 	int ret;
 
+	dce = pipe->dce;
 	if (srvsvc_parse_bind_req(dce, &dce->bi_req))
 		return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 
-	pipe = rpc_pipe_lookup(dce->rpc_req->handle);
-	if (!pipe)
-		return CIFSD_RPC_COMMAND_ERROR_BAD_FID;
-
-	if (pipe->dce) {
-		pr_err("SRVSVC: pipe already has associated DCE\n");
-		dcerpc_free(pipe->dce);
-	}
-
-	pipe->dce = dce;
 	pipe->entry_processed = NULL;
+	return CIFSD_RPC_COMMAND_OK;
+}
 
+static int srvsvc_bind_nack_return(struct cifsd_rpc_pipe *pipe,
+				   struct cifsd_dcerpc *dce)
+{
+	return 0;
+}
+
+static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe,
+				  struct cifsd_dcerpc *dce)
+{
+	int ret, payload_offset;
+	char *addr;
+
+	dce->offset = sizeof(struct dcerpc_header);
+
+	ndr_write_int16(dce, dce->bi_req.max_xmit_frag_sz);
+	ndr_write_int16(dce, dce->bi_req.max_recv_frag_sz);
+	ndr_write_int16(dce, dce->bi_req.assoc_group_id);
+
+	if (dce->bi_req.list[0].abstract_syntax.ver_major == 3)
+		addr = "\\PIPE\\srvsvc";
+	else if (dce->bi_req.list[0].abstract_syntax.ver_major == 1)
+		addr = "\\PIPE\\wkssvc";
+	else
+		return CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
+
+	ndr_write_int16(dce, strlen(addr));
+	ndr_write_bytes(dce, addr, strlen(addr));
+	align_offset(dce);
+
+	ret = 1;
+	ndr_write_bytes(dce, &ret, sizeof(__u8));
+
+	ndr_write_int16(dce, DCERPC_BIND_ACK_RESULT_ACCEPT);
+	ndr_write_union(dce, DCERPC_BIND_ACK_REASON_NOT_SPECIFIED);
+	__dcerpc_write_syntax(dce, &dce->bi_req.list[0].transfer_syntaxes[0]);
+
+	payload_offset = dce->offset;
+	dce->offset = 0;
+
+	dce->hdr.ptype = DCERPC_PTYPE_RPC_BINDACK;
+	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
+	dce->hdr.frag_length = payload_offset;
+
+	ndr_write_bytes(dce, &dce->hdr, sizeof(dce->hdr));
+	dce->offset = payload_offset;
+	dce->rpc_resp->payload_sz = dce->offset;
 	return ret;
 }
 
-static int srvsvc_share_info_invoke(struct cifsd_dcerpc *dce)
+static int srvsvc_bind_return(struct cifsd_rpc_pipe *pipe,
+			      struct cifsd_dcerpc *dce)
 {
-	struct cifsd_rpc_pipe *pipe;
+	return srvsvc_bind_ack_return(pipe, dce);
+}
+
+static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
+{
+	struct cifsd_dcerpc *dce;
 	int ret;
 
+	dce = pipe->dce;
 	if (srvsvc_parse_share_info_req(dce, &dce->si_req))
 		return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 
-	pipe = rpc_pipe_lookup(dce->rpc_req->handle);
-	if (!pipe)
-		return CIFSD_RPC_COMMAND_ERROR_BAD_FID;
-
-	if (pipe->dce) {
-		pr_err("SRVSVC: pipe already has associated DCE\n");
-		dcerpc_free(pipe->dce);
-	}
-
-	pipe->dce = dce;
 	pipe->entry_processed = __share_entry_processed;
 
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
@@ -930,15 +977,23 @@ out:
 static int srvsvc_invoke(struct cifsd_rpc_command *req,
 			 struct cifsd_rpc_command *resp)
 {
+	struct cifsd_rpc_pipe *pipe;
 	struct cifsd_dcerpc *dce;
 	int ret;
+
+	pipe = rpc_pipe_alloc_bind(dce->rpc_req->handle);
+	if (!pipe)
+		return CIFSD_RPC_COMMAND_ERROR_NOMEM;
 
 	dce = dcerpc_ext_alloc(CIFSD_DCERPC_LITTLE_ENDIAN|CIFSD_DCERPC_ALIGN4,
 			       req->payload,
 			       req->payload_sz);
-	if (!dce)
+	if (!dce) {
+		rpc_pipe_free(pipe);
 		return CIFSD_RPC_COMMAND_ERROR_NOMEM;
+	}
 
+	pipe->dce = dce;
 	dce->rpc_req = req;
 	dce->rpc_resp = resp;
 
@@ -951,17 +1006,17 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 
 	switch (dce->req_hdr.opnum) {
 	case DCERPC_PTYPE_RPC_BIND:
-		ret = srvsvc_bind_invoke(dce);
+		ret = srvsvc_bind_invoke(pipe);
 		break;
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		ret = srvsvc_share_info_invoke(dce);
+		ret = srvsvc_share_info_invoke(pipe);
 		break;
 	default:
 		pr_err("SRVSVC: unsupported method %d\n",
 			dce->req_hdr.opnum);
 		ret = CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
-		dcerpc_free(dce);
+		rpc_pipe_free(pipe);
 		break;
 	}
 

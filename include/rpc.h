@@ -178,12 +178,43 @@ struct dcerpc_context {
 	struct dcerpc_syntax    *transfer_syntaxes;
 };
 
-struct srvsvc_bind_request {
+struct dcerpc_bind_request {
 	__u16			max_xmit_frag_sz;
 	__u16			max_recv_frag_sz;
 	__u32			assoc_group_id;
 	__u8			num_contexts;
 	struct dcerpc_context	*list;
+};
+
+enum DCERPC_BIND_ACK_RESULT {
+	DCERPC_BIND_ACK_RESULT_ACCEPT				= 0,
+	DCERPC_BIND_ACK_RESULT_USER_REJECT,
+	DCERPC_BIND_ACK_RESULT_PROVIDER_REJECT,
+	DCERPC_BIND_ACK_RESULT_NEGOTIATE_ACK
+};
+
+enum DCERPC_BIND_ACK_REASON {
+	DCERPC_BIND_ACK_REASON_NOT_SPECIFIED			= 0,
+	DCERPC_BIND_ACK_REASON_ABSTRACT_SYNTAX_NOT_SUPPORTED,
+	DCERPC_BIND_ACK_REASON_TRANSFER_SYNTAXES_NOT_SUPPORTED,
+	DCERPC_BIND_ACK_REASON_LOCAL_LIMIT_EXCEEDED
+};
+
+enum DCERPC_BIND_NAX_REASON {
+	DCERPC_BIND_NAK_REASON_NOT_SPECIFIED			= 0,
+	DCERPC_BIND_NAK_REASON_TEMPORARY_CONGESTION		= 1,
+	DCERPC_BIND_NAK_REASON_LOCAL_LIMIT_EXCEEDED		= 2,
+	DCERPC_BIND_NAK_REASON_PROTOCOL_VERSION_NOT_SUPPORTED	= 4,
+	DCERPC_BIND_NAK_REASON_INVALID_AUTH_TYPE		= 8,
+	DCERPC_BIND_NAK_REASON_INVALID_CHECKSUM			= 9
+};
+
+struct dcerpc_bind_ack {
+	int TBD;
+};
+
+struct dcerpc_bind_nack {
+	int TBD;
 };
 
 /*
@@ -211,7 +242,7 @@ struct cifsd_dcerpc {
 	};
 	union {
 		struct srvsvc_share_info_request	si_req;
-		struct srvsvc_bind_request		bi_req;
+		struct dcerpc_bind_request		bi_req;
 	};
 
 	struct cifsd_rpc_command	*rpc_req;
