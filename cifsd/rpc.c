@@ -1000,7 +1000,7 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 
 	ret = rpc_parse_dcerpc_hdr(dce, &dce->hdr);
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
-		ret = srvsvc_bind_invoke(pipe);
+		return srvsvc_bind_invoke(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		return CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
