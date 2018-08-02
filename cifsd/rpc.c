@@ -843,15 +843,14 @@ static int srvsvc_bind_invoke(struct cifsd_rpc_pipe *pipe)
 	return CIFSD_RPC_COMMAND_OK;
 }
 
-static int srvsvc_bind_nack_return(struct cifsd_rpc_pipe *pipe,
-				   struct cifsd_dcerpc *dce)
+static int srvsvc_bind_nack_return(struct cifsd_rpc_pipe *pipe)
 {
 	return 0;
 }
 
-static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe,
-				  struct cifsd_dcerpc *dce)
+static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 {
+	struct cifsd_dcerpc *dce = pipe->dce;
 	int ret, payload_offset;
 	char *addr;
 
@@ -892,10 +891,9 @@ static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe,
 	return ret;
 }
 
-static int srvsvc_bind_return(struct cifsd_rpc_pipe *pipe,
-			      struct cifsd_dcerpc *dce)
+static int srvsvc_bind_return(struct cifsd_rpc_pipe *pipe)
 {
-	return srvsvc_bind_ack_return(pipe, dce);
+	return srvsvc_bind_ack_return(pipe);
 }
 
 static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
@@ -916,9 +914,9 @@ static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
-static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe,
-				    struct cifsd_dcerpc *dce)
+static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 {
+	struct cifsd_dcerpc *dce = pipe->dce;
 	int ret, payload_offset;
 
 	/*
@@ -1049,12 +1047,11 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 
 	switch (dce->req_hdr.opnum) {
 	case DCERPC_PTYPE_RPC_BIND:
-		pr_err("SRVSVC: BIND: %d\n", dce->hdr.ptype);
-		ret = 0;
+		ret = srvsvc_bind_return(pipe);
 		break;
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		ret = srvsvc_share_info_return(pipe, dce);
+		ret = srvsvc_share_info_return(pipe);
 		break;
 	default:
 		pr_err("SRVSVC: unsupported method %d\n",
