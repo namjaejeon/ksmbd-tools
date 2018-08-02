@@ -1003,7 +1003,7 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 		return srvsvc_bind_invoke(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
-		return CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
+		return CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
 
 	ret |= rpc_parse_dcerpc_request_hdr(dce, &dce->req_hdr);
 	if (ret) {
@@ -1051,7 +1051,7 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 		return srvsvc_bind_return(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
-		return CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
+		return CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
 
 	switch (dce->req_hdr.opnum) {
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
