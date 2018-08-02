@@ -359,7 +359,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 {
 	int current_size;
 	int max_entry_nr;
-	int i, ret, has_more_data = CIFSD_RPC_COMMAND_OK;
+	int i, ret = CIFSD_RPC_COMMAND_OK;
 
 	/*
 	 * In the NDR representation of a structure that contains a
@@ -371,7 +371,7 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 
 	max_entry_nr = __max_entries(dce, pipe);
 	if (max_entry_nr != pipe->num_entries)
-		has_more_data = CIFSD_RPC_COMMAND_ERROR_MORE_DATA;
+		ret = CIFSD_RPC_COMMAND_ERROR_MORE_DATA;
 
 	/*
 	 * ARRAY representation [per dimension]
@@ -387,34 +387,30 @@ static int ndr_write_array_of_structs(struct cifsd_dcerpc *dce,
 
 	if (max_entry_nr == 0) {
 		pr_err("DCERPC: can't fit any data, buffer is too small\n");
-		return CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
+		return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 	}
 
 	for (i = 0; i < max_entry_nr; i++) {
 		gpointer entry;
 
 		entry = g_array_index(pipe->entries,  gpointer, i);
-		ret = dce->entry_rep(dce, entry);
-
-		if (ret != 0)
-			return CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
+		if (dce->entry_rep(dce, entry))
+			return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 	}
 
 	for (i = 0; i < max_entry_nr; i++) {
 		gpointer entry;
 
 		entry = g_array_index(pipe->entries,  gpointer, i);
-		ret = dce->entry_data(dce, entry);
-
-		if (ret != 0)
-			return CIFSD_RPC_COMMAND_ERROR_INVALID_LEVEL;
+		if (dce->entry_data(dce, entry))
+			return CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 	}
 
 	if (pipe->entry_processed) {
 		for (i = 0; i < max_entry_nr; i++)
 			pipe->entry_processed(pipe, 0);
 	}
-	return has_more_data;
+	return ret;
 }
 
 static struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
