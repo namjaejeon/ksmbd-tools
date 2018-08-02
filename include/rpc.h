@@ -288,6 +288,11 @@ int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       struct cifsd_rpc_command *resp,
 		       int max_resp_sz);
 
+int rpc_open_request(struct cifsd_rpc_command *req,
+		     struct cifsd_rpc_command *resp);
+int rpc_close_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp);
+
 int rpc_init(void);
 void rpc_destroy(void);
 #endif /* __CIFSD_RPC_H__ */

@@ -1071,3 +1071,36 @@ int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 
 	return srvsvc_invoke(req, resp);
 }
+
+int rpc_open_request(struct cifsd_rpc_command *req,
+		     struct cifsd_rpc_command *resp)
+{
+	struct cifsd_rpc_pipe *pipe;
+
+	pipe = rpc_pipe_lookup(req->handle);
+	if (pipe) {
+		pr_err("RPC: pipe ID collision: %d\n", req->handle);
+		return -EEXIST;
+	}
+
+	pipe = rpc_pipe_alloc_bind(req->handle);
+	if (!pipe)
+		return -ENOMEM;
+	return 0;
+}
+
+int rpc_close_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp)
+{
+	struct cifsd_rpc_pipe *pipe;
+
+	pipe = rpc_pipe_lookup(req->handle);
+	if (pipe) {
+		rpc_pipe_free(pipe);
+		return 0;
+	} else {
+		pr_err("RPC: unknown pipe ID: %d\n", req->handle);
+	}
+
+	return 0;
+}

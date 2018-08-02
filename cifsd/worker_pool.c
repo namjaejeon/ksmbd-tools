@@ -190,6 +190,12 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 		goto out;
 
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
+	if (req->flags & CIFSD_RPC_COMMAND_OPEN)
+		ret = rpc_open_request(req, resp);
+
+	if (req->flags & CIFSD_RPC_COMMAND_CLOSE)
+		ret = rpc_close_request(req, resp);
+
 	if (req->flags & CIFSD_RPC_COMMAND_SRVSVC_METHOD_INVOKE)
 		ret = rpc_srvsvc_request(req, resp, resp_msg->sz);
 
