@@ -1066,8 +1066,8 @@ int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       struct cifsd_rpc_command *resp,
 		       int max_resp_sz)
 {
-	if (req->flags & CIFSD_RPC_COMMAND_METHOD_INVOKE)
-		return srvsvc_invoke(req, resp);
+	if (req->flags & CIFSD_RPC_COMMAND_METHOD_RETURN)
+		return srvsvc_return(req, resp, max_resp_sz);
 
-	return srvsvc_return(req, resp, max_resp_sz);
+	return srvsvc_invoke(req, resp);
 }
