@@ -905,6 +905,7 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe,
 
 	dce->hdr.ptype = DCERPC_PTYPE_RPC_RESPONSE;
 	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
+	dce->hdr.frag_length = payload_offset;
 	if (ret == CIFSD_RPC_COMMAND_ERROR_MORE_DATA)
 		dce->hdr.pfc_flags = 0;
 
