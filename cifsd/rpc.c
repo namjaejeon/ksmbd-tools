@@ -981,9 +981,12 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 	struct cifsd_dcerpc *dce;
 	int ret;
 
-	pipe = rpc_pipe_alloc_bind(dce->rpc_req->handle);
-	if (!pipe)
-		return CIFSD_RPC_COMMAND_ERROR_NOMEM;
+	pipe = rpc_pipe_lookup(req->handle);
+	if (!pipe) {
+		pipe = rpc_pipe_alloc_bind(req->handle);
+		if (!pipe)
+			return CIFSD_RPC_COMMAND_ERROR_NOMEM;
+	}
 
 	dce = dcerpc_ext_alloc(CIFSD_DCERPC_LITTLE_ENDIAN|CIFSD_DCERPC_ALIGN4,
 			       req->payload,
