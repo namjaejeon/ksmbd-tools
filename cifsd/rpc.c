@@ -999,6 +999,12 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 	dce->rpc_resp = resp;
 
 	ret = rpc_parse_dcerpc_hdr(dce, &dce->hdr);
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+		ret = srvsvc_bind_invoke(pipe);
+
+	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
+		return CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
+
 	ret |= rpc_parse_dcerpc_request_hdr(dce, &dce->req_hdr);
 	if (ret) {
 		dcerpc_free(dce);
@@ -1006,9 +1012,6 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 	}
 
 	switch (dce->req_hdr.opnum) {
-	case DCERPC_PTYPE_RPC_BIND:
-		ret = srvsvc_bind_invoke(pipe);
-		break;
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
 		ret = srvsvc_share_info_invoke(pipe);
@@ -1020,7 +1023,6 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 		rpc_pipe_free(pipe);
 		break;
 	}
-
 	return ret;
 }
 
@@ -1045,10 +1047,13 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 	dce->payload = resp->payload;
 	dce->payload_sz = max_resp_sz;
 
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+		return srvsvc_bind_return(pipe);
+
+	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
+		return CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
+
 	switch (dce->req_hdr.opnum) {
-	case DCERPC_PTYPE_RPC_BIND:
-		ret = srvsvc_bind_return(pipe);
-		break;
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
 		ret = srvsvc_share_info_return(pipe);
