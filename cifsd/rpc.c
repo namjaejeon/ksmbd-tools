@@ -776,7 +776,7 @@ static int __dcerpc_write_syntax(struct cifsd_dcerpc *dce,
 	ndr_write_int16(dce, syn->uuid.time_mid);
 	ndr_write_int16(dce, syn->uuid.time_hi_and_version);
 	ndr_write_bytes(dce, syn->uuid.clock_seq, sizeof(syn->uuid.clock_seq));
-	ndr_read_bytes(dce, syn->uuid.node, sizeof(syn->uuid.node));
+	ndr_write_bytes(dce, syn->uuid.node, sizeof(syn->uuid.node));
 	ndr_write_int16(dce, syn->ver_major);
 	ndr_write_int16(dce, syn->ver_minor);
 	return 0;
