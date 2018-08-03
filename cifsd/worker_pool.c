@@ -199,7 +199,7 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 	if (req->flags & CIFSD_RPC_COMMAND_SRVSVC_METHOD_INVOKE)
 		ret = rpc_srvsvc_request(req, resp, resp_msg->sz);
 
-	if (req->flags & CIFSD_RPC_COMMAND_WKS_METHOD_INVOKE)
+	if (req->flags & CIFSD_RPC_COMMAND_WKSSVC_METHOD_INVOKE)
 		ret = 0;
 
 	if (req->flags & CIFSD_RPC_COMMAND_RAP)
