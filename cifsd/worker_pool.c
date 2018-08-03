@@ -185,7 +185,7 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 	if (req->flags & CIFSD_RPC_COMMAND_METHOD_RETURN)
 		resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE);
 	else
-		resp_msg = ipc_msg_alloc(1);
+		resp_msg = ipc_msg_alloc(sizeof(struct cifsd_rpc_command));
 	if (!resp_msg)
 		goto out;
 
