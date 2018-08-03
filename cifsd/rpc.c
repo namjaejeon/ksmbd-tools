@@ -1091,7 +1091,7 @@ int rpc_open_request(struct cifsd_rpc_command *req,
 	pipe = rpc_pipe_alloc_bind(req->handle);
 	if (!pipe)
 		return -ENOMEM;
-	return 0;
+	return CIFSD_RPC_COMMAND_OK;
 }
 
 int rpc_close_request(struct cifsd_rpc_command *req,
@@ -1106,6 +1106,5 @@ int rpc_close_request(struct cifsd_rpc_command *req,
 	} else {
 		pr_err("RPC: unknown pipe ID: %d\n", req->handle);
 	}
-
-	return 0;
+	return CIFSD_RPC_COMMAND_OK;
 }
