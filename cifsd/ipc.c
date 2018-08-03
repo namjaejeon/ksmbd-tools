@@ -309,7 +309,7 @@ static struct genl_cmd cifsd_genl_cmds[] = {
 	{
 		.c_id		= CIFSD_RPC_COMMAND_REQUEST,
 		.c_attr_policy	= cifsd_nl_policy,
-		.c_msg_parser	= &handle_unsupported_event,
+		.c_msg_parser	= &handle_generic_event,
 		.c_maxattr	= CIFSD_EVENT_MAX,
 	},
 	{
@@ -342,7 +342,7 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 
 	nlmsg_set_proto(nlmsg, NETLINK_GENERIC);
 	hdr = genlmsg_put(nlmsg, getpid(), 0, cifsd_family_ops.o_id,
-			  0, NLM_F_MULTI, msg->type, CIFSD_GENL_VERSION);
+			  0, 0, msg->type, CIFSD_GENL_VERSION);
 	if (!hdr)
 		goto out_error;
 
