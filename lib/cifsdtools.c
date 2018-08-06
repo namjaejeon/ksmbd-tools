@@ -48,6 +48,39 @@ void __pr_log(const char *fmt,...)
 	printf("%s", buf);
 }
 
+void pr_hex_dump(const void *mem, size_t sz)
+{
+	const int WIDTH = 160;
+	int xi = 0, si = 0, mi = 0;
+	char xline[WIDTH];
+	char sline[WIDTH];
+
+	while (mi < sz) {
+		char c = *((char *)mem + mi);
+
+		mi++;
+		xi += sprintf(xline + xi, "%02X ", 0xff & c);
+		if (c > ' ' && c < '~')
+			si += sprintf(sline + si, "%c", c);
+		else
+			si += sprintf(sline + si, ".");
+		if (xi >= WIDTH / 2) {
+			pr_err("%s         %s\n", xline, sline);
+			xi = 0;
+			si = 0;
+		}
+	}
+
+	if (xi) {
+		int sz = WIDTH / 2 - xi + 1;
+		if (sz > 0) {
+			memset(xline + xi, ' ', sz);
+			xline[WIDTH / 2 + 1] = 0x00;
+		}
+		pr_err("%s         %s\n", xline, sline);
+	}
+}
+
 char *base64_encode(unsigned char *src, size_t srclen)
 {
 	return g_base64_encode(src, srclen);

@@ -78,6 +78,8 @@ extern void __pr_log(const char *fmt,...);
 	pr_log(PR_ERROR, PRERR f, ##__VA_ARGS__)
 //---------------------------------------------------------------//
 
+void pr_hex_dump(const void *mem, size_t sz);
+
 char *base64_encode(unsigned char *src, size_t srclen);
 unsigned char *base64_decode(char const *src, size_t *dstlen);
 
