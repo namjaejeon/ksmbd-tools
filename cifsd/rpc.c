@@ -972,31 +972,10 @@ out:
 	return ret;
 }
 
-static int srvsvc_invoke(struct cifsd_rpc_command *req,
-			 struct cifsd_rpc_command *resp)
+static int __srvsvc_invoke(struct cifsd_rpc_pipe *pipe)
 {
-	struct cifsd_rpc_pipe *pipe;
-	struct cifsd_dcerpc *dce;
+	struct cifsd_dcerpc *dce = pipe->dce;
 	int ret;
-
-	pipe = rpc_pipe_lookup(req->handle);
-	if (!pipe) {
-		pipe = rpc_pipe_alloc_bind(req->handle);
-		if (!pipe)
-			return CIFSD_RPC_COMMAND_ERROR_NOMEM;
-	}
-
-	dce = dcerpc_ext_alloc(CIFSD_DCERPC_LITTLE_ENDIAN|CIFSD_DCERPC_ALIGN4,
-			       req->payload,
-			       req->payload_sz);
-	if (!dce) {
-		rpc_pipe_free(pipe);
-		return CIFSD_RPC_COMMAND_ERROR_NOMEM;
-	}
-
-	pipe->dce = dce;
-	dce->rpc_req = req;
-	dce->rpc_resp = resp;
 
 	ret = rpc_parse_dcerpc_hdr(dce, &dce->hdr);
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
@@ -1026,6 +1005,60 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 	return ret;
 }
 
+static int srvsvc_invoke(struct cifsd_rpc_command *req,
+			 struct cifsd_rpc_command *resp)
+{
+	struct cifsd_rpc_pipe *pipe;
+	struct cifsd_dcerpc *dce;
+
+	pipe = rpc_pipe_lookup(req->handle);
+	if (!pipe) {
+		pipe = rpc_pipe_alloc_bind(req->handle);
+		if (!pipe)
+			return CIFSD_RPC_COMMAND_ERROR_NOMEM;
+	}
+
+	dce = dcerpc_ext_alloc(CIFSD_DCERPC_LITTLE_ENDIAN|CIFSD_DCERPC_ALIGN4,
+			       req->payload,
+			       req->payload_sz);
+	if (!dce) {
+		rpc_pipe_free(pipe);
+		return CIFSD_RPC_COMMAND_ERROR_NOMEM;
+	}
+
+	pipe->dce = dce;
+	dce->rpc_req = req;
+	dce->rpc_resp = resp;
+
+	return __srvsvc_invoke(pipe);
+}
+
+static int __srvsvc_return(struct cifsd_rpc_pipe *pipe,
+			   int max_resp_sz)
+{
+	struct cifsd_dcerpc *dce = pipe->dce;
+	int ret;
+
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+		return srvsvc_bind_return(pipe);
+
+	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
+		return CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
+
+	switch (dce->req_hdr.opnum) {
+	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
+	case SRVSVC_OPNUM_GET_SHARE_INFO:
+		ret = srvsvc_share_info_return(pipe);
+		break;
+	default:
+		pr_err("SRVSVC: unsupported method %d\n",
+			dce->req_hdr.opnum);
+		ret = CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
+		break;
+	}
+	return ret;
+}
+
 static int srvsvc_return(struct cifsd_rpc_command *req,
 			 struct cifsd_rpc_command *resp,
 			 int max_resp_sz)
@@ -1047,24 +1080,7 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 	dce->payload = resp->payload;
 	dce->payload_sz = max_resp_sz;
 
-	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
-		return srvsvc_bind_return(pipe);
-
-	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
-		return CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
-
-	switch (dce->req_hdr.opnum) {
-	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
-	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		ret = srvsvc_share_info_return(pipe);
-		break;
-	default:
-		pr_err("SRVSVC: unsupported method %d\n",
-			dce->req_hdr.opnum);
-		ret = CIFSD_RPC_COMMAND_ERROR_BAD_FUNC;
-		break;
-	}
-	return ret;
+	return __srvsvc_return(pipe, max_resp_sz);
 }
 
 int rpc_srvsvc_request(struct cifsd_rpc_command *req,
