@@ -33,6 +33,24 @@ static GHashTable	*pipes_table;
 static GRWLock		pipes_table_lock;
 
 /*
+ * Version 2.0 data representation protocol
+ *
+ * UUID: 8a885d04-1ceb-11c9-9fe8-08002b104860
+ * VERSION: 2
+ */
+static struct dcerpc_syntax known_syntaxes[] = {
+	{
+		.uuid.time_low = 0x8a885d04,
+		.uuid.time_mid = 0x1ceb,
+		.uuid.time_hi_and_version = 0x11c9,
+		.uuid.clock_seq = {0x9f, 0xe8},
+		.uuid.node = {0x8, 0x0, 0x2b, 0x10, 0x48, 0x60},
+		.ver_major = 0x2,
+		.ver_minor = 0x0,
+	},
+};
+
+/*
  * We need a proper DCE RPC (ndr/ndr64) parser. And we also need a proper
  * IDL support...
  * Maybe someone smart and cool enough can do it for us. The one you can
@@ -903,10 +921,36 @@ static int srvsvc_bind_invoke(struct cifsd_rpc_pipe *pipe)
 
 static int srvsvc_bind_nack_return(struct cifsd_rpc_pipe *pipe)
 {
-	return 0;
+	struct cifsd_dcerpc *dce = pipe->dce;
+	int i, payload_offset;
+
+	dce->offset = sizeof(struct dcerpc_header);
+
+	ndr_write_int16(dce,
+			DCERPC_BIND_NAK_REASON_PROTOCOL_VERSION_NOT_SUPPORTED);
+	ndr_write_int8(dce, ARRAY_SIZE(known_syntaxes));
+	auto_align_offset(dce);
+
+	for (i = 0; i < ARRAY_SIZE(known_syntaxes); i++) {
+		ndr_write_int8(dce, known_syntaxes[i].ver_major);
+		ndr_write_int8(dce, known_syntaxes[i].ver_minor);
+	}
+
+	payload_offset = dce->offset;
+	dce->offset = 0;
+
+	dce->hdr.ptype = DCERPC_PTYPE_RPC_BINDNACK;
+	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
+	dce->hdr.frag_length = payload_offset;
+	dcerpc_hdr_write(dce, &dce->hdr);
+
+	dce->offset = payload_offset;
+	dce->rpc_resp->payload_sz = dce->offset;
+	return CIFSD_RPC_COMMAND_OK;
 }
 
-static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe,
+				  int syntax_idx)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
 	int num_trans, i, payload_offset;
@@ -935,10 +979,7 @@ static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 
 	ndr_write_int16(dce, DCERPC_BIND_ACK_RESULT_ACCEPT);
 	NDR_WRITE_UNION(dce, int16, DCERPC_BIND_ACK_REASON_NOT_SPECIFIED);
-	for (i = 0; i < num_trans; i++) {
-		__dcerpc_write_syntax(dce,
-				&dce->bi_req.list[i].transfer_syntaxes[0]);
-	}
+	__dcerpc_write_syntax(dce, &known_syntaxes[syntax_idx]);
 
 	payload_offset = dce->offset;
 	dce->offset = 0;
@@ -953,9 +994,55 @@ static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 	return CIFSD_RPC_COMMAND_OK;
 }
 
+static int compare_transfer_syntaxes(struct dcerpc_syntax *a,
+				     struct dcerpc_syntax *b)
+{
+	if (a->uuid.time_low != b->uuid.time_low)
+		return -1;
+	if (a->uuid.time_mid != b->uuid.time_mid)
+		return -1;
+	if (a->uuid.time_hi_and_version != b->uuid.time_hi_and_version)
+		return -1;
+	if (memcmp(a->uuid.clock_seq,
+		   b->uuid.clock_seq,
+		   sizeof(a->uuid.clock_seq)))
+		return -1;
+	if (memcmp(a->uuid.node,
+		   b->uuid.node,
+		   sizeof(a->uuid.node)))
+		return -1;
+	if (a->ver_major != b->ver_major)
+		return -1;
+	return 0;
+}
+
 static int srvsvc_bind_return(struct cifsd_rpc_pipe *pipe)
 {
-	return srvsvc_bind_ack_return(pipe);
+	struct cifsd_dcerpc *dce = pipe->dce;
+	int i, j, k, syntax_idx = -1;
+
+	for (i = 0; i < dce->bi_req.num_contexts; i++) {
+		for (j = 0; j < dce->bi_req.list[i].num_syntaxes; j++) {
+			for (k = 0; k < ARRAY_SIZE(known_syntaxes); k++) {
+				static struct dcerpc_syntax *a;
+				static struct dcerpc_syntax *b;
+
+				a = &known_syntaxes[k];
+				b = &dce->bi_req.list[i].transfer_syntaxes[j];
+				if (!compare_transfer_syntaxes(a, b)) {
+					syntax_idx = k;
+					break;
+				}
+			}
+		}
+	}
+
+	if (syntax_idx == -1) {
+		pr_err("Unsupported transfer syntax\n");
+		return srvsvc_bind_nack_return(pipe);
+	}
+
+	return srvsvc_bind_ack_return(pipe, syntax_idx);
 }
 
 static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)

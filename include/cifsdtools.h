@@ -47,6 +47,8 @@
 
 static int cifsd_health_status;
 
+#define ARRAY_SIZE(X) (sizeof(X) / sizeof((X)[0]))
+
 //---------------------------------------------------------------//
 #define LOGAPP		"[%s/%d]:"
 #define PRERR		LOGAPP" ERROR: "

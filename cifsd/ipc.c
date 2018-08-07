@@ -320,8 +320,6 @@ static struct genl_cmd cifsd_genl_cmds[] = {
 	},
 };
 
-#define ARRAY_SIZE(X) (sizeof(X) / sizeof((X)[0]))
-
 static struct genl_ops cifsd_family_ops = {
 	.o_name = CIFSD_GENL_NAME,
 	.o_cmds = cifsd_genl_cmds,
