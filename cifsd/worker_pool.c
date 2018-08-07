@@ -183,7 +183,8 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
 	if (req->flags & CIFSD_RPC_COMMAND_METHOD_RETURN)
-		resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE);
+		resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE -
+				sizeof(struct cifsd_rpc_command));
 	else
 		resp_msg = ipc_msg_alloc(sizeof(struct cifsd_rpc_command));
 	if (!resp_msg)
@@ -195,16 +196,19 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 		ret = rpc_open_request(req, resp);
 	else if (req->flags & CIFSD_RPC_COMMAND_CLOSE)
 		ret = rpc_close_request(req, resp);
-	else if (req->flags & CIFSD_RPC_COMMAND_SRVSVC_METHOD_INVOKE)
-		ret = rpc_srvsvc_request(req, resp, resp_msg->sz);
-	else if (req->flags & CIFSD_RPC_COMMAND_WKSSVC_METHOD_INVOKE)
-		ret = 0;
+	else if (req->flags & CIFSD_RPC_COMMAND_IOCTL)
+		ret = rpc_ioctl_request(req, resp, resp_msg->sz);
+	else if (req->flags & CIFSD_RPC_COMMAND_WRITE)
+		ret = rpc_read_request(req, resp, resp_msg->sz);
+	else if (req->flags & CIFSD_RPC_COMMAND_READ)
+		ret = rpc_write_request(req, resp, resp_msg->sz);
 	else if (req->flags & CIFSD_RPC_COMMAND_RAP)
 		ret = 0;
 
 	resp_msg->type = CIFSD_RPC_COMMAND_RESPONSE;
 	resp->handle = req->handle;
 	resp->flags = ret;
+	resp_msg->sz = sizeof(struct cifsd_rpc_command) + resp->payload_sz;
 
 	ipc_msg_send(resp_msg);
 out:

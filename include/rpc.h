@@ -85,7 +85,7 @@
 
 #define DCERPC_SERIALIZATION_TYPE1		1
 #define DCERPC_SERIALIZATION_TYPE2		2
-#define DCERPC_SERIALIZATION_LITTLE_ENDIAN	0x11
+#define DCERPC_SERIALIZATION_LITTLE_ENDIAN	0x10
 #define DCERPC_SERIALIZATION_BIG_ENDIAN		0x00
 
 struct dcerpc_header {
@@ -105,13 +105,19 @@ struct dcerpc_header {
 };
 
 struct dcerpc_request_header {
-	__u32 alloc_hint;
-	__u16 context_id;
-	__u16 opnum;
+	__u32	alloc_hint;
+	__u16	context_id;
+	__u16	opnum;
 	/*
 	 * SWITCH dcerpc_object object;
 	 * PAYLOAD_BLOB;
 	 */
+};
+
+struct dcerpc_response_header {
+	__u32	alloc_hint;
+	__u16	context_id;
+	__u8	cancel_count;
 };
 
 /*
@@ -239,6 +245,7 @@ struct cifsd_dcerpc {
 	};
 	union {
 		struct dcerpc_request_header		req_hdr;
+		struct dcerpc_response_header		resp_hdr;
 	};
 	union {
 		struct srvsvc_share_info_request	si_req;
@@ -288,10 +295,23 @@ int rpc_srvsvc_request(struct cifsd_rpc_command *req,
 		       struct cifsd_rpc_command *resp,
 		       int max_resp_sz);
 
+int rpc_read_request(struct cifsd_rpc_command *req,
+		     struct cifsd_rpc_command *resp,
+		     int max_resp_sz);
+
+int rpc_write_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp,
+		      int max_resp_sz);
+
 int rpc_open_request(struct cifsd_rpc_command *req,
 		     struct cifsd_rpc_command *resp);
+
 int rpc_close_request(struct cifsd_rpc_command *req,
 		      struct cifsd_rpc_command *resp);
+
+int rpc_ioctl_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp,
+		      int max_resp_sz);
 
 int rpc_init(void);
 void rpc_destroy(void);
