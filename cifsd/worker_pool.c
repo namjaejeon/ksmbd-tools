@@ -202,8 +202,10 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 		ret = rpc_write_request(req, resp, resp_msg->sz);
 	else if (req->flags & CIFSD_RPC_COMMAND_READ)
 		ret = rpc_read_request(req, resp, resp_msg->sz);
-	else if (req->flags & CIFSD_RPC_COMMAND_RAP)
+	else if (req->flags & CIFSD_RPC_COMMAND_RAP) {
+		pr_err("RAP command is not supported yet\n");
 		ret = 0;
+	}
 
 	resp_msg->type = CIFSD_RPC_COMMAND_RESPONSE;
 	resp->handle = req->handle;
