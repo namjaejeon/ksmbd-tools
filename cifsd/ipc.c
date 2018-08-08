@@ -30,9 +30,9 @@
 
 #include <linux/cifsd_server.h>
 
-#include <ipc.h>
 #include <cifsdtools.h>
-#include <worker_pool.h>
+#include <ipc.h>
+#include <worker.h>
 
 static struct nl_sock *sk;
 

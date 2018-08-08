@@ -23,7 +23,7 @@
 #include <linux/cifsd_server.h>
 
 #include <cifsdtools.h>
-#include <worker_pool.h>
+#include <worker.h>
 #include <ipc.h>
 #include <rpc.h>
 

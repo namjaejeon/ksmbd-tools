@@ -28,7 +28,7 @@
 
 #include <ipc.h>
 #include <rpc.h>
-#include <worker_pool.h>
+#include <worker.h>
 #include <management/user.h>
 #include <management/share.h>
 #include <management/session.h>

@@ -18,8 +18,8 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef __CIFSD_WORKER_POOL_H__
-#define __CIFSD_WORKER_POOL_H__
+#ifndef __CIFSD_WORKER__H__
+#define __CIFSD_WORKER__H__
 
 struct cifsd_ipc_msg;
 
@@ -27,4 +27,4 @@ int wp_ipc_msg_push(struct cifsd_ipc_msg *msg);
 void wp_destroy(void);
 int wp_init(void);
 
-#endif /* __CIFSD_WORKER_POOL_H__ */
+#endif /* __CIFSD_WORKER_H__ */
