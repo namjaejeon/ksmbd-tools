@@ -937,7 +937,7 @@ static int __dcerpc_write_syntax(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-static void srvsvc_bind_req_free(struct dcerpc_bind_request *hdr)
+static void dcerpc_bind_req_free(struct dcerpc_bind_request *hdr)
 {
 	int i;
 
@@ -988,7 +988,7 @@ static int srvsvc_parse_bind_req(struct cifsd_dcerpc *dce,
 	return CIFSD_RPC_COMMAND_OK;
 }
 
-static int srvsvc_bind_invoke(struct cifsd_rpc_pipe *pipe)
+static int dcerpc_bind_invoke(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce;
 	int ret;
@@ -1027,7 +1027,7 @@ static int dcerpc_syntax_supported(struct dcerpc_syntax *a)
 	return -1;
 }
 
-static int srvsvc_bind_nack_return(struct cifsd_rpc_pipe *pipe)
+static int dcerpc_bind_nack_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
 	int i, payload_offset;
@@ -1057,7 +1057,7 @@ static int srvsvc_bind_nack_return(struct cifsd_rpc_pipe *pipe)
 	return CIFSD_RPC_COMMAND_OK;
 }
 
-static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
+static int dcerpc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
 	int num_trans, i, payload_offset;
@@ -1125,7 +1125,7 @@ static int srvsvc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 	return CIFSD_RPC_COMMAND_OK;
 }
 
-static int srvsvc_bind_return(struct cifsd_rpc_pipe *pipe)
+static int dcerpc_bind_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
 	int i, j, k, ack = 0;
@@ -1144,10 +1144,10 @@ static int srvsvc_bind_return(struct cifsd_rpc_pipe *pipe)
 
 	if (!ack) {
 		pr_err("Unsupported transfer syntax\n");
-		return srvsvc_bind_nack_return(pipe);
+		return dcerpc_bind_nack_return(pipe);
 	}
 
-	return srvsvc_bind_ack_return(pipe);
+	return dcerpc_bind_ack_return(pipe);
 }
 
 static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
@@ -1267,7 +1267,7 @@ static int srvsvc_invoke(struct cifsd_rpc_command *req,
 		CIFSD_RPC_COMMAND_ERROR_BAD_DATA;
 
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
-		return srvsvc_bind_invoke(pipe);
+		return dcerpc_bind_invoke(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		return CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
@@ -1313,7 +1313,7 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 	dcerpc_set_ext_payload(dce, resp->payload, max_resp_sz);
 
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
-		return srvsvc_bind_return(pipe);
+		return dcerpc_bind_return(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		return CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
