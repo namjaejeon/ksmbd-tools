@@ -39,7 +39,7 @@
 #include <config.h>
 #endif
 
-#define PATH_PWDDB	"/etc/cifs/cifspwd.db2"
+#define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
 #define CIFSD_HEALTH_START	0
