@@ -803,7 +803,7 @@ static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
 	struct cifsd_dcerpc *dce = pipe->dce;
 
 	NDR_WRITE_UNION(dce, int32, dce->si_req.level);
-	return __ndr_write_array_of_structs(pipe, pipe->num_entries);
+	return __ndr_write_array_of_structs(pipe, 1);
 }
 
 static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
