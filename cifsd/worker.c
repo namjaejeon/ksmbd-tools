@@ -207,7 +207,7 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 		ret = CIFSD_RPC_ENOTIMPLEMENTED;
 	}
 
-	resp_msg->type = CIFSD_RPC_COMMAND_RESPONSE;
+	resp_msg->type = CIFSD_EVENT_RPC_RESPONSE;
 	resp->handle = req->handle;
 	resp->flags = ret;
 	resp_msg->sz = sizeof(struct cifsd_rpc_command) + resp->payload_sz;
@@ -243,7 +243,7 @@ static void worker_pool_fn(gpointer event, gpointer user_data)
 		share_config_request(msg);
 		break;
 
-	case CIFSD_RPC_COMMAND_REQUEST:
+	case CIFSD_EVENT_RPC_REQUEST:
 		rpc_request(msg);
 		break;
 

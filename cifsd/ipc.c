@@ -218,11 +218,11 @@ static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
 		.minlen = sizeof(struct cifsd_logout_request),
 	},
 
-	[CIFSD_RPC_COMMAND_REQUEST] = {
+	[CIFSD_EVENT_RPC_REQUEST] = {
 		.minlen = sizeof(struct cifsd_rpc_command),
 	},
 
-	[CIFSD_RPC_COMMAND_RESPONSE] = {
+	[CIFSD_EVENT_RPC_RESPONSE] = {
 		.minlen = sizeof(struct cifsd_rpc_command),
 	},
 };
@@ -307,13 +307,13 @@ static struct genl_cmd cifsd_genl_cmds[] = {
 		.c_maxattr	= CIFSD_EVENT_MAX,
 	},
 	{
-		.c_id		= CIFSD_RPC_COMMAND_REQUEST,
+		.c_id		= CIFSD_EVENT_RPC_REQUEST,
 		.c_attr_policy	= cifsd_nl_policy,
 		.c_msg_parser	= &handle_generic_event,
 		.c_maxattr	= CIFSD_EVENT_MAX,
 	},
 	{
-		.c_id		= CIFSD_RPC_COMMAND_RESPONSE,
+		.c_id		= CIFSD_EVENT_RPC_RESPONSE,
 		.c_attr_policy	= cifsd_nl_policy,
 		.c_msg_parser	= &handle_unsupported_event,
 		.c_maxattr	= CIFSD_EVENT_MAX,
