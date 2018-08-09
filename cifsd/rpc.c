@@ -875,12 +875,6 @@ static int dcerpc_hdr_read(struct cifsd_dcerpc *dce,
 	 */
 	ndr_read_bytes(dce, &hdr->packed_drep, sizeof(hdr->packed_drep));
 
-//	if (hdr->packed_drep[0] == DCERPC_SERIALIZATION_TYPE2) {
-//		pr_err("DCERPC: unsupported serialization type %d\n",
-//				hdr->packed_drep[0]);
-//		return -EINVAL;
-//	}
-
 	dce->flags |= CIFSD_DCERPC_ALIGN4;
 	dce->flags |= CIFSD_DCERPC_LITTLE_ENDIAN;
 	if (hdr->packed_drep[0] != DCERPC_SERIALIZATION_LITTLE_ENDIAN)
