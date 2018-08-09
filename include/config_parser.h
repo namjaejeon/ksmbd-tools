@@ -33,25 +33,6 @@ struct smbconf_parser {
 	struct smbconf_group	*current;
 };
 
-#define CIFSD_CONF_MAP_TO_GUEST_NEVER		(0)
-#define CIFSD_CONF_MAP_TO_GUEST_BAD_USER	(1 << 0)
-#define CIFSD_CONF_MAP_TO_GUEST_BAD_PASSWORD	(1 << 1)
-#define CIFSD_CONF_MAP_TO_GUEST_BAD_UID		(1 << 2)
-
-struct smbconf_global {
-	int			map_to_guest;
-	char			*guest_account;
-
-	char			*server_string;
-	char			*workgroup;
-	char			*netbios_name;
-	char			*server_signing;
-	char			*server_min_protocol;
-	char			*server_max_protocol;
-};
-
-extern struct smbconf_global global_conf;
-
 int cp_parse_pwddb(const char *pwddb);
 int cp_parse_smbconf(const char *smbconf);
 
@@ -60,6 +41,7 @@ char *cp_get_group_kv_string(char *v);
 int cp_get_group_kv_bool(char *v);
 long cp_get_group_kv_long_base(char *v, int base);
 long cp_get_group_kv_long(char *v);
+int cp_get_group_kv_config_opt(char *v);
 char **cp_get_group_kv_list(char *v);
 void cp_group_kv_list_free(char **list);
 

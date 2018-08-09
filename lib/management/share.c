@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
+#include <config_parser.h>
 #include <linux/cifsd_server.h>
 
-#include <config_parser.h>
 #include <management/share.h>
 #include <management/user.h>
 #include <cifsdtools.h>

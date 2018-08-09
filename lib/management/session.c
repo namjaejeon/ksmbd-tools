@@ -23,7 +23,6 @@
 #include <glib.h>
 #include <linux/cifsd_server.h>
 
-#include <config_parser.h>
 #include <management/session.h>
 #include <management/tree_conn.h>
 #include <management/user.h>

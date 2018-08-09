@@ -114,7 +114,7 @@ static int handle_unsupported_event(struct nl_cache_ops *unused,
 
 static int ipc_cifsd_starting_up(void)
 {
-	struct cifsd_startup_shutdown *ev;
+	struct cifsd_startup_request *ev;
 	struct cifsd_ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
 	int ret;
 
@@ -124,7 +124,19 @@ static int ipc_cifsd_starting_up(void)
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
-	strncpy(ev->reserved, "HELO", sizeof(ev->reserved));
+	ev->signing = global_conf.server_signing;
+	if (global_conf.netbios_name)
+		memcpy(ev->netbios_name,
+		       global_conf.netbios_name,
+		       sizeof(ev->netbios_name));
+	if (global_conf.server_min_protocol)
+		memcpy(ev->min_prot,
+		       global_conf.server_min_protocol,
+		       sizeof(ev->min_prot));
+	if (global_conf.server_max_protocol)
+		memcpy(ev->max_prot,
+		       global_conf.server_max_protocol,
+		       sizeof(ev->max_prot));
 
 	ret = ipc_msg_send(msg);
 	ipc_msg_free(msg);
@@ -133,7 +145,7 @@ static int ipc_cifsd_starting_up(void)
 
 static int ipc_cifsd_shutting_down(void)
 {
-	struct cifsd_startup_shutdown *ev;
+	struct cifsd_shutdown_request *ev;
 	struct cifsd_ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
 	int ret;
 
@@ -143,7 +155,7 @@ static int ipc_cifsd_shutting_down(void)
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
 
-	strncpy(ev->reserved, "QUIT", sizeof(ev->reserved));
+	ev->reserved = 0x1010;
 
 	ret = ipc_msg_send(msg);
 	ipc_msg_free(msg);
@@ -179,11 +191,11 @@ static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
 	},
 
 	[CIFSD_EVENT_STARTING_UP] = {
-		.minlen = sizeof(struct cifsd_startup_shutdown),
+		.minlen = sizeof(struct cifsd_startup_request),
 	},
 
 	[CIFSD_EVENT_SHUTTING_DOWN] = {
-		.minlen = sizeof(struct cifsd_startup_shutdown),
+		.minlen = sizeof(struct cifsd_startup_request),
 	},
 
 	[CIFSD_EVENT_LOGIN_REQUEST] = {

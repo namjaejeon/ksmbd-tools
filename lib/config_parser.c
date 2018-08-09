@@ -291,6 +291,19 @@ int cp_get_group_kv_bool(char *v)
 	return 0;
 }
 
+int cp_get_group_kv_config_opt(char *v)
+{
+	if (!g_ascii_strncasecmp(v, "disabled", 8))
+		return CIFSD_CONFIG_OPT_DISABLED;
+	if (!g_ascii_strncasecmp(v, "enabled", 7))
+		return CIFSD_CONFIG_OPT_ENABLED;
+	if (!g_ascii_strncasecmp(v, "auto", 4))
+		return CIFSD_CONFIG_OPT_AUTO;
+	if (!g_ascii_strncasecmp(v, "mandatory", 9))
+		return CIFSD_CONFIG_OPT_MANDATORY;
+	return CIFSD_CONFIG_OPT_DISABLED;
+}
+
 long cp_get_group_kv_long_base(char *v, int base)
 {
 	return strtol(v, NULL, base);
@@ -354,13 +367,13 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
-	if (!cp_key_cmp(_k, "server string")) {
-		global_conf.server_string = cp_get_group_kv_string(_v);
+	if (!cp_key_cmp(_k, "server min protocol")) {
+		global_conf.server_min_protocol = cp_get_group_kv_string(_v);
 		return;
 	}
 
-	if (!cp_key_cmp(_k, "server min protocol")) {
-		global_conf.server_min_protocol = cp_get_group_kv_string(_v);
+	if (!cp_key_cmp(_k, "server signing")) {
+		global_conf.server_signing = cp_get_group_kv_config_opt(_v);
 		return;
 	}
 

@@ -38,8 +38,15 @@ struct cifsd_heartbeat {
 	__u32	handle;
 } __align;
 
-struct cifsd_startup_shutdown {
-	__s8	reserved[4];
+struct cifsd_startup_request {
+	__s32	signing;
+	__s8	netbios_name[16];
+	__s8	min_prot[16];
+	__s8	max_prot[16];
+} __align;
+
+struct cifsd_shutdown_request {
+	__s32	reserved;
 } __align;
 
 struct cifsd_login_request {
@@ -218,5 +225,10 @@ enum CIFSD_TREE_CONN_STATUS {
 #define CIFSD_RPC_ENOTIMPLEMENTED	0x00000040
 #define CIFSD_RPC_EMORE_DATA		0x000000EA
 #define CIFSD_RPC_EINVALID_LEVEL	0x0000007C
+
+#define CIFSD_CONFIG_OPT_DISABLED		0
+#define CIFSD_CONFIG_OPT_ENABLED		1
+#define CIFSD_CONFIG_OPT_AUTO			2
+#define CIFSD_CONFIG_OPT_MANDATORY		3
 
 #endif /* _LINUX_CIFSD_SERVER_H */
