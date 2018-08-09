@@ -182,7 +182,7 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 	int ret = -ENOTSUP;
 
 	req = CIFSD_IPC_MSG_PAYLOAD(msg);
-	if (req->flags & CIFSD_RPC_COMMAND_METHOD_RETURN)
+	if (req->flags & CIFSD_RPC_METHOD_RETURN)
 		resp_msg = ipc_msg_alloc(CIFSD_IPC_MAX_MESSAGE_SIZE -
 				sizeof(struct cifsd_rpc_command));
 	else
@@ -192,19 +192,19 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 
-	if (req->flags & CIFSD_RPC_COMMAND_OPEN)
+	if (req->flags & CIFSD_RPC_OPEN_METHOD)
 		ret = rpc_open_request(req, resp);
-	else if (req->flags & CIFSD_RPC_COMMAND_CLOSE)
+	else if (req->flags & CIFSD_RPC_CLOSE_METHOD)
 		ret = rpc_close_request(req, resp);
-	else if (req->flags & CIFSD_RPC_COMMAND_IOCTL)
+	else if (req->flags & CIFSD_RPC_IOCTL_METHOD)
 		ret = rpc_ioctl_request(req, resp, resp_msg->sz);
-	else if (req->flags & CIFSD_RPC_COMMAND_WRITE)
+	else if (req->flags & CIFSD_RPC_WRITE_METHOD)
 		ret = rpc_write_request(req, resp, resp_msg->sz);
-	else if (req->flags & CIFSD_RPC_COMMAND_READ)
+	else if (req->flags & CIFSD_RPC_READ_METHOD)
 		ret = rpc_read_request(req, resp, resp_msg->sz);
-	else if (req->flags & CIFSD_RPC_COMMAND_RAP) {
+	else if (req->flags & CIFSD_RPC_RAP_METHOD) {
 		pr_err("RAP command is not supported yet\n");
-		ret = CIFSD_RPC_COMMAND_ERROR_NOTIMPLEMENTED;
+		ret = CIFSD_RPC_ENOTIMPLEMENTED;
 	}
 
 	resp_msg->type = CIFSD_RPC_COMMAND_RESPONSE;
