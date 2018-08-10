@@ -97,7 +97,6 @@ static int nlink_msg_cb(struct nl_msg *msg, void *arg)
 		return NL_SKIP;
 	}
 
-	pr_debug("RECV:\n");
 	nl_msg_dump(msg, stdout);
 
 	return genl_handle_msg(msg, NULL);
@@ -374,7 +373,6 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 	if (ret)
 		goto out_error;
 
-	pr_debug("SEND\n");
 	nl_msg_dump(nlmsg, stdout);
 
 	ret = nl_send_auto_complete(sk, nlmsg);

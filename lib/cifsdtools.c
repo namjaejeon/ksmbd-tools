@@ -18,6 +18,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <syslog.h>
 #include <glib.h>
 #include <glib/gi18n.h>
 
@@ -25,6 +26,36 @@
 #include <cifsdtools.h>
 
 static const char *app_name = "unknown";
+static int log_open;
+
+typedef void (*logger)(int level, const char *fmt, va_list list);
+
+static int syslog_level(int level)
+{
+	if (level == PR_ERROR)
+		return LOG_ERR;
+	if (level == PR_INFO)
+		return LOG_INFO;
+	if (level == PR_DEBUG)
+		return LOG_DEBUG;
+
+	return LOG_ERR;
+}
+
+static void __pr_log_stdio(int level, const char *fmt, va_list list)
+{
+	char buf[1024];
+
+	vsnprintf(buf, sizeof(buf), fmt, list);
+	printf("%s", buf);
+}
+
+static void __pr_log_syslog(int level, const char *fmt, va_list list)
+{
+	vsyslog(syslog_level(level), fmt, list);
+}
+
+static logger __logger = __pr_log_stdio;
 
 void set_logger_app_name(const char *an)
 {
@@ -36,16 +67,26 @@ const char *get_logger_app_name(void)
 	return app_name;
 }
 
-void __pr_log(const char *fmt,...)
+void __pr_log(int level, const char *fmt,...)
 {
-	char buf[1024];
-	va_list args;
+	va_list list;
 
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
+	va_start(list, fmt);
+	__logger(level, fmt, list);
+	va_end(list);
+}
 
-	printf("%s", buf);
+void pr_logger_init(int flag)
+{
+	if (flag == PR_LOGGER_SYSLOG) {
+		if (log_open) {
+			closelog();
+			log_open = 0;
+		}
+		openlog("cifsd", LOG_NDELAY, LOG_LOCAL5);
+		__logger = __pr_log_syslog;
+		log_open = 1;
+	}
 }
 
 void pr_hex_dump(const void *mem, size_t sz)

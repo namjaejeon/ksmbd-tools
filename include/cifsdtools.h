@@ -21,7 +21,9 @@
 #ifndef __CIFSDTOOLS_H__
 #define __CIFSDTOOLS_H__
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,15 +82,20 @@ static int cifsd_health_status;
 
 static int log_level = PR_DEBUG;
 
+#define PR_LOGGER_STDIO         0
+#define PR_LOGGER_SYSLOG        1
+
 extern void set_logger_app_name(const char *an);
 extern const char *get_logger_app_name(void);
-extern void __pr_log(const char *fmt,...);
+extern void __pr_log(int level, const char *fmt,...);
+extern void pr_logger_init(int flags);
 
 #define pr_log(l, f, ...)						\
 	do {								\
 		if ((l) <= log_level)					\
-			__pr_log((f), get_logger_app_name(), getpid(),	\
-						##__VA_ARGS__);		\
+			__pr_log((l), (f), get_logger_app_name(),	\
+					getpid(),			\
+					##__VA_ARGS__);			\
 	} while (0)
 
 #define pr_debug(f,...)	\
