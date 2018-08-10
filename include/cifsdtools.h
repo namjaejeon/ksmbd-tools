@@ -44,7 +44,7 @@ struct smbconf_global {
 	char			*guest_account;
 
 	char			*server_string;
-	char			*workgroup;
+	char			*work_group;
 	char			*netbios_name;
 	char			*server_min_protocol;
 	char			*server_max_protocol;

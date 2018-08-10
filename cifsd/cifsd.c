@@ -75,6 +75,8 @@ int main(int argc, char *argv[])
 
 	set_logger_app_name("cifsd");
 
+	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
+
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:i:vh")) != EOF)
 		switch (c) {

@@ -125,18 +125,31 @@ static int ipc_cifsd_starting_up(void)
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
 	ev->signing = global_conf.server_signing;
-	if (global_conf.netbios_name)
-		memcpy(ev->netbios_name,
-		       global_conf.netbios_name,
-		       sizeof(ev->netbios_name));
-	if (global_conf.server_min_protocol)
-		memcpy(ev->min_prot,
-		       global_conf.server_min_protocol,
-		       sizeof(ev->min_prot));
-	if (global_conf.server_max_protocol)
-		memcpy(ev->max_prot,
-		       global_conf.server_max_protocol,
-		       sizeof(ev->max_prot));
+	if (global_conf.server_min_protocol) {
+		strncpy(ev->min_prot,
+			global_conf.server_min_protocol,
+			sizeof(ev->min_prot) - 1);
+	}
+	if (global_conf.server_max_protocol) {
+		strncpy(ev->max_prot,
+			global_conf.server_max_protocol,
+			sizeof(ev->max_prot) - 1);
+	}
+	if (global_conf.netbios_name) {
+		strncpy(ev->netbios_name,
+			global_conf.netbios_name,
+			sizeof(ev->netbios_name) - 1);
+	}
+	if (global_conf.server_string) {
+		strncpy(ev->server_string,
+			global_conf.server_string,
+			sizeof(ev->server_string) - 1);
+	}
+	if (global_conf.work_group) {
+		strncpy(ev->work_group,
+			global_conf.work_group,
+			sizeof(ev->work_group) - 1);
+	}
 
 	ret = ipc_msg_send(msg);
 	ipc_msg_free(msg);

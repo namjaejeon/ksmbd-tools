@@ -358,7 +358,7 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(_k, "workgroup")) {
-		global_conf.workgroup = cp_get_group_kv_string(_v);
+		global_conf.work_group = cp_get_group_kv_string(_v);
 		return;
 	}
 
