@@ -78,15 +78,13 @@ int main(int argc, char *argv[])
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:vh")) != EOF)
+	while ((c = getopt(argc, argv, "c:i:h")) != EOF)
 		switch (c) {
 		case 'c':
 			smbconf = strdup(optarg);
 			break;
 		case 'i':
 			pwddb = strdup(optarg);
-			break;
-		case 'v':
 			break;
 		case '?':
 		case 'h':
