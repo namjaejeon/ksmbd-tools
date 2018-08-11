@@ -157,21 +157,7 @@ static int ipc_cifsd_starting_up(void)
 
 static int ipc_cifsd_shutting_down(void)
 {
-	struct cifsd_shutdown_request *ev;
-	struct cifsd_ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
-	int ret;
-
-	if (!msg)
-		return -ENOMEM;
-
-	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
-	msg->type = CIFSD_EVENT_SHUTTING_DOWN;
-
-	ev->reserved = 0x1010;
-
-	ret = ipc_msg_send(msg);
-	ipc_msg_free(msg);
-	return ret;
+	return 0;
 }
 
 int ipc_receive_loop(void)
