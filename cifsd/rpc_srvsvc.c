@@ -165,11 +165,11 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 
 	share = shm_lookup_share(hdr->share_name.ptr);
 	if (!share)
-		return -EINVAL;
+		return CIFSD_RPC_EBAD_FID;
 
 	if (!test_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE)) {
 		put_cifsd_share(share);
-		return 0;
+		return CIFSD_RPC_EBAD_FID;
 	}
 
 	pipe->entries = g_array_append_val(pipe->entries, share);
