@@ -18,16 +18,16 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef __CIFSD_RPC_SRVSVC_H__
-#define __CIFSD_RPC_SRVSVC_H__
+#ifndef __CIFSD_RPC_WKSSVC_H__
+#define __CIFSD_RPC_WKSSVC_H__
 
 struct cifsd_rpc_command;
 struct cifsd_rpc_pipe;
 
-int rpc_srvsvc_read_request(struct cifsd_rpc_pipe *pipe,
+int rpc_wkssvc_read_request(struct cifsd_rpc_pipe *pipe,
 			    struct cifsd_rpc_command *resp,
 			    int max_resp_sz);
 
-int rpc_srvsvc_write_request(struct cifsd_rpc_pipe *pipe);
+int rpc_wkssvc_write_request(struct cifsd_rpc_pipe *pipe);
 
-#endif /* __CIFSD_RPC_SRVSVC_H__ */
+#endif /* __CIFSD_RPC_WKSSVC_H__ */

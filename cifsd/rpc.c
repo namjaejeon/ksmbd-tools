@@ -26,6 +26,7 @@
 
 #include <rpc.h>
 #include <rpc_srvsvc.h>
+#include <rpc_wkssvc.h>
 #include <cifsdtools.h>
 
 static GHashTable	*pipes_table;
@@ -1012,10 +1013,10 @@ int rpc_read_request(struct cifsd_rpc_command *req,
 		return CIFSD_RPC_ENOTIMPLEMENTED;
 
 	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
-		return rpc_srcsvc_read_request(pipe, resp, max_resp_sz);
+		return rpc_srvsvc_read_request(pipe, resp, max_resp_sz);
 
 	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
-		return CIFSD_RPC_ENOTIMPLEMENTED;
+		return rpc_wkssvc_read_request(pipe, resp, max_resp_sz);
 	return ret;
 }
 
@@ -1054,11 +1055,11 @@ int rpc_write_request(struct cifsd_rpc_command *req,
 	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE) {
 		if (dcerpc_request_hdr_read(dce, &dce->req_hdr))
 			return CIFSD_RPC_EBAD_DATA;
-		return rpc_srcsvc_write_request(pipe);
+		return rpc_srvsvc_write_request(pipe);
 	}
 
 	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
-		return CIFSD_RPC_ENOTIMPLEMENTED;
+		return rpc_wkssvc_write_request(pipe);
 	return CIFSD_RPC_ENOTIMPLEMENTED;
 }
 

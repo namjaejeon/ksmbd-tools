@@ -18,16 +18,26 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef __CIFSD_RPC_SRVSVC_H__
-#define __CIFSD_RPC_SRVSVC_H__
+#include <memory.h>
+#include <endian.h>
+#include <glib.h>
+#include <errno.h>
+#include <linux/cifsd_server.h>
 
-struct cifsd_rpc_command;
-struct cifsd_rpc_pipe;
+#include <management/share.h>
 
-int rpc_srvsvc_read_request(struct cifsd_rpc_pipe *pipe,
+#include <rpc.h>
+#include <rpc_wkssvc.h>
+#include <cifsdtools.h>
+
+int rpc_wkssvc_read_request(struct cifsd_rpc_pipe *pipe,
 			    struct cifsd_rpc_command *resp,
-			    int max_resp_sz);
+			    int max_resp_sz)
+{
+	return CIFSD_RPC_ENOTIMPLEMENTED;
+}
 
-int rpc_srvsvc_write_request(struct cifsd_rpc_pipe *pipe);
-
-#endif /* __CIFSD_RPC_SRVSVC_H__ */
+int rpc_wkssvc_write_request(struct cifsd_rpc_pipe *pipe)
+{
+	return CIFSD_RPC_ENOTIMPLEMENTED;
+}
