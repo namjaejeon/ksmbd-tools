@@ -167,6 +167,11 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 	if (!share)
 		return -EINVAL;
 
+	if (!test_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE)) {
+		put_cifsd_share(share);
+		return 0;
+	}
+
 	pipe->entries = g_array_append_val(pipe->entries, share);
 	pipe->num_entries++;
 	pipe->entry_processed = __share_entry_processed;
