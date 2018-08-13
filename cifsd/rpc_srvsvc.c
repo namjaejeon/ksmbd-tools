@@ -137,6 +137,11 @@ static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
 	if (!get_cifsd_share(share))
 		return;
 
+	if (!test_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE)) {
+		put_cifsd_share(share);
+		return;
+	}
+
 	pipe->entries = g_array_append_val(pipe->entries, share);
 	pipe->num_entries++;
 }
