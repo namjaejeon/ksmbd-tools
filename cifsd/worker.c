@@ -199,7 +199,7 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 	else if (req->flags & CIFSD_RPC_IOCTL_METHOD)
 		ret = rpc_ioctl_request(req, resp, resp_msg->sz);
 	else if (req->flags & CIFSD_RPC_WRITE_METHOD)
-		ret = rpc_write_request(req, resp, resp_msg->sz);
+		ret = rpc_write_request(req, resp);
 	else if (req->flags & CIFSD_RPC_READ_METHOD)
 		ret = rpc_read_request(req, resp, resp_msg->sz);
 	else if (req->flags & CIFSD_RPC_RAP_METHOD) {

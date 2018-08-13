@@ -290,28 +290,52 @@ struct cifsd_rpc_pipe {
 						   int i);
 };
 
-int rpc_srvsvc_request(struct cifsd_rpc_command *req,
-		       struct cifsd_rpc_command *resp,
-		       int max_resp_sz);
+__u8 ndr_read_int8(struct cifsd_dcerpc *dce);
+__u16 ndr_read_int16(struct cifsd_dcerpc *dce);
+__u32 ndr_read_int32(struct cifsd_dcerpc *dce);
+__u64 ndr_read_int64(struct cifsd_dcerpc *dce);
 
-int rpc_read_request(struct cifsd_rpc_command *req,
-		     struct cifsd_rpc_command *resp,
-		     int max_resp_sz);
+int ndr_write_int8(struct cifsd_dcerpc *dce, __u8 value);
+int ndr_write_int16(struct cifsd_dcerpc *dce, __u16 value);
+int ndr_write_int32(struct cifsd_dcerpc *dce, __u32 value);
+int ndr_write_int64(struct cifsd_dcerpc *dce, __u64 value);
 
-int rpc_write_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp,
-		      int max_resp_sz);
+int ndr_write_union_int16(struct cifsd_dcerpc *dce, __u16 value);
+int ndr_write_union_int32(struct cifsd_dcerpc *dce, __u32 value);
+__u32 ndr_read_union_int32(struct cifsd_dcerpc *dce);
 
-int rpc_open_request(struct cifsd_rpc_command *req,
-		     struct cifsd_rpc_command *resp);
+int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz);
+int ndr_read_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz);
+int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value);
+char *ndr_read_vstring(struct cifsd_dcerpc *dce);
+void ndr_read_vstring_ptr(struct cifsd_dcerpc *dce, struct ndr_char_ptr *ctr);
+void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
+			      struct ndr_uniq_char_ptr *ctr);
+void ndr_read_ptr(struct cifsd_dcerpc *dce, struct ndr_ptr *ctr);
+void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
+int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe, int max_entry_nr);
+int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe);
 
-int rpc_close_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp);
+int dcerpc_write_headers(struct cifsd_dcerpc *dce, int method_status);
+
+void dcerpc_set_ext_payload(struct cifsd_dcerpc *dce,
+			    void *payload,
+			    size_t sz);
+void rpc_pipe_reset(struct cifsd_rpc_pipe *pipe);
+
+int rpc_init(void);
+void rpc_destroy(void);
 
 int rpc_ioctl_request(struct cifsd_rpc_command *req,
 		      struct cifsd_rpc_command *resp,
 		      int max_resp_sz);
-
-int rpc_init(void);
-void rpc_destroy(void);
+int rpc_read_request(struct cifsd_rpc_command *req,
+		     struct cifsd_rpc_command *resp,
+		     int max_resp_sz);
+int rpc_write_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp);
+int rpc_open_request(struct cifsd_rpc_command *req,
+		     struct cifsd_rpc_command *resp);
+int rpc_close_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp);
 #endif /* __CIFSD_RPC_H__ */

@@ -4,4 +4,4 @@ cifsd_LDADD = $(top_builddir)/lib/libcifsdtools.la
 
 sbin_PROGRAMS = cifsd
 
-cifsd_SOURCES = worker.c ipc.c rpc.c cifsd.c
+cifsd_SOURCES = worker.c ipc.c rpc.c rpc_srvsvc.c cifsd.c

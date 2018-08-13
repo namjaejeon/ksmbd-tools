@@ -24,9 +24,8 @@
 #include <errno.h>
 #include <linux/cifsd_server.h>
 
-#include <management/share.h>
-
 #include <rpc.h>
+#include <rpc_srvsvc.h>
 #include <cifsdtools.h>
 
 static GHashTable	*pipes_table;
@@ -96,22 +95,6 @@ static struct dcerpc_syntax negotiate_ack_PNIO_uuid;
  * https://msdn.microsoft.com/en-us/library/cc243858.aspx
  */
 
-#define SHARE_TYPE_TEMP			0x40000000
-#define SHARE_TYPE_HIDDEN		0x80000000
-
-#define SHARE_TYPE_DISKTREE		0
-#define SHARE_TYPE_DISKTREE_TEMP	(SHARE_TYPE_DISKTREE|SHARE_TYPE_TEMP)
-#define SHARE_TYPE_DISKTREE_HIDDEN	(SHARE_TYPE_DISKTREE|SHARE_TYPE_HIDDEN)
-#define SHARE_TYPE_PRINTQ 		1
-#define SHARE_TYPE_PRINTQ_TEMP		(SHARE_TYPE_PRINTQ|SHARE_TYPE_TEMP)
-#define SHARE_TYPE_PRINTQ_HIDDEN	(SHARE_TYPE_PRINTQ|SHARE_TYPE_HIDDEN)
-#define SHARE_TYPE_DEVICE		2
-#define SHARE_TYPE_DEVICE_TEMP		(SHARE_TYPE_DEVICE|SHARE_TYPE_TEMP)
-#define SHARE_TYPE_DEVICE_HIDDEN	(SHARE_TYPE_DEVICE|SHARE_TYPE_HIDDEN)
-#define SHARE_TYPE_IPC			3
-#define SHARE_TYPE_IPC_TEMP		(SHARE_TYPE_IPC|SHARE_TYPE_TEMP)
-#define SHARE_TYPE_IPC_HIDDEN		(SHARE_TYPE_IPC|SHARE_TYPE_HIDDEN)
-
 #define PAYLOAD_HEAD(d)	((d)->payload + (d)->offset)
 
 #define __ALIGN(x, a)							\
@@ -123,9 +106,6 @@ static struct dcerpc_syntax negotiate_ack_PNIO_uuid;
 	})
 
 #define __ALIGN_MASK(x, mask)	(((x) + (mask)) & ~(mask))
-
-#define SRVSVC_OPNUM_SHARE_ENUM_ALL	15
-#define SRVSVC_OPNUM_GET_SHARE_INFO	16
 
 static struct cifsd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
 {
@@ -190,9 +170,7 @@ static struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
 	return dce;
 }
 
-static void dcerpc_set_ext_payload(struct cifsd_dcerpc *dce,
-				    void *payload,
-				    size_t sz)
+void dcerpc_set_ext_payload(struct cifsd_dcerpc *dce, void *payload, size_t sz)
 {
 	dce->num_pointers = 1;
 	dce->payload = payload;
@@ -202,7 +180,7 @@ static void dcerpc_set_ext_payload(struct cifsd_dcerpc *dce,
 	dce->flags |= CIFSD_DCERPC_FIXED_PAYLOAD_SZ;
 }
 
-static void rpc_pipe_reset(struct cifsd_rpc_pipe *pipe)
+void rpc_pipe_reset(struct cifsd_rpc_pipe *pipe)
 {
 	if (pipe->entry_processed) {
 		while (pipe->num_entries)
@@ -328,7 +306,7 @@ static __u8 noop_int8(__u8 v)
 #define letoh_n noop_int8
 
 #define NDR_WRITE_INT(name, type, be, le)				\
-static int ndr_write_##name(struct cifsd_dcerpc *dce, type value)	\
+int ndr_write_##name(struct cifsd_dcerpc *dce, type value)		\
 {									\
 	type ret;							\
 									\
@@ -349,7 +327,7 @@ NDR_WRITE_INT(int32, __u32, htobe32, htole32);
 NDR_WRITE_INT(int64, __u64, htobe64, htole64);
 
 #define NDR_READ_INT(name, type, be, le)				\
-static type ndr_read_##name(struct cifsd_dcerpc *dce)			\
+type ndr_read_##name(struct cifsd_dcerpc *dce)				\
 {									\
 	type ret;							\
 									\
@@ -374,28 +352,32 @@ NDR_READ_INT(int64, __u64, be64toh, le64toh);
  * argument list; and once as the first part of the union
  * representation.
  */
-#define NDR_WRITE_UNION(dce,name,value)				\
-	({							\
-		int ret;					\
-								\
-		ret = ndr_write_##name(dce, value);		\
-		ret |= ndr_write_##name(dce, value);		\
-								\
-		ret;						\
-	 })
-
-static int ndr_read_union(struct cifsd_dcerpc *dce)
-{
-	/*
-	 * We need to read 2 __s32 ints and move offset twice
-	 */
-	int ret = ndr_read_int32(dce);
-	if (ndr_read_int32(dce) != ret)
-		pr_err("NDR: union level and switch mismatch %d\n", ret);
-	return ret;
+#define NDR_WRITE_UNION(name, type)					\
+int ndr_write_union_##name(struct cifsd_dcerpc *dce, type value)	\
+{									\
+	int ret;							\
+									\
+	ret = ndr_write_##name(dce, value);				\
+	ret |= ndr_write_##name(dce, value);				\
+	ret;								\
 }
 
-static int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
+NDR_WRITE_UNION(int16, __u16);
+NDR_WRITE_UNION(int32, __u32);
+
+#define NDR_READ_UNION(name, type)					\
+type ndr_read_union_##name(struct cifsd_dcerpc *dce)			\
+{									\
+	type ret = ndr_read_##name(dce);				\
+	if (ndr_read_##name(dce) != ret)				\
+		pr_err("NDR: union representation mismatch %lu\n",	\
+				(unsigned long)ret);			\
+	return ret;							\
+}
+
+NDR_READ_UNION(int32, __u32);
+
+int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 {
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
@@ -406,7 +388,7 @@ static int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 	return 0;
 }
 
-static int ndr_read_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
+int ndr_read_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 {
 	align_offset(dce, 2);
 	memcpy(value, PAYLOAD_HEAD(dce), sz);
@@ -414,7 +396,7 @@ static int ndr_read_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz)
 	return 0;
 }
 
-static int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
+int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 {
 	gchar *out;
 	gsize bytes_read = 0;
@@ -471,7 +453,7 @@ out:
 	return ret;
 }
 
-static char *ndr_read_vstring(struct cifsd_dcerpc *dce)
+char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 {
 	gchar *out;
 	gsize bytes_read = 0;
@@ -516,14 +498,13 @@ static char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 	return out;
 }
 
-static void ndr_read_vstring_ptr(struct cifsd_dcerpc *dce,
-				 struct ndr_char_ptr *ctr)
+void ndr_read_vstring_ptr(struct cifsd_dcerpc *dce, struct ndr_char_ptr *ctr)
 {
 	ctr->ptr = ndr_read_vstring(dce);
 }
 
-static void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
-				     struct ndr_uniq_char_ptr *ctr)
+void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
+			      struct ndr_uniq_char_ptr *ctr)
 {
 	ctr->ref_id = ndr_read_int32(dce);
 	if (ctr->ref_id == 0) {
@@ -533,14 +514,12 @@ static void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
 	ctr->ptr = ndr_read_vstring(dce);
 }
 
-static void ndr_read_ptr(struct cifsd_dcerpc *dce,
-			 struct ndr_ptr *ctr)
+void ndr_read_ptr(struct cifsd_dcerpc *dce, struct ndr_ptr *ctr)
 {
 	ctr->ptr = ndr_read_int32(dce);
 }
 
-static void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce,
-			      struct ndr_uniq_ptr *ctr)
+void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce, struct ndr_uniq_ptr *ctr)
 {
 	ctr->ref_id = ndr_read_int32(dce);
 	if (ctr->ref_id = 0) {
@@ -577,8 +556,7 @@ static int __max_entries(struct cifsd_dcerpc *dce, struct cifsd_rpc_pipe *pipe)
 	return pipe->num_entries;
 }
 
-static int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe,
-					int max_entry_nr)
+int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe, int max_entry_nr)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
 	int i;
@@ -607,7 +585,7 @@ static int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe,
 	return CIFSD_RPC_OK;
 }
 
-static int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe)
+int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
 	int current_size;
@@ -661,182 +639,6 @@ void rpc_destroy(void)
 	__clear_pipes_table();
 	g_hash_table_destroy(pipes_table);
 	g_rw_lock_clear(&pipes_table_lock);
-}
-
-static int __share_type(struct cifsd_share *share)
-{
-	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
-		return SHARE_TYPE_IPC;
-	if (!g_ascii_strncasecmp(share->name, "IPC", strlen("IPC")))
-		return SHARE_TYPE_IPC;
-	return SHARE_TYPE_DISKTREE;
-}
-
-static int __share_entry_size_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
-{
-	struct cifsd_share *share = entry;
-
-	return strlen(share->name) * 2 + 4 * sizeof(__u32);
-}
-
-static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
-{
-	struct cifsd_share *share = entry;
-	int sz;
-
-	sz = strlen(share->name) * 2 + strlen(share->comment) * 2;
-	sz += 9 * sizeof(__u32);
-	return sz;
-}
-
-/*
- * Embedded Reference Pointers
- *
- * An embedded reference pointer is represented in two parts, a 4 octet
- * value in place and a possibly deferred representation of the referent.
- */
-static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
-{
-	struct cifsd_share *share = entry;
-
-	dce->num_pointers++;
-	return ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-}
-
-static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
-{
-	struct cifsd_share *share = entry;
-	int ret;
-
-	dce->num_pointers++;
-	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	ret |= ndr_write_int32(dce, __share_type(share));
-	dce->num_pointers++;
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	return ret;
-}
-
-static int __share_entry_data_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
-{
-	struct cifsd_share *share = entry;
-
-	return ndr_write_vstring(dce, share->name);
-}
-
-static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
-{
-	struct cifsd_share *share = entry;
-	int ret;
-
-	ret = ndr_write_vstring(dce, share->name);
-	ret |= ndr_write_vstring(dce, share->comment);
-	return ret;
-}
-
-static int __share_entry_processed(struct cifsd_rpc_pipe *pipe, int i)
-{
-	struct cifsd_share *share;
-
-	share = g_array_index(pipe->entries,  gpointer, i);
-	pipe->entries = g_array_remove_index(pipe->entries, i);
-	pipe->num_entries--;
-	put_cifsd_share(share);
-}
-
-static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
-{
-	struct cifsd_rpc_pipe *pipe = (struct cifsd_rpc_pipe *)user_data;
-	struct cifsd_share *share = (struct cifsd_share *)value;
-
-	if (!get_cifsd_share(share))
-		return;
-
-	pipe->entries = g_array_append_val(pipe->entries, share);
-	pipe->num_entries++;
-}
-
-static int srvsvc_share_enum_all_invoke(struct cifsd_rpc_pipe *pipe)
-{
-	for_each_cifsd_share(__enum_all_shares, pipe);
-	pipe->entry_processed = __share_entry_processed;
-	return 0;
-}
-
-static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
-					struct srvsvc_share_info_request *hdr)
-{
-	struct cifsd_share *share;
-
-	share = shm_lookup_share(hdr->share_name.ptr);
-	if (!share)
-		return -EINVAL;
-
-	pipe->entries = g_array_append_val(pipe->entries, share);
-	pipe->num_entries++;
-	pipe->entry_processed = __share_entry_processed;
-	return 0;
-}
-
-static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
-{
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int status;
-
-	NDR_WRITE_UNION(dce, int32, dce->si_req.level);
-	ndr_write_int32(dce, pipe->num_entries);
-
-	status = ndr_write_array_of_structs(pipe);
-	/*
-	 * [out] DWORD* TotalEntries
-	 * [out, unique] DWORD* ResumeHandle
-	 */
-	ndr_write_int32(dce, pipe->num_entries);
-	if (status == CIFSD_RPC_EMORE_DATA)
-		ndr_write_int32(dce, 0x01);
-	else
-		ndr_write_int32(dce, 0x00);
-	return status;
-}
-
-static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
-{
-	struct cifsd_dcerpc *dce = pipe->dce;
-
-	NDR_WRITE_UNION(dce, int32, dce->si_req.level);
-	return __ndr_write_array_of_structs(pipe, 1);
-}
-
-static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
-				       struct srvsvc_share_info_request *hdr)
-{
-	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
-
-	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL) {
-		int ptr;
-
-		hdr->level = ndr_read_int32(dce);
-		ndr_read_int32(dce); // read switch selector
-		ndr_read_int32(dce); // read container pointer ref id
-		ndr_read_int32(dce); // read container array size
-		ptr = ndr_read_int32(dce); // read container array pointer
-					   // it should be null
-		if (ptr != 0x00) {
-			pr_err("SRVSVC: container array pointer is %p\n",
-				ptr);
-			return -EINVAL;
-		}
-		hdr->max_size = ndr_read_int32(dce);
-		ndr_read_uniq_ptr(dce, &hdr->payload_handle);
-		return 0;
-	}
-
-	if (dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO) {
-		ndr_read_vstring_ptr(dce, &hdr->share_name);
-		hdr->level = ndr_read_int32(dce);
-		return 0;
-	}
-
-	return -ENOTSUP;
 }
 
 static int dcerpc_hdr_write(struct cifsd_dcerpc *dce,
@@ -905,6 +707,30 @@ static int dcerpc_request_hdr_read(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
+int dcerpc_write_headers(struct cifsd_dcerpc *dce, int method_status)
+{
+	int payload_offset;
+
+	payload_offset = dce->offset;
+	dce->offset = 0;
+
+	dce->hdr.ptype = DCERPC_PTYPE_RPC_RESPONSE;
+	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
+	dce->hdr.frag_length = payload_offset;
+	if (method_status == CIFSD_RPC_EMORE_DATA)
+		dce->hdr.pfc_flags = 0;
+	dcerpc_hdr_write(dce, &dce->hdr);
+
+	/* cast req_hdr to resp_hdr and NULL out lower 2 bytes */
+	dce->req_hdr.opnum = 0;
+	dce->resp_hdr.cancel_count = 0;
+	dce->resp_hdr.alloc_hint = payload_offset;
+	dcerpc_response_hdr_write(dce, &dce->resp_hdr);
+
+	dce->offset = payload_offset;
+	return 0;
+}
+
 static int __dcerpc_read_syntax(struct cifsd_dcerpc *dce,
 				struct dcerpc_syntax *syn)
 {
@@ -941,7 +767,7 @@ static void dcerpc_bind_req_free(struct dcerpc_bind_request *hdr)
 	hdr->list = NULL;
 }
 
-static int srvsvc_parse_bind_req(struct cifsd_dcerpc *dce,
+static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 				 struct dcerpc_bind_request *hdr)
 {
 	int i, j;
@@ -988,7 +814,7 @@ static int dcerpc_bind_invoke(struct cifsd_rpc_pipe *pipe)
 	int ret;
 
 	dce = pipe->dce;
-	if (srvsvc_parse_bind_req(dce, &dce->bi_req))
+	if (dcerpc_parse_bind_req(dce, &dce->bi_req))
 		return CIFSD_RPC_EBAD_DATA;
 
 	pipe->entry_processed = NULL;
@@ -1093,10 +919,10 @@ static int dcerpc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 
 		if (result == -1) {
 			result = DCERPC_BIND_ACK_RES_PROVIDER_REJECT;
-			NDR_WRITE_UNION(dce, int16, result);
+			ndr_write_union_int16(dce, result);
 		} else {
 			if (result == DCERPC_BIND_ACK_RES_ACCEPT)
-				NDR_WRITE_UNION(dce, int16, result);
+				ndr_write_union_int16(dce, result);
 			if (result == DCERPC_BIND_ACK_RES_NEGOTIATE_ACK) {
 				ndr_write_int16(dce, result);
 				ndr_write_int16(dce, 0x00);
@@ -1144,159 +970,32 @@ static int dcerpc_bind_return(struct cifsd_rpc_pipe *pipe)
 	return dcerpc_bind_ack_return(pipe);
 }
 
-static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
+int rpc_ioctl_request(struct cifsd_rpc_command *req,
+		      struct cifsd_rpc_command *resp,
+		      int max_resp_sz)
 {
-	struct cifsd_dcerpc *dce;
 	int ret;
 
-	dce = pipe->dce;
-	if (srvsvc_parse_share_info_req(dce, &dce->si_req))
-		return CIFSD_RPC_EBAD_DATA;
-
-	pipe->entry_processed = __share_entry_processed;
-
-	if (dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
-		ret = srvsvc_share_get_info_invoke(pipe, &dce->si_req);
-	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL)
-		ret = srvsvc_share_enum_all_invoke(pipe);
-	return ret;
-}
-
-static int srvsvc_write_headers(struct cifsd_dcerpc *dce,
-				int method_status)
-{
-	int payload_offset;
-
-	payload_offset = dce->offset;
-	dce->offset = 0;
-
-	dce->hdr.ptype = DCERPC_PTYPE_RPC_RESPONSE;
-	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
-	dce->hdr.frag_length = payload_offset;
-	if (method_status == CIFSD_RPC_EMORE_DATA)
-		dce->hdr.pfc_flags = 0;
-	dcerpc_hdr_write(dce, &dce->hdr);
-
-	/* cast req_hdr to resp_hdr and NULL out lower 2 bytes */
-	dce->req_hdr.opnum = 0;
-	dce->resp_hdr.cancel_count = 0;
-	dce->resp_hdr.alloc_hint = payload_offset;
-	dcerpc_response_hdr_write(dce, &dce->resp_hdr);
-
-	dce->offset = payload_offset;
-	return 0;
-}
-
-static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
-{
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret = CIFSD_RPC_OK, status;
-
-	/*
-	 * Reserve space for response NDR header. We don't know yet if
-	 * the payload buffer is big enough. This will determine if we
-	 * can set DCERPC_PFC_FIRST_FRAG|DCERPC_PFC_LAST_FRAG or if we
-	 * will have a multi-part response.
-	 */
-	dce->offset = sizeof(struct dcerpc_header);
-	dce->offset += sizeof(struct dcerpc_response_header);
-
-	if (dce->si_req.level == 0) {
-		dce->entry_size = __share_entry_size_ctr0;
-		dce->entry_rep = __share_entry_rep_ctr0;
-		dce->entry_data = __share_entry_data_ctr0;
-	} else if (dce->si_req.level == 1) {
-		dce->entry_size = __share_entry_size_ctr1;
-		dce->entry_rep = __share_entry_rep_ctr1;
-		dce->entry_data = __share_entry_data_ctr1;
-	} else {
-		status = CIFSD_RPC_EINVALID_LEVEL;
-		rpc_pipe_reset(pipe);
-	}
-
-	if (dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
-		status = srvsvc_share_get_info_return(pipe);
-	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL)
-		status = srvsvc_share_enum_all_return(pipe);
-
-	/*
-	 * [out] DWORD Return value/code
-	 */
-	if (ret != CIFSD_RPC_OK)
-		status = ret;
-
-	ndr_write_int32(dce, status);
-	srvsvc_write_headers(dce, status);
-
-	dce->rpc_resp->payload_sz = dce->offset;
-	return ret;
-}
-
-static int srvsvc_invoke(struct cifsd_rpc_command *req,
-			 struct cifsd_rpc_command *resp)
-{
-	struct cifsd_rpc_pipe *pipe;
-	struct cifsd_dcerpc *dce;
-	int ret;
-
-	pipe = rpc_pipe_lookup(req->handle);
-	if (!pipe)
-		return CIFSD_RPC_ENOMEM;
-
-	if (pipe->dce->flags & CIFSD_DCERPC_RETURN_READY)
-		return CIFSD_RPC_OK;
-
-	if (pipe->num_entries)
-		pr_err("SRVSVC: RPC call on unflushed pipe. Pending %d\n",
-			pipe->num_entries);
-
-	dce = pipe->dce;
-	dce->rpc_req = req;
-	dce->rpc_resp = resp;
-	dcerpc_set_ext_payload(dce, req->payload, req->payload_sz);
-	dce->flags |= CIFSD_DCERPC_RETURN_READY;
-
-	ret = dcerpc_hdr_read(dce, &dce->hdr);
-	if (ret)
-		CIFSD_RPC_EBAD_DATA;
-
-	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
-		return dcerpc_bind_invoke(pipe);
-
-	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
+	if (req->flags == CIFSD_RPC_RAP_METHOD)
 		return CIFSD_RPC_ENOTIMPLEMENTED;
 
-	ret |= dcerpc_request_hdr_read(dce, &dce->req_hdr);
-	if (ret)
-		return CIFSD_RPC_EBAD_DATA;
-
-	switch (dce->req_hdr.opnum) {
-	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
-	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		ret = srvsvc_share_info_invoke(pipe);
-		break;
-	default:
-		pr_err("SRVSVC: unsupported INVOKE method %d\n",
-			dce->req_hdr.opnum);
-		pr_hex_dump(req->payload, req->payload_sz);
-		ret = CIFSD_RPC_ENOTIMPLEMENTED;
-		break;
-	}
-
+	ret = rpc_write_request(req, resp);
+	if (ret == CIFSD_RPC_OK)
+		return rpc_read_request(req, resp, max_resp_sz);
 	return ret;
 }
 
-static int srvsvc_return(struct cifsd_rpc_command *req,
-			 struct cifsd_rpc_command *resp,
-			 int max_resp_sz)
+int rpc_read_request(struct cifsd_rpc_command *req,
+		     struct cifsd_rpc_command *resp,
+		     int max_resp_sz)
 {
+	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
 	struct cifsd_rpc_pipe *pipe;
 	struct cifsd_dcerpc *dce;
-	int ret;
 
 	pipe = rpc_pipe_lookup(req->handle);
 	if (!pipe || !pipe->dce) {
-		pr_err("SRVSVC: no pipe or pipe has no associated DCE [%d]\n",
+		pr_err("RPC: no pipe or pipe has no associated DCE [%d]\n",
 			req->handle);
 		return CIFSD_RPC_EBAD_FID;
 	}
@@ -1312,82 +1011,55 @@ static int srvsvc_return(struct cifsd_rpc_command *req,
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		return CIFSD_RPC_ENOTIMPLEMENTED;
 
-	switch (dce->req_hdr.opnum) {
-	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
-		if (dce->si_req.max_size < (unsigned int)max_resp_sz)
-			max_resp_sz = dce->si_req.max_size;
-	case SRVSVC_OPNUM_GET_SHARE_INFO:
-		dce->rpc_resp = resp;
-		dcerpc_set_ext_payload(dce, resp->payload, max_resp_sz);
-
-		ret = srvsvc_share_info_return(pipe);
-		break;
-	default:
-		pr_err("SRVSVC: unsupported RETURN method %d\n",
-			dce->req_hdr.opnum);
-		ret = CIFSD_RPC_EBAD_FUNC;
-		pr_hex_dump(req->payload, req->payload_sz);
-		break;
-	}
-	return ret;
-}
-
-int rpc_srvsvc_request(struct cifsd_rpc_command *req,
-		       struct cifsd_rpc_command *resp,
-		       int max_resp_sz)
-{
-	if (req->flags & CIFSD_RPC_METHOD_RETURN)
-		return srvsvc_return(req, resp, max_resp_sz);
-
-	return srvsvc_invoke(req, resp);
-}
-
-int rpc_ioctl_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp,
-		      int max_resp_sz)
-{
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
-	struct cifsd_rpc_pipe *pipe;
-
-	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE) {
-		ret = srvsvc_invoke(req, resp);
-		if (ret == CIFSD_RPC_OK)
-			ret = srvsvc_return(req, resp, max_resp_sz);
-	}
-
-	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE) {
-		ret = CIFSD_RPC_ENOTIMPLEMENTED;
-	}
-
-	return ret;
-}
-
-int rpc_read_request(struct cifsd_rpc_command *req,
-		     struct cifsd_rpc_command *resp,
-		     int max_resp_sz)
-{
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
-
 	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
-		ret = srvsvc_return(req, resp, max_resp_sz);
+		return rpc_srcsvc_read_request(pipe, resp, max_resp_sz);
 
 	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
-		ret = CIFSD_RPC_ENOTIMPLEMENTED;
+		return CIFSD_RPC_ENOTIMPLEMENTED;
 	return ret;
 }
 
 int rpc_write_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp,
-		      int max_resp_sz)
+		      struct cifsd_rpc_command *resp)
 {
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
+	struct cifsd_rpc_pipe *pipe;
+	struct cifsd_dcerpc *dce;
 
-	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
-		ret = srvsvc_invoke(req, resp);
+	pipe = rpc_pipe_lookup(req->handle);
+	if (!pipe)
+		return CIFSD_RPC_ENOMEM;
+
+	if (pipe->dce->flags & CIFSD_DCERPC_RETURN_READY)
+		return CIFSD_RPC_OK;
+
+	if (pipe->num_entries)
+		pr_err("RPC: A call on unflushed pipe. Pending %d\n",
+			pipe->num_entries);
+
+	dce = pipe->dce;
+	dce->rpc_req = req;
+	dce->rpc_resp = resp;
+	dcerpc_set_ext_payload(dce, req->payload, req->payload_sz);
+	dce->flags |= CIFSD_DCERPC_RETURN_READY;
+
+	if (dcerpc_hdr_read(dce, &dce->hdr))
+		return CIFSD_RPC_EBAD_DATA;
+
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+		return dcerpc_bind_invoke(pipe);
+
+	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
+		return CIFSD_RPC_ENOTIMPLEMENTED;
+
+	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE) {
+		if (dcerpc_request_hdr_read(dce, &dce->req_hdr))
+			return CIFSD_RPC_EBAD_DATA;
+		return rpc_srcsvc_write_request(pipe);
+	}
 
 	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
-		ret = CIFSD_RPC_ENOTIMPLEMENTED;
-	return ret;
+		return CIFSD_RPC_ENOTIMPLEMENTED;
+	return CIFSD_RPC_ENOTIMPLEMENTED;
 }
 
 int rpc_open_request(struct cifsd_rpc_command *req,
