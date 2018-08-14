@@ -158,9 +158,7 @@ static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
 
 static void shm_clear_shares(void)
 {
-	g_rw_lock_writer_lock(&shares_table_lock);
 	g_hash_table_foreach(shares_table, free_hash_entry, NULL);
-	g_rw_lock_writer_unlock(&shares_table_lock);
 }
 
 void shm_destroy(void)
