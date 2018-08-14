@@ -166,7 +166,7 @@ static int parse_configs(char *pwddb, char *smbconf)
 	return 0;
 }
 
-static void work_process_free(void)
+static void worker_process_free(void)
 {
 	/*
 	 * NOTE, this is the final release, we don't look at ref_count
@@ -180,7 +180,7 @@ static void work_process_free(void)
 	usm_destroy();
 }
 
-static int worker_process(void)
+static int worker_process_init(void)
 {
 	int ret;
 
@@ -217,7 +217,7 @@ static int worker_process(void)
 	ret = ipc_receive_loop();
 
 out:
-	work_process_free();
+	worker_process_free();
 	return ret;
 }
 
@@ -225,7 +225,7 @@ void child_sig_handler(int signo)
 {
 	pr_err("Child received signal: %d (%s)\n",
 		signo, sys_siglist[signo]);
-	work_process_free();
+	worker_process_free();
 	exit(EXIT_SUCCESS);
 }
 
@@ -298,7 +298,7 @@ int main(int argc, char *argv[])
 
 	if (no_detach) {
 		pr_logger_init(PR_LOGGER_STDIO);
-		return worker_process();
+		return worker_process_init();
 	}
 
 	pr_logger_init(PR_LOGGER_SYSLOG);
@@ -307,7 +307,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	worker_pid = start_worker_process(worker_process);
+	worker_pid = start_worker_process(worker_process_init);
 	if (worker_pid < 0)
 		goto out;
 
@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
 
 		/* Ratelimit automatic restarts */
 		sleep(1);
-		worker_pid = start_worker_process(worker_process);
+		worker_pid = start_worker_process(worker_process_init);
 		if (worker_pid < 0)
 			goto out;
 	}
