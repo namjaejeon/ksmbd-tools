@@ -776,9 +776,10 @@ static void dcerpc_bind_req_free(struct dcerpc_bind_request *hdr)
 	int i;
 
 	for (i = 0; i < hdr->num_contexts; i++)
-		free(hdr->list->transfer_syntaxes);
+		free(hdr->list[i].transfer_syntaxes);
 	free(hdr->list);
 	hdr->list = NULL;
+	hdr->num_contexts = 0;
 }
 
 static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
