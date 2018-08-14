@@ -186,6 +186,7 @@ struct dcerpc_context {
 };
 
 struct dcerpc_bind_request {
+	__u32			flags;
 	__u16			max_xmit_frag_sz;
 	__u16			max_recv_frag_sz;
 	__u32			assoc_group_id;

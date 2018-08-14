@@ -786,6 +786,7 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 {
 	int i, j;
 
+	hdr->flags = dce->rpc_req->flags;
 	hdr->max_xmit_frag_sz = ndr_read_int16(dce);
 	hdr->max_recv_frag_sz = ndr_read_int16(dce);
 	hdr->assoc_group_id = ndr_read_int32(dce);
@@ -918,9 +919,9 @@ static int dcerpc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 	ndr_write_int16(dce, dce->bi_req.max_recv_frag_sz);
 	ndr_write_int32(dce, dce->bi_req.assoc_group_id);
 
-	if (dce->rpc_req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
+	if (dce->bi_req.flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
 		addr = "\\PIPE\\srvsvc";
-	else if (dce->rpc_req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
+	else if (dce->bi_req.flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
 		addr = "\\PIPE\\wkssvc";
 	else
 		return CIFSD_RPC_EBAD_FUNC;
