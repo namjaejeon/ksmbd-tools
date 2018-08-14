@@ -87,11 +87,11 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 {
 	struct cifsd_user *user = malloc(sizeof(struct cifsd_user));
 	struct passwd *passwd;
-	char *pass = strdup(pwd);
 
-	if (!pass || !user) {
+	if (!name || !pwd || !user) {
 		free(user);
-		free(pass);
+		free(pwd);
+		free(name);
 		return NULL;
 	}
 
@@ -99,7 +99,7 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 
 	g_rw_lock_clear(&user->update_lock);
 	user->name = name;
-	user->pass_b64 = pass;
+	user->pass_b64 = pwd;
 	user->ref_count = 1;
 	user->gid = 9999;
 	user->uid = 9999;
