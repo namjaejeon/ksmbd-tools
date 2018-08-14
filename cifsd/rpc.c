@@ -195,7 +195,7 @@ static void __rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 	rpc_pipe_reset(pipe);
 	if (pipe->dce)
 		dcerpc_free(pipe->dce);
-	g_array_free(pipe->entries, 0);
+	g_array_free(pipe->entries, 1);
 	free(pipe);
 }
 
