@@ -949,7 +949,7 @@ static int dcerpc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 static int dcerpc_bind_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
-	int i, j, k, ack = 0;
+	int i, j, k, ack = 0, ret;
 
 	for (i = 0; i < dce->bi_req.num_contexts; i++) {
 		for (j = 0; j < dce->bi_req.list[i].num_syntaxes; j++) {
@@ -965,10 +965,13 @@ static int dcerpc_bind_return(struct cifsd_rpc_pipe *pipe)
 
 	if (!ack) {
 		pr_err("Unsupported transfer syntax\n");
-		return dcerpc_bind_nack_return(pipe);
+		ret =  dcerpc_bind_nack_return(pipe);
+	} else {
+		ret = dcerpc_bind_ack_return(pipe);
 	}
 
-	return dcerpc_bind_ack_return(pipe);
+	dcerpc_bind_req_free(&dce->bi_req);
+	return ret;
 }
 
 int rpc_ioctl_request(struct cifsd_rpc_command *req,
