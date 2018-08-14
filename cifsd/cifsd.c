@@ -147,22 +147,6 @@ static int setup_signals(sighandler_t handler)
 	return 0;
 }
 
-void child_sig_handler(int signo)
-{
-	pr_err("Child received signal: %d (%s)\n",
-		signo, sys_siglist[signo]);
-	exit(EXIT_SUCCESS);
-}
-
-static void manager_sig_handler(int signo)
-{
-	setup_signals(SIG_DFL);
-	wait_group_kill(signo);
-	pr_info("Exiting. Bye!\n");
-	delete_lock_file();
-	kill(0, SIGINT);
-}
-
 static int parse_configs(char *pwddb, char *smbconf)
 {
 	int ret;
@@ -180,6 +164,20 @@ static int parse_configs(char *pwddb, char *smbconf)
 	if (smbconf!= PATH_SMBCONF)
 		free(smbconf);
 	return 0;
+}
+
+static void work_process_free(void)
+{
+	/*
+	 * NOTE, this is the final release, we don't look at ref_count
+	 * values. User management should be destroyed last.
+	 */
+	ipc_destroy();
+	rpc_destroy();
+	wp_destroy();
+	sm_destroy();
+	shm_destroy();
+	usm_destroy();
 }
 
 static int worker_process(void)
@@ -219,18 +217,27 @@ static int worker_process(void)
 	ret = ipc_receive_loop();
 
 out:
-	/*
-	 * NOTE, this is the final release, we don't look at ref_count
-	 * values. User management should be destroyed last.
-	 */
-	ipc_destroy();
-	rpc_destroy();
-	wp_destroy();
-	sm_destroy();
-	shm_destroy();
-	usm_destroy();
+	work_process_free();
 	return ret;
 }
+
+void child_sig_handler(int signo)
+{
+	pr_err("Child received signal: %d (%s)\n",
+		signo, sys_siglist[signo]);
+	work_process_free();
+	exit(EXIT_SUCCESS);
+}
+
+static void manager_sig_handler(int signo)
+{
+	setup_signals(SIG_DFL);
+	wait_group_kill(signo);
+	pr_info("Exiting. Bye!\n");
+	delete_lock_file();
+	kill(0, SIGINT);
+}
+
 
 static pid_t start_worker_process(worker_fn fn)
 {
