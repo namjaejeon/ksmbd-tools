@@ -276,6 +276,17 @@ static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
+static int srvsvc_clear_headers(struct cifsd_rpc_pipe *pipe,
+				int status)
+{
+	if (status == CIFSD_RPC_EMORE_DATA)
+		return 0;
+
+	ndr_free_uniq_vsting_ptr(&pipe->dce->si_req.server_name);
+	if (pipe->dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
+		ndr_free_vstring_ptr(&pipe->dce->si_req.share_name);
+}
+
 static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
@@ -307,6 +318,8 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 		status = srvsvc_share_get_info_return(pipe);
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL)
 		status = srvsvc_share_enum_all_return(pipe);
+
+	srvsvc_clear_headers(pipe, status);
 
 	/*
 	 * [out] DWORD Return value/code
