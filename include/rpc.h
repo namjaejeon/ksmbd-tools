@@ -311,6 +311,8 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce);
 void ndr_read_vstring_ptr(struct cifsd_dcerpc *dce, struct ndr_char_ptr *ctr);
 void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
 			      struct ndr_uniq_char_ptr *ctr);
+void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr);
+void ndr_free_uniq_vsting_ptr(struct ndr_uniq_char_ptr *ctr);
 void ndr_read_ptr(struct cifsd_dcerpc *dce, struct ndr_ptr *ctr);
 void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
 int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe, int max_entry_nr);

@@ -515,6 +515,19 @@ void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
 	ctr->ptr = ndr_read_vstring(dce);
 }
 
+void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr)
+{
+	free(ctr->ptr);
+	ctr->ptr = NULL;
+}
+
+void ndr_free_uniq_vsting_ptr(struct ndr_uniq_char_ptr *ctr)
+{
+	ctr->ref_id = 0;
+	free(ctr->ptr);
+	ctr->ptr = NULL;
+}
+
 void ndr_read_ptr(struct cifsd_dcerpc *dce, struct ndr_ptr *ctr)
 {
 	ctr->ptr = ndr_read_int32(dce);
