@@ -800,6 +800,10 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 	if (!hdr->list)
 		return -ENOMEM;
 
+	memset(hdr->list,
+		0x00,
+		hdr->num_contexts * sizeof(struct dcerpc_context));
+
 	for (i = 0; i < hdr->num_contexts; i++) {
 		struct dcerpc_context *ctx = &hdr->list[i];
 
@@ -816,6 +820,11 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 						sizeof(struct dcerpc_syntax));
 		if (!ctx->transfer_syntaxes)
 			return -ENOMEM;
+
+		memset(ctx->transfer_syntaxes,
+			0x00,
+			ctx->num_syntaxes * sizeof(struct dcerpc_syntax));
+
 		for (j = 0; j < ctx->num_syntaxes; j++)
 			__dcerpc_read_syntax(dce, &ctx->transfer_syntaxes[j]);
 	}
