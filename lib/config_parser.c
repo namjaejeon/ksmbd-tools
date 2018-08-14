@@ -431,6 +431,7 @@ static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
 static int cp_add_ipc_share(void)
 {
 	struct cifsd_share *share;
+	char *data;
 	int ret = 0;
 
 	ret = init_smbconf_parser();
@@ -443,8 +444,14 @@ static int cp_add_ipc_share(void)
 		goto out;
 	}
 
-	ret = add_new_group(strdup("[IPC$]"));
-	ret |= add_group_key_value(strdup("comment = IPC share"));
+	data = strdup("comment = IPC share");
+	if (!data) {
+		pr_err("Out of memory\n");
+		goto out;
+	}
+	ret = add_new_group("[IPC$]");
+	ret |= add_group_key_value(data);
+	free(data);
 	if (ret) {
 		pr_err("Unable to add IPC$ share\n");
 		goto out;
