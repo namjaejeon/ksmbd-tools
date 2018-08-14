@@ -88,12 +88,8 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 	struct cifsd_user *user = malloc(sizeof(struct cifsd_user));
 	struct passwd *passwd;
 
-	if (!name || !pwd || !user) {
-		free(user);
-		free(pwd);
-		free(name);
+	if (!user)
 		return NULL;
-	}
 
 	memset(user, 0x00, sizeof(struct cifsd_user));
 
@@ -167,8 +163,11 @@ int usm_add_new_user(char *name, char *pwd)
 	int ret = 0;
 	struct cifsd_user *user = new_cifsd_user(name, pwd);
 
-	if (!user)
+	if (!user) {
+		free(name);
+		free(pwd);
 		return -ENOMEM;
+	}
 
 	g_rw_lock_writer_lock(&users_table_lock);
 	if (__usm_lookup_user(name)) {
@@ -199,17 +198,16 @@ int usm_new_user_from_pwdentry(char *data)
 		return -EINVAL;
 	}
 
-	pwd = pos + 1;
 	*pos = 0x00;
 	name = strdup(data);
+	pwd = strdup(pos + 1);
 
-	if (!name)
-		return -ENOMEM;
-
-	ret = usm_add_new_user(name, pwd);
-	if (ret)
+	if (!name || !pwd) {
 		free(name);
-	return ret;
+		free(pwd);
+		return -ENOMEM;
+	}
+	return usm_add_new_user(name, pwd);
 }
 
 void for_each_cifsd_user(walk_users cb, gpointer user_data)
