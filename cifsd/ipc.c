@@ -39,7 +39,7 @@ static struct nl_sock *sk;
 struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz)
 {
 	struct cifsd_ipc_msg *msg;
-	size_t msg_sz = sz + sizeof(struct cifsd_ipc_msg);
+	size_t msg_sz = sz + sizeof(struct cifsd_ipc_msg) + 1;
 
 	if (msg_sz > CIFSD_IPC_MAX_MESSAGE_SIZE)
 		pr_err("IPC message is too large: %lu\n", msg_sz);
