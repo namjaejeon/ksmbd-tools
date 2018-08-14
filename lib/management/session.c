@@ -55,8 +55,8 @@ static struct cifsd_session *new_cifsd_session(unsigned long long id,
 	if (!sess)
 		return NULL;
 
-	g_rw_lock_init(&sess->update_lock);
 	memset(sess, 0x00, sizeof(struct cifsd_session));
+	g_rw_lock_init(&sess->update_lock);
 	sess->ref_counter = 1;
 	sess->id = id;
 	sess->user = user;
@@ -68,7 +68,7 @@ static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
 	kill_cifsd_session(s);
 }
 
-static void sm_clear_session(void)
+static void sm_clear_sessions(void)
 {
 	g_hash_table_foreach(sessions_table, free_hash_entry, NULL);
 }
@@ -221,7 +221,7 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 
 void sm_destroy(void)
 {
-	sm_clear_session();
+	sm_clear_sessions();
 	g_hash_table_destroy(sessions_table);
 	g_rw_lock_clear(&sessions_table_lock);
 }
