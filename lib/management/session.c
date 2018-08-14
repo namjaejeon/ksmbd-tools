@@ -70,9 +70,7 @@ static void free_hash_entry(gpointer k, gpointer s, gpointer user_data)
 
 static void sm_clear_session(void)
 {
-	g_rw_lock_writer_lock(&sessions_table_lock);
 	g_hash_table_foreach(sessions_table, free_hash_entry, NULL);
-	g_rw_lock_writer_unlock(&sessions_table_lock);
 }
 
 static int __sm_remove_session(struct cifsd_session *sess)
