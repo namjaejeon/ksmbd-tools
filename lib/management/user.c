@@ -120,9 +120,7 @@ static void free_hash_entry(gpointer k, gpointer u, gpointer user_data)
 
 static void usm_clear_users(void)
 {
-	g_rw_lock_writer_lock(&users_table_lock);
 	g_hash_table_foreach(users_table, free_hash_entry, NULL);
-	g_rw_lock_writer_unlock(&users_table_lock);
 }
 
 void usm_destroy(void)
