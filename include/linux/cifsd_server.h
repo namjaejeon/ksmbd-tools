@@ -83,7 +83,7 @@ struct cifsd_share_config_response {
 		____payload))
 
 #define CIFSD_SHARE_CONFIG_PATH(s)					\
-	CIFSD_SHARE_CONFIG_VETO_LIST(s) + s->veto_list_sz
+	CIFSD_SHARE_CONFIG_VETO_LIST(s) + (s)->veto_list_sz
 
 struct cifsd_tree_connect_request {
 	__u32	handle;
