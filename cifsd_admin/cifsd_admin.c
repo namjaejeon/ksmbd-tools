@@ -134,10 +134,18 @@ again:
 
 	printf("New password:\n");
 	term_toggle_echo(0);
-	fgets(pswd1, MAX_NT_PWD_LEN, stdin);
+	if (fgets(pswd1, MAX_NT_PWD_LEN, stdin) == NULL) {
+		term_toggle_echo(1);
+		pr_err("Fatal error: %s\n", strerror(errno));
+		return NULL;
+	}
 
 	printf("Retype new password:\n");
-	fgets(pswd2, MAX_NT_PWD_LEN, stdin);
+	if (fgets(pswd2, MAX_NT_PWD_LEN, stdin) == NULL) {
+		term_toggle_echo(1);
+		pr_err("Fatal error: %s\n", strerror(errno));
+		return NULL;
+	}
 	term_toggle_echo(1);
 
 	len = strlen(pswd1);
