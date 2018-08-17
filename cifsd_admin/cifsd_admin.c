@@ -67,7 +67,7 @@ static void usage(void)
 
 static int test_access(char *conf)
 {
-	int fd = open(conf, O_RDWR | O_CREAT);
+	int fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
 
 	if (fd != -1) {
 		close(fd);
@@ -338,12 +338,12 @@ static int command_add_user(char *pwddb)
 		return -EINVAL;
 	}
 
+	/* pswd is already strdup-ed */
 	if (usm_add_new_user(account, pswd)) {
 		pr_err("Could not add new account\n");
 		return -EINVAL;
 	}
 
-	free(pswd);
 	conf_fd = open(pwddb, O_WRONLY);
 	if (conf_fd == -1) {
 		pr_err("%s %s\n", strerror(errno), pwddb);
