@@ -56,7 +56,7 @@ AC_CHECK_FUNCS_ONCE([
 	recvmsg
 ])
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.52], [has_glib2=1], [has_glib2=0])
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.40], [has_glib2=1], [has_glib2=0])
 AS_IF([test "$has_glib2" -eq 0],
       AC_MSG_ERROR([No glib2 was found])
 ])
