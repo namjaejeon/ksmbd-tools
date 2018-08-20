@@ -93,10 +93,10 @@ static int wait_group_kill(int signo)
 	pid_t pid;
 	int status;
 
-	while (kill(worker_pid, signo) != 0) {
-		pr_err("can't execute kill: %s\n", strerror(errno));
-		sleep(1);
-	}
+	if (kill(worker_pid, signo) != 0)
+		pr_err("can't execute kill %d: %s\n",
+			worker_pid,
+			strerror(errno));
 
 	while (1) {
 		pid = waitpid(-1, &status, 0);
