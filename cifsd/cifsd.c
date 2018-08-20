@@ -238,7 +238,6 @@ static void manager_sig_handler(int signo)
 	kill(0, SIGINT);
 }
 
-
 static pid_t start_worker_process(worker_fn fn)
 {
 	int status = 0;

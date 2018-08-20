@@ -373,10 +373,11 @@ out_error:
 
 void ipc_destroy(void)
 {
-	if (cifsd_health_status == CIFSD_HEALTH_RUNNING)
+	if (cifsd_health_status == CIFSD_HEALTH_RUNNING) {
 		ipc_cifsd_shutting_down();
+		genl_unregister_family(&cifsd_family_ops);
+	}
 
-	genl_unregister_family(&cifsd_family_ops);
 	nl_socket_free(sk);
 	sk = NULL;
 }
