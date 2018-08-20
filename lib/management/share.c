@@ -554,10 +554,10 @@ void for_each_cifsd_share(walk_shares cb, gpointer user_data)
 
 int shm_share_config_payload_size(struct cifsd_share *share)
 {
-	int sz = 0;
+	int sz = 1;
 
 	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
-		sz = strlen(share->path) + 1;
+		sz += strlen(share->path);
 		sz += share->veto_list_sz;
 	}
 
@@ -570,20 +570,22 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 	void *config_payload;
 	size_t path_sz = 0;
 
-	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
-		path_sz = strlen(share->path) + 1;
+	if (!share)
+		return -EINVAL;
 
-	if (share) {
-		resp->flags = share->flags;
-		resp->veto_list_sz = share->veto_list_sz;
-		config_payload = CIFSD_SHARE_CONFIG_VETO_LIST(resp);
+	resp->flags = share->flags;
+	resp->veto_list_sz = share->veto_list_sz;
+
+	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
+		return 0;
+
+	config_payload = CIFSD_SHARE_CONFIG_VETO_LIST(resp);
+	if (resp->veto_list_sz) {
 		memcpy(config_payload,
 		       share->veto_list,
 		       resp->veto_list_sz);
-		if (resp->veto_list_sz)
-			resp->veto_list_sz++;
-		config_payload = CIFSD_SHARE_CONFIG_PATH(resp);
-		memcpy(config_payload, share->path, path_sz);
+		config_payload += resp->veto_list_sz;
 	}
+	memcpy(config_payload, share->path, strlen(share->path));
 	return 0;
 }
