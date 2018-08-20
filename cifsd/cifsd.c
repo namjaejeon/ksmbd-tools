@@ -63,6 +63,7 @@ static void usage(void)
 	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
 	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
 	fprintf(stderr, "\t-n | --nodetach\n");
+	fprintf(stderr, "\t-s systemd service mode | --systemd\n");
 
 	exit(EXIT_FAILURE);
 }
@@ -180,10 +181,28 @@ static void worker_process_free(void)
 	usm_destroy();
 }
 
+static void child_sig_handler(int signo)
+{
+	pr_err("Child received signal: %d (%s)\n",
+		signo, sys_siglist[signo]);
+	worker_process_free();
+	exit(EXIT_SUCCESS);
+}
+
+static void manager_sig_handler(int signo)
+{
+	setup_signals(SIG_DFL);
+	wait_group_kill(signo);
+	pr_info("Exiting. Bye!\n");
+	delete_lock_file();
+	kill(0, SIGINT);
+}
+
 static int worker_process_init(void)
 {
 	int ret;
 
+	setup_signals(child_sig_handler);
 	set_logger_app_name("cifsd-worker");
 
 	ret = usm_init();
@@ -221,23 +240,6 @@ out:
 	return ret;
 }
 
-void child_sig_handler(int signo)
-{
-	pr_err("Child received signal: %d (%s)\n",
-		signo, sys_siglist[signo]);
-	worker_process_free();
-	exit(EXIT_SUCCESS);
-}
-
-static void manager_sig_handler(int signo)
-{
-	setup_signals(SIG_DFL);
-	wait_group_kill(signo);
-	pr_info("Exiting. Bye!\n");
-	delete_lock_file();
-	kill(0, SIGINT);
-}
-
 static pid_t start_worker_process(worker_fn fn)
 {
 	int status = 0;
@@ -249,58 +251,19 @@ static pid_t start_worker_process(worker_fn fn)
 		return -EINVAL;
 	}
 	if (__pid == 0) {
-		setup_signals(child_sig_handler);
 		status = fn();
 		exit(status);
 	}
 	return __pid;
 }
 
-int main(int argc, char *argv[])
+static int manager_process_init(void)
 {
-	int ret = EXIT_FAILURE;
-	int no_detach = 0;
-	int c;
-
-	set_logger_app_name("cifsd-manager");
-	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
-
-	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:nh")) != EOF)
-		switch (c) {
-		case 'c':
-			smbconf = strdup(optarg);
-			break;
-		case 'i':
-			pwddb = strdup(optarg);
-			break;
-		case 'n':
-			no_detach = 1;
-			break;
-		case '?':
-		case 'h':
-		default:
-			usage();
-	}
-
-	if (!smbconf || !pwddb) {
-		pr_err("Out of memory\n");
-		goto out;
-	}
-
-	if (create_lock_file()) {
-		pr_err("Failed to create lock file: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
+	int ret;
 
 	setup_signals(manager_sig_handler);
-
-	if (no_detach) {
-		pr_logger_init(PR_LOGGER_STDIO);
-		return worker_process_init();
-	}
-
 	pr_logger_init(PR_LOGGER_SYSLOG);
+
 	if (daemon(0, 0) != 0) {
 		pr_err("Daemonization failed\n");
 		goto out;
@@ -333,4 +296,68 @@ out:
 	delete_lock_file();
 	kill(0, SIGTERM);
 	return ret;
+}
+
+static int manager_systemd_service(void)
+{
+	pid_t __pid;
+
+	__pid = start_worker_process(manager_process_init);
+	if (__pid < 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+int main(int argc, char *argv[])
+{
+	int ret = EXIT_FAILURE;
+	int no_detach = 0;
+	int systemd_service = 0;
+	int c;
+
+	set_logger_app_name("cifsd-manager");
+	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
+
+	opterr = 0;
+	while ((c = getopt(argc, argv, "c:i:snh")) != EOF)
+		switch (c) {
+		case 'c':
+			smbconf = strdup(optarg);
+			break;
+		case 'i':
+			pwddb = strdup(optarg);
+			break;
+		case 'n':
+			no_detach = 1;
+			break;
+		case 's':
+			systemd_service = 1;
+			break;
+		case '?':
+		case 'h':
+		default:
+			usage();
+	}
+
+	if (!smbconf || !pwddb) {
+		pr_err("Out of memory\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (create_lock_file()) {
+		pr_err("Failed to create lock file: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	setup_signals(manager_sig_handler);
+
+	if (no_detach) {
+		pr_logger_init(PR_LOGGER_STDIO);
+		return worker_process_init();
+	}
+
+	if (!systemd_service)
+		return manager_process_init();
+	return manager_systemd_service();
 }
