@@ -56,13 +56,13 @@ typedef int (*worker_fn)(void);
 
 static void usage(void)
 {
-	pr_err("cifsd-tools version : %s, date : %s\n",
-			CIFSD_TOOLS_VERSION,
-			CIFSD_TOOLS_DATE);
-	pr_err("Usage: cifsd\n");
-	pr_err("\t-c smb.conf | --config=smb.conf\n");
-	pr_err("\t-i cifspwd.db | --import-users=cifspwd.db\n");
-	pr_err("\t-n | --nodetach\n");
+	fprintf(stderr, "cifsd-tools version : %s, date : %s\n",
+		CIFSD_TOOLS_VERSION,
+		CIFSD_TOOLS_DATE);
+	fprintf(stderr, "Usage: cifsd\n");
+	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
+	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
+	fprintf(stderr, "\t-n | --nodetach\n");
 
 	exit(EXIT_FAILURE);
 }
