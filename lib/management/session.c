@@ -183,9 +183,9 @@ retry:
 static gint lookup_tree_conn(gconstpointer data, gconstpointer user_data)
 {
 	struct cifsd_tree_conn *tree_conn = (struct cifsd_tree_conn *)data;
-	unsigned long long id = (unsigned long long)user_data;
+	struct cifsd_tree_conn *dummy = (struct cifsd_tree_conn *)user_data;
 
-	if (tree_conn->id == id)
+	if (tree_conn->id == dummy->id)
 		return 0;
 	return 1;
 }
@@ -193,6 +193,7 @@ static gint lookup_tree_conn(gconstpointer data, gconstpointer user_data)
 int sm_handle_tree_disconnect(unsigned long long sess_id,
 			      unsigned long long tree_conn_id)
 {
+	struct cifsd_tree_conn dummy;
 	struct cifsd_session *sess;
 	GList *tc_list;
 	int drop;
@@ -202,8 +203,9 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 		return 0;
 
 	g_rw_lock_writer_lock(&sess->update_lock);
+	dummy.id = tree_conn_id;
 	tc_list = g_list_find_custom(sess->tree_conns,
-				     (gconstpointer)tree_conn_id,
+				     &dummy,
 				     lookup_tree_conn);
 	if (tc_list) {
 		struct cifsd_tree_conn *tree_conn;
