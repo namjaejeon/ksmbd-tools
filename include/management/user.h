@@ -30,7 +30,7 @@ struct cifsd_user {
 	char		*pass_b64;
 
 	char		*pass;
-	size_t		pass_sz;
+	int		pass_sz;
 
 	uid_t		uid;
 	gid_t		gid;

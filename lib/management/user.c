@@ -87,6 +87,7 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 {
 	struct cifsd_user *user = malloc(sizeof(struct cifsd_user));
 	struct passwd *passwd;
+	unsigned long pass_sz;
 
 	if (!user)
 		return NULL;
@@ -105,7 +106,8 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 		user->gid = passwd->pw_gid;
 	}
 
-	user->pass = base64_decode(user->pass_b64, &user->pass_sz);
+	user->pass = base64_decode(user->pass_b64, &pass_sz);
+	user->pass_sz = (int)pass_sz;
 	return user;
 }
 
@@ -219,7 +221,7 @@ void for_each_cifsd_user(walk_users cb, gpointer user_data)
 
 int usm_update_user_password(struct cifsd_user *user, char *pswd)
 {
-	size_t pass_sz;
+	unsigned long pass_sz;
 	char *pass_b64 = strdup(pswd);
 	char *pass = base64_decode(pass_b64, &pass_sz);
 
@@ -234,7 +236,7 @@ int usm_update_user_password(struct cifsd_user *user, char *pswd)
 	free(user->pass);
 	user->pass_b64 = pass_b64;
 	user->pass = pass;
-	user->pass_sz = pass_sz;
+	user->pass_sz = (int)pass_sz;
 	g_rw_lock_writer_unlock(&user->update_lock);
 
 	return 0;
