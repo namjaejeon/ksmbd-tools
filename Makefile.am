@@ -2,4 +2,4 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = lib cifsd cifsd_admin
+SUBDIRS = lib cifsd cifsdadmin
