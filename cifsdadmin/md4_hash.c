@@ -22,7 +22,9 @@
  *
  */
 
-#include "cifsadmin.h"
+#include <stdlib.h>
+#include <memory.h>
+#include <md4_hash.h>
 #include <asm/byteorder.h>
 
 #define u8 unsigned char

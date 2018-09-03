@@ -1,8 +1,7 @@
-## Makefile.am
-threads_LIB = -lpthread
-threads_CFLAGS = -pthread
-AM_CPPFLAGS = -I$(top_srcdir)/include
-AM_CFLAGS = -Wall $(threads_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common
+LIBS = $(GLIB_LIBS) $(LIBNL_LIBS)
+cifsd_LDADD = $(top_builddir)/lib/libcifsdtools.la
+
 sbin_PROGRAMS = cifsd
-cifsd_SOURCES = conv.c dcerpc.c pipecb.c cifsd.c $(top_srcdir)/include/cifsd.h
-cifsd_LDADD = $(top_builddir)/lib/libcifsd.la $(threads_LIB)
+
+cifsd_SOURCES = worker.c ipc.c rpc.c rpc_srvsvc.c rpc_wkssvc.c cifsd.c
