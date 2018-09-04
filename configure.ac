@@ -67,9 +67,6 @@ PKG_CHECK_MODULES([LIBNL], [libnl-3.0 >= 3.0 libnl-genl-3.0 >= 3.0], [has_libnl_
 AS_IF([test "$has_libnl_ver" -eq 0], [
 	AC_MSG_ERROR([libnl and libnl-genl are required but were not found])
 ])
-AS_IF([test "$has_libnl_ver" -gt 1], [
-	AC_DEFINE([HAVE_LIBNL20], [1], [Define if you have libnl-2.0 or higher])
-])
 
 AC_CONFIG_FILES([
 	Makefile
