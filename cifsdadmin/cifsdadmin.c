@@ -114,7 +114,7 @@ static void term_toggle_echo(int on_off)
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
 }
 
-static char *prompt_password(long *sz)
+static char *prompt_password(size_t *sz)
 {
 	char *pswd1 = malloc(MAX_NT_PWD_LEN + 1);
 	char *pswd2 = malloc(MAX_NT_PWD_LEN + 1);
@@ -176,7 +176,7 @@ again:
 
 static char *get_utf8_password(long *len)
 {
-	long sz;
+	size_t sz;
 	char *pswd1, *pswd2, *pswd1o, *pswd2o;
 	size_t dstsz;
 	iconv_t conv;

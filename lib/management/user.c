@@ -87,7 +87,7 @@ static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 {
 	struct cifsd_user *user = malloc(sizeof(struct cifsd_user));
 	struct passwd *passwd;
-	unsigned long pass_sz;
+	size_t pass_sz;
 
 	if (!user)
 		return NULL;
@@ -221,7 +221,7 @@ void for_each_cifsd_user(walk_users cb, gpointer user_data)
 
 int usm_update_user_password(struct cifsd_user *user, char *pswd)
 {
-	unsigned long pass_sz;
+	size_t pass_sz;
 	char *pass_b64 = strdup(pswd);
 	char *pass = base64_decode(pass_b64, &pass_sz);
 
