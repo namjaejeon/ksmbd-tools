@@ -122,12 +122,12 @@ void pr_hex_dump(const void *mem, size_t sz)
 	}
 }
 
-char *base64_encode(unsigned char *src, unsigned long srclen)
+char *base64_encode(unsigned char *src, size_t srclen)
 {
 	return g_base64_encode(src, srclen);
 }
 
-unsigned char *base64_decode(char const *src, unsigned long *dstlen)
+unsigned char *base64_decode(char const *src, size_t *dstlen)
 {
 	unsigned char *ret = g_base64_decode(src, dstlen);
 	if (ret)
