@@ -405,38 +405,40 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 static void global_group(struct smbconf_group *group)
 {
 	g_hash_table_foreach(group->kv, global_group_kv, NULL);
+
+	/*
+	 * Set default global parameters which were not specified
+	 * in smb.conf
+	 */
+	if (!global_conf.server_string)
+		global_conf.server_string =
+			cp_get_group_kv_string(CIFSD_CONF_DEFAULT_SERVER_STRING);
+	if (!global_conf.netbios_name)
+		global_conf.netbios_name =
+			cp_get_group_kv_string(CIFSD_CONF_DEFAULT_NETBIOS_NAME);
+	if (!global_conf.work_group)
+		global_conf.work_group =
+			cp_get_group_kv_string(CIFSD_CONF_DEFAULT_WORK_GROUP);
+
+	if (!global_conf.guest_account) {
+		int ret;
+
+		ret = cp_add_global_guest_account("nobody");
+		if (ret)
+			ret = cp_add_global_guest_account("ftp");
+		if (ret)
+			pr_err("Fatal error: %s [%d]\n",
+				"Cannot set a global guest account",
+				ret);
+	}
 }
 
 static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
 {
 	if (g_ascii_strncasecmp(_k, "global", 6))
 		shm_add_new_share((struct smbconf_group *)_v);
-	else {
+	else
 		global_group((struct smbconf_group *)_v);
-
-		/* Set default name if parameters are not define in smb.conf */
-		if (!global_conf.server_string)
-			global_conf.server_string =
-				cp_get_group_kv_string(DEFAULT_SERVER_STRING);
-		if (!global_conf.netbios_name)
-			global_conf.netbios_name =
-				cp_get_group_kv_string(DEFAULT_NETBIOS_NAME);
-		if (!global_conf.work_group)
-			global_conf.work_group =
-				cp_get_group_kv_string(DEFAULT_WORK_GROUP);
-
-		if (!global_conf.guest_account) {
-			int ret;
-
-			ret = cp_add_global_guest_account("nobody");
-			if (ret)
-				ret = cp_add_global_guest_account("ftp");
-			if (ret)
-				pr_err("Fatal error: %s [%d]\n",
-					"Cannot set a global guest account",
-					ret);
-		}
-	}
 }
 
 static int cp_add_ipc_share(void)

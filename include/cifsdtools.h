@@ -60,6 +60,10 @@ extern struct smbconf_global global_conf;
 #define CIFSD_CONF_MAP_TO_GUEST_BAD_PASSWORD	(1 << 1)
 #define CIFSD_CONF_MAP_TO_GUEST_BAD_UID		(1 << 2)
 
+#define CIFSD_CONF_DEFAULT_NETBIOS_NAME	"CIFSD SERVER"
+#define CIFSD_CONF_DEFAULT_SERVER_STRING	"CIFSD"
+#define CIFSD_CONF_DEFAULT_WORK_GROUP		"WORKGROUP"
+
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
