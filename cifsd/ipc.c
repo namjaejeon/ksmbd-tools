@@ -351,19 +351,25 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 	nlmsg_set_proto(nlmsg, NETLINK_GENERIC);
 	hdr = genlmsg_put(nlmsg, getpid(), 0, cifsd_family_ops.o_id,
 			  0, 0, msg->type, CIFSD_GENL_VERSION);
-	if (!hdr)
+	if (!hdr) {
+		pr_err("genlmsg_put() has failed, aborting IPC send()\n");
 		goto out_error;
+	}
 
 	/* Use msg->type as attribute TYPE */
 	ret = nla_put(nlmsg, msg->type, msg->sz, CIFSD_IPC_MSG_PAYLOAD(msg));
-	if (ret)
+	if (ret) {
+		pr_err("nla_put() has failed, aborting IPC send()\n");
 		goto out_error;
+	}
 
 	nl_msg_dump(nlmsg, stdout);
 
 	ret = nl_send_auto_complete(sk, nlmsg);
 	if (ret > 0)
 		ret = 0;
+	else
+		pr_err("nl_send_auto_complete() has failed\n");
 
 out_error:
 	if (nlmsg)
