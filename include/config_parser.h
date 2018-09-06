@@ -23,6 +23,13 @@
 
 #include <glib.h>
 
+/*
+ * Default parameter values.
+ */
+#define DEFAULT_NETBIOS_NAME	"CIFSD SERVER"
+#define DEFAULT_SERVER_STRING	"CIFSD"
+#define DEFAULT_WORK_GROUP	"WORKGROUP"
+
 struct smbconf_group {
 	char			*name;
 	GHashTable		*kv;
