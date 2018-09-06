@@ -404,6 +404,8 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 static void global_group(struct smbconf_group *group)
 {
+	int ret;
+
 	g_hash_table_foreach(group->kv, global_group_kv, NULL);
 
 	/*
@@ -420,17 +422,16 @@ static void global_group(struct smbconf_group *group)
 		global_conf.work_group =
 			cp_get_group_kv_string(CIFSD_CONF_DEFAULT_WORK_GROUP);
 
-	if (!global_conf.guest_account) {
-		int ret;
+	if (global_conf.guest_account)
+		return;
 
-		ret = cp_add_global_guest_account("nobody");
-		if (ret)
-			ret = cp_add_global_guest_account("ftp");
-		if (ret)
-			pr_err("Fatal error: %s [%d]\n",
-				"Cannot set a global guest account",
-				ret);
-	}
+	ret = cp_add_global_guest_account(CIFSD_CONF_DEFAULT_GUEST_ACCOUNT);
+	if (!ret)
+		return;
+	ret = cp_add_global_guest_account(CIFSD_CONF_FALLBACK_GUEST_ACCOUNT);
+	if (ret)
+		pr_err("Fatal error: Cannot set a global guest account %d\n",
+			ret);
 }
 
 static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)

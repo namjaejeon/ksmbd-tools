@@ -64,6 +64,9 @@ extern struct smbconf_global global_conf;
 #define CIFSD_CONF_DEFAULT_SERVER_STRING	"CIFSD"
 #define CIFSD_CONF_DEFAULT_WORK_GROUP		"WORKGROUP"
 
+#define CIFSD_CONF_DEFAULT_GUEST_ACCOUNT	"nobody"
+#define CIFSD_CONF_FALLBACK_GUEST_ACCOUNT	"ftp"
+
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
