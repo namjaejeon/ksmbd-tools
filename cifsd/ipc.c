@@ -365,11 +365,12 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 
 	nl_msg_dump(nlmsg, stdout);
 
-	ret = nl_send_auto_complete(sk, nlmsg);
+	nl_complete_msg(sk, nlmsg);
+	ret = nl_send_auto(sk, nlmsg);
 	if (ret > 0)
 		ret = 0;
 	else
-		pr_err("nl_send_auto_complete() has failed\n");
+		pr_err("nl_send_auto() has failed: %d\n", ret);
 
 out_error:
 	if (nlmsg)
