@@ -384,6 +384,8 @@ void ipc_destroy(void)
 
 int ipc_init(void)
 {
+	int ret;
+
 	sk = nl_socket_alloc();
 	if (!sk) {
 		pr_err("Cannot allocate netlink socket\n");
@@ -404,10 +406,19 @@ int ipc_init(void)
 		pr_err("Cannot register netlink family\n");
 		goto out_error;
 	}
-	if (genl_ops_resolve(sk, &cifsd_family_ops)) {
-		pr_err("Cannot resolve netlink family\n");
-		goto out_error;
-	}
+
+	do {
+		/*
+		 * Chances are we can start before cifsd kernel module is up
+		 * and running. So just wait for the kcifsd to register the
+		 * netlink family and accept our connection.
+		 */
+		ret = genl_ops_resolve(sk, &cifsd_family_ops);
+		if (ret) {
+			pr_err("Cannot resolve netlink family\n");
+			sleep(5);
+		}
+	} while (ret);
 
 	cifsd_health_status = CIFSD_HEALTH_RUNNING;
 	return 0;
