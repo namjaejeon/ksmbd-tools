@@ -153,12 +153,16 @@ static int parse_configs(char *pwddb, char *smbconf)
 	int ret;
 
 	ret = cp_parse_pwddb(pwddb);
-	if (ret)
+	if (ret) {
+		pr_err("Unable to parse user database\n");
 		return ret;
+	}
 
 	ret = cp_parse_smbconf(smbconf);
-	if (ret)
+	if (ret) {
+		pr_err("Unable to parse smb configuration file\n");
 		return ret;
+	}
 
 	if (pwddb != PATH_PWDDB)
 		free(pwddb);
@@ -206,35 +210,48 @@ static int worker_process_init(void)
 	set_logger_app_name("cifsd-worker");
 
 	ret = usm_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init user management\n");
 		goto out;
+	}
 
 	ret = shm_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init net share management\n");
 		goto out;
+	}
 
 	ret = parse_configs(pwddb, smbconf);
-	if (ret)
+	if (ret) {
+		pr_err("Failed to parse configuration files\n");
 		goto out;
+	}
 
 	ret = sm_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init user session management\n");
 		goto out;
+	}
 
 	ret = wp_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init worker threads pool\n");
 		goto out;
+	}
 
 	ret = rpc_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init RPC subsystem\n");
 		goto out;
+	}
 
 	ret = ipc_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init IPC subsystem\n");
 		goto out;
+	}
 
 	ret = ipc_receive_loop();
-
 out:
 	worker_process_free();
 	return ret;
