@@ -351,19 +351,26 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 	nlmsg_set_proto(nlmsg, NETLINK_GENERIC);
 	hdr = genlmsg_put(nlmsg, getpid(), 0, cifsd_family_ops.o_id,
 			  0, 0, msg->type, CIFSD_GENL_VERSION);
-	if (!hdr)
+	if (!hdr) {
+		pr_err("genlmsg_put() has failed, aborting IPC send()\n");
 		goto out_error;
+	}
 
 	/* Use msg->type as attribute TYPE */
 	ret = nla_put(nlmsg, msg->type, msg->sz, CIFSD_IPC_MSG_PAYLOAD(msg));
-	if (ret)
+	if (ret) {
+		pr_err("nla_put() has failed, aborting IPC send()\n");
 		goto out_error;
+	}
 
 	nl_msg_dump(nlmsg, stdout);
 
-	ret = nl_send_auto_complete(sk, nlmsg);
+	nl_complete_msg(sk, nlmsg);
+	ret = nl_send_auto(sk, nlmsg);
 	if (ret > 0)
 		ret = 0;
+	else
+		pr_err("nl_send_auto() has failed: %d\n", ret);
 
 out_error:
 	if (nlmsg)
@@ -384,6 +391,8 @@ void ipc_destroy(void)
 
 int ipc_init(void)
 {
+	int ret;
+
 	sk = nl_socket_alloc();
 	if (!sk) {
 		pr_err("Cannot allocate netlink socket\n");
@@ -404,10 +413,19 @@ int ipc_init(void)
 		pr_err("Cannot register netlink family\n");
 		goto out_error;
 	}
-	if (genl_ops_resolve(sk, &cifsd_family_ops)) {
-		pr_err("Cannot resolve netlink family\n");
-		goto out_error;
-	}
+
+	do {
+		/*
+		 * Chances are we can start before cifsd kernel module is up
+		 * and running. So just wait for the kcifsd to register the
+		 * netlink family and accept our connection.
+		 */
+		ret = genl_ops_resolve(sk, &cifsd_family_ops);
+		if (ret) {
+			pr_err("Cannot resolve netlink family\n");
+			sleep(5);
+		}
+	} while (ret);
 
 	cifsd_health_status = CIFSD_HEALTH_RUNNING;
 	return 0;
