@@ -97,7 +97,9 @@ static int nlink_msg_cb(struct nl_msg *msg, void *arg)
 		return NL_SKIP;
 	}
 
+#if TRACING_DUMP_NL_MSG
 	nl_msg_dump(msg, stdout);
+#endif
 
 	return genl_handle_msg(msg, NULL);
 }
@@ -363,7 +365,9 @@ int ipc_msg_send(struct cifsd_ipc_msg *msg)
 		goto out_error;
 	}
 
+#if TRACING_DUMP_NL_MSG
 	nl_msg_dump(nlmsg, stdout);
+#endif
 
 	nl_complete_msg(sk, nlmsg);
 	ret = nl_send_auto(sk, nlmsg);

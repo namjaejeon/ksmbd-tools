@@ -75,6 +75,8 @@ extern struct smbconf_global global_conf;
 
 static int cifsd_health_status;
 
+#define TRACING_DUMP_NL_MSG	0
+
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof((X)[0]))
 
 //---------------------------------------------------------------//
