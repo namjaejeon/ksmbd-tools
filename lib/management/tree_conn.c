@@ -64,6 +64,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER) {
 		if (req->account_flags & CIFSD_USER_FLAG_BAD_PASSWORD) {
 			resp->status = CIFSD_TREE_CONN_STATUS_INVALID_USER;
+			pr_debug("treecon: Bad user password\n");
 			goto out_error;
 		}
 	}
@@ -71,6 +72,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	share = shm_lookup_share(req->share);
 	if (!share) {
 		resp->status = CIFSD_TREE_CONN_STATUS_NO_SHARE;
+		pr_err("treecon: unknown net share: %s\n", req->share);
 		goto out_error;
 	}
 
@@ -81,6 +83,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 
 	if (shm_open_connection(share)) {
 		resp->status = CIFSD_TREE_CONN_STATUS_TOO_MANY_CONNS;
+		pr_debug("treecon: Too many connections to a net share\n");
 		goto out_error;
 	}
 
@@ -89,6 +92,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 				   req->peer_addr);
 	if (ret == -ENOENT) {
 		resp->status = CIFSD_TREE_CONN_STATUS_HOST_DENIED;
+		pr_debug("treecon: host denied: %s\n", req->peer_addr);
 		goto out_error;
 	}
 
@@ -98,11 +102,13 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 					   req->peer_addr);
 		if (ret == 0) {
 			resp->status = CIFSD_TREE_CONN_STATUS_HOST_DENIED;
+			pr_err("treecon: host denied: %s\n", req->peer_addr);
 			goto out_error;
 		}
 	}
 
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK)) {
+		pr_debug("treecon: net share permits guest login\n");
 		user = usm_lookup_user(share->guest_account);
 		if (user) {
 			set_conn_flag(conn, CIFSD_TREE_CONN_FLAG_GUEST_ACCOUNT);
@@ -119,6 +125,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 	user = usm_lookup_user(req->account);
 	if (!user) {
 		resp->status = CIFSD_TREE_CONN_STATUS_NO_USER;
+		pr_err("treecon: user account not found: %s\n", req->account);
 		goto out_error;
 	}
 
@@ -138,6 +145,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 				   req->account);
 	if (ret == 0) {
 		resp->status = CIFSD_TREE_CONN_STATUS_INVALID_USER;
+		pr_err("treecon: user is on invalid list\n");
 		goto out_error;
 	}
 
@@ -165,6 +173,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		goto bind;
 	if (ret == -ENOENT) {
 		resp->status = CIFSD_TREE_CONN_STATUS_INVALID_USER;
+		pr_err("treecon: user is not on the valid list\n");
 		goto out_error;
 	}
 

@@ -174,7 +174,7 @@ int usm_add_new_user(char *name, char *pwd)
 	g_rw_lock_writer_lock(&users_table_lock);
 	if (__usm_lookup_user(name)) {
 		g_rw_lock_writer_unlock(&users_table_lock);
-		pr_info("User exists %s\n", name);
+		pr_info("User already exists %s\n", name);
 		kill_cifsd_user(user);
 		return 0;
 	}
@@ -228,6 +228,7 @@ int usm_update_user_password(struct cifsd_user *user, char *pswd)
 	if (!pass_b64 || !pass) {
 		free(pass_b64);
 		free(pass);
+		pr_err("Cannot allocate new user entry: out of memory\n");
 		return -ENOMEM;
 	}
 
@@ -271,6 +272,7 @@ static int usm_copy_user_account(struct cifsd_user *user,
 		memcpy(account, user->name, account_sz);
 		return 0;
 	}
+	pr_err("Cannot copy user data, buffer overrun\n");
 	return -ENOSPC;
 }
 

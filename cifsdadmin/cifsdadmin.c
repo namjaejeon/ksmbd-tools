@@ -199,8 +199,10 @@ static char *get_utf8_password(long *len)
 	conv = iconv_open("UTF16LE", "UTF-8");
 	if (conv == (iconv_t)-1) {
 		conv = iconv_open("UCS-2LE", "UTF-8");
-		if (conv == (iconv_t)-1)
+		if (conv == (iconv_t)-1) {
+			pr_err("iconv() has failed: %s\n", strerror(errno));
 			return NULL;
+		}
 	}
 
 	pswd1o = pswd1;
@@ -468,16 +470,22 @@ int main(int argc, char *argv[])
 	}
 
 	ret = usm_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init user management\n");
 		goto out;
+	}
 
 	ret = shm_init();
-	if (ret)
+	if (ret) {
+		pr_err("Failed to init net share management\n");
 		goto out;
+	}
 
 	ret = parse_configs(pwddb, smbconf);
-	if (ret)
+	if (ret) {
+		pr_err("Unable to parse configuration files\n");
 		goto out;
+	}
 
 	if (cmd == COMMAND_ADD_USER)
 		ret = command_add_user(pwddb);
