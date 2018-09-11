@@ -180,6 +180,20 @@ retry:
 	return 0;
 }
 
+int sm_check_sessions_capacity(unsigned long long id)
+{
+	int ret = 0;
+
+	if (sm_lookup_session(id))
+		return ret;
+
+	if (g_atomic_int_add(&global_conf.sessions_cap, -1) < 1) {
+		ret = -EINVAL;
+		g_atomic_int_inc(&global_conf.sessions_cap);
+	}
+	return ret;
+}
+
 static gint lookup_tree_conn(gconstpointer data, gconstpointer user_data)
 {
 	struct cifsd_tree_conn *tree_conn = (struct cifsd_tree_conn *)data;
@@ -202,6 +216,7 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 	if (!sess)
 		return 0;
 
+	g_atomic_int_inc(&global_conf.sessions_cap);
 	g_rw_lock_writer_lock(&sess->update_lock);
 	dummy.id = tree_conn_id;
 	tc_list = g_list_find_custom(sess->tree_conns,
