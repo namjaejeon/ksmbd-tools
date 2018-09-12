@@ -61,6 +61,12 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		return -ENOMEM;
 	}
 
+	if (sm_check_sessions_capacity(req->session_id)) {
+		resp->status = CIFSD_TREE_CONN_STATUS_TOO_MANY_SESSIONS;
+		pr_debug("treecon: Too many active sessions\n");
+		goto out_error;
+	}
+
 	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER) {
 		if (req->account_flags & CIFSD_USER_FLAG_BAD_PASSWORD) {
 			resp->status = CIFSD_TREE_CONN_STATUS_INVALID_USER;

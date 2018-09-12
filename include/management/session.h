@@ -37,6 +37,8 @@ struct cifsd_session {
 
 struct cifsd_tree_conn;
 
+int sm_check_sessions_capacity(unsigned long long id);
+
 int sm_handle_tree_connect(unsigned long long id,
 			   struct cifsd_user *user,
 			   struct cifsd_tree_conn *tree_conn);

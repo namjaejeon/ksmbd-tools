@@ -51,6 +51,7 @@ struct smbconf_global {
 	char			*server_min_protocol;
 	char			*server_max_protocol;
 	int			server_signing;
+	int			sessions_cap;
 };
 
 extern struct smbconf_global global_conf;
@@ -66,6 +67,8 @@ extern struct smbconf_global global_conf;
 
 #define CIFSD_CONF_DEFAULT_GUEST_ACCOUNT	"nobody"
 #define CIFSD_CONF_FALLBACK_GUEST_ACCOUNT	"ftp"
+
+#define CIFSD_CONF_DEFAULT_SESS_CAP	1024
 
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
