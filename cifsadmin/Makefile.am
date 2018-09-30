@@ -1,7 +1,7 @@
-## Makefile.am
+AM_CFLAGS = -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common
+LIBS = $(GLIB_LIBS) $(LIBNL_LIBS)
+cifsadmin_LDADD = $(top_builddir)/lib/libcifsdtools.la
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
-AM_CFLAGS = -Wall
 sbin_PROGRAMS = cifsadmin
-cifsadmin_SOURCES = cifsadmin.c  cifsadmin.h hash.c $(top_srcdir)/include/cifsd.h
-cifsadmin_LDADD = $(top_builddir)/lib/libcifsd.la
+
+cifsadmin_SOURCES = md4_hash.c cifsadmin.c

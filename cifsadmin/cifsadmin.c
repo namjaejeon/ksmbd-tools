@@ -1,29 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   cifsd-tools/cifsadmin/cifsadmin.c
+ *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  *
- *   Copyright (C) 2015 Samsung Electronics Co., Ltd.
- *   Copyright (C) 2016 Namjae Jeon <namjae.jeon@protocolfreedom.org>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#include "cifsadmin.h"
-#include "netlink.h"
+#include <glib.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <iconv.h>
 
-/* global variables */
-static char *dup_optarg;
+#include <config_parser.h>
+#include <cifsdtools.h>
+
+#include <management/user.h>
+#include <management/share.h>
+
+#include <md4_hash.h>
+
+static char *account = NULL;
+static int conf_fd = -1;
+
+#define MAX_NT_PWD_LEN 129
+
+enum {
+	COMMAND_ADD_USER = 1,
+	COMMAND_DEL_USER,
+	COMMAND_UPDATE_USER,
+};
+
+static void usage(void)
+{
+	fprintf(stderr, "cifsd-tools version : %s, date : %s\n",
+			CIFSD_TOOLS_VERSION,
+			CIFSD_TOOLS_DATE);
+	fprintf(stderr, "Usage: cifsd_admin\n");
+
+	fprintf(stderr, "\t-a | --add-user=login\n");
+	fprintf(stderr, "\t-d | --del-user=login\n");
+	fprintf(stderr, "\t-u | --update-user=login\n");
+
+	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
+	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
+	fprintf(stderr, "\t-v | --verbose\n");
+
+	exit(EXIT_FAILURE);
+}
+
+static int test_access(char *conf)
+{
+	int fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
+
+	if (fd != -1) {
+		close(fd);
+		return 0;
+	}
+
+	pr_err("%s %s\n", conf, strerror(errno));
+	return -EINVAL;
+}
+
+static int parse_configs(char *pwddb, char *smbconf)
+{
+	int ret;
+
+	ret = test_access(pwddb);
+	if (ret)
+		return ret;
+
+	ret = cp_parse_pwddb(pwddb);
+	if (ret)
+		return ret;
+
+	ret = test_access(smbconf);
+	if (ret)
+		return ret;
+
+	ret = cp_parse_smbconf(smbconf);
+	if (ret)
+		return ret;
+	return 0;
+}
 
 static void term_toggle_echo(int on_off)
 {
@@ -39,909 +101,387 @@ static void term_toggle_echo(int on_off)
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
 }
 
-/**
- * handle_sigint() - registered signal handler for SIGINT
- * @signum:	occured signal number
- * @siginfo:	information associated with signum
- * @message:	additonal text data for signum
- */
-static void handle_sigint(int signum, siginfo_t *siginfo, void *message)
+static char *prompt_password(size_t *sz)
 {
-	if (signum == SIGINT) {
-		cifsd_debug("Received [Signo:%d] [SigCode:%d]\n",
-			siginfo->si_signo, siginfo->si_code);
+	char *pswd1 = malloc(MAX_NT_PWD_LEN + 1);
+	char *pswd2 = malloc(MAX_NT_PWD_LEN + 1);
+	size_t len = 0;
+	int i;
 
-		/* code added to suppress warning*/
-		if (!(int *)message)
-			cifsd_debug("Message field empty\n");
-
-		term_toggle_echo(1);
-
-		cifsd_debug("Terminating program\n");
-		exit(0);
+	if (!pswd1 || !pswd2) {
+		free(pswd1);
+		free(pswd2);
+		pr_err("Out of memory\n");
+		return NULL;
 	}
+
+again:
+	memset(pswd1, 0x00, MAX_NT_PWD_LEN + 1);
+	memset(pswd2, 0x00, MAX_NT_PWD_LEN + 1);
+
+	printf("New password:\n");
+	term_toggle_echo(0);
+	if (fgets(pswd1, MAX_NT_PWD_LEN, stdin) == NULL) {
+		term_toggle_echo(1);
+		pr_err("Fatal error: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	printf("Retype new password:\n");
+	if (fgets(pswd2, MAX_NT_PWD_LEN, stdin) == NULL) {
+		term_toggle_echo(1);
+		pr_err("Fatal error: %s\n", strerror(errno));
+		return NULL;
+	}
+	term_toggle_echo(1);
+
+	len = strlen(pswd1);
+	for (i = 0; i < len; i++)
+		if (pswd1[i] == '\n')
+			pswd1[i] = 0x00;
+
+	len = strlen(pswd2);
+	for (i = 0; i < len; i++)
+		if (pswd2[i] == '\n')
+			pswd2[i] = 0x00;
+
+	if (memcmp(pswd1, pswd2, MAX_NT_PWD_LEN + 1)) {
+		pr_err("Passwords don't match\n");
+		goto again;
+	}
+
+	len = strlen(pswd1);
+	if (len <= 1) {
+		pr_err("No password was provided\n");
+		goto again;
+	}
+
+	*sz = len;
+	free(pswd2);
+	return pswd1;
 }
 
-/**
- * strlen_w() - helper function to calculate unicode string length
- * @src:	source unicode string to find length
- *
- * Return:	length of unicode string
- */
-size_t strlen_w(const unsigned short *src)
+static char *get_utf8_password(long *len)
 {
-	size_t len;
-	unsigned short c;
-
-	for (len = 0; *(COPY_UCS2_CHAR(&c, src)); src++, len++);
-
-	return len;
-}
-
-/**
- * convert_nthash() - function to convert password to NTHash
- * @dst:	destination pointer to save NTHash
- * @pwd:	source password string
- *
- * Return:	success: 0; fail: -1
- */
-int convert_nthash(unsigned char *dst, char *pwd)
-{
-	unsigned short uni[MAX_NT_PWD_LEN];
-	char *pOut = (char *)uni;
-	size_t srclen = MAX_NT_PWD_LEN;
-	size_t dstlen = MAX_NT_PWD_LEN;
+	size_t sz;
+	char *pswd1, *pswd2, *pswd1o, *pswd2o;
+	size_t dstsz;
 	iconv_t conv;
-	size_t len;
-	struct md4_ctx mctx;
+	size_t ret;
 
-	memset(pOut, 0, MAX_NT_PWD_LEN * sizeof(unsigned short));
+	pswd1 = prompt_password(&sz);
+	if (!pswd1)
+		return NULL;
+
+	dstsz = sz * sizeof(unsigned short) * 2;
+	pswd2 = malloc(dstsz);
+	if (!pswd2) {
+		free(pswd1);
+		pr_err("Out of memory\n");
+		return NULL;
+	}
+
+	memset(pswd2, 0x00, dstsz);
 
 	conv = iconv_open("UTF16LE", "UTF-8");
 	if (conv == (iconv_t)-1) {
-		if (errno == EINVAL) {
-			conv = iconv_open("UCS-2LE", "UTF-8");
-			if (conv == (iconv_t)-1) {
-				cifsd_err("failed to open conversion"
-					" for UCS-2LE to UTF-8\n");
-				perror("iconv_open");
-				return -1;
-			}
-		} else {
-			cifsd_err("failed to open conversion for"
-					" UTF16LE to UTF-8\n");
-			return -1;
+		conv = iconv_open("UCS-2LE", "UTF-8");
+		if (conv == (iconv_t)-1) {
+			pr_err("iconv() has failed: %s\n", strerror(errno));
+			return NULL;
 		}
 	}
 
-	iconv(conv, &pwd, &srclen, &pOut, &dstlen);
-	len = strlen_w(uni) * sizeof(unsigned short);
-	md4_init(&mctx);
-	md4_update(&mctx, (unsigned char *)uni, len);
-	md4_final(&mctx, dst);
-
+	pswd1o = pswd1;
+	pswd2o = pswd2;
+	ret = iconv(conv, &pswd1, &sz, &pswd2, &dstsz);
 	iconv_close(conv);
-	return 0;
+	if (ret == (size_t)-1) {
+		pr_err("%s\n", strerror(errno));
+		free(pswd1o);
+		free(pswd2o);
+		return NULL;
+	}
+
+	*len = pswd2 - pswd2o;
+	pswd1 = pswd1o;
+	pswd2 = pswd2o;
+
+	free(pswd1);
+	return pswd2;
 }
 
-/**
- * get_pwd_prompt() - helper function to read user password string from stdin
- * @message:	information to be displayed to user
- *
- * Return:	success: "user provided pwd string"; fail: "NULL"
- */
-char *get_pwd_prompt(char *message)
+static void __sanity_check(char *pswd_hash, char *pswd_b64)
 {
-	int len;
-	char *password;
+	size_t pass_sz;
+	char *pass = base64_decode(pswd_b64, &pass_sz);
 
-	password = malloc(MAX_NT_PWD_LEN + 1);
-	if (!password)
+	if (!pass) {
+		pr_err("Unable to decode NT hash\n");
+		exit(1);
+	}
+
+	if (memcmp(pass, pswd_hash, pass_sz)) {
+		pr_err("NT hash encoding error\n");
+		exit(1);
+	}
+	free(pass);
+}
+
+static char *get_hashed_b64_password(void)
+{
+	struct md4_ctx mctx;
+	long len;
+	char *pswd_plain, *pswd_hash, *pswd_b64;
+
+	pswd_plain = get_utf8_password(&len);
+	if (!pswd_plain)
 		return NULL;
 
-	term_toggle_echo(0);
-
-retry:
-	fprintf(stdout, "%s", message);
-	if (fgets(password, MAX_NT_PWD_LEN, stdin) == NULL) {
-		free(password);
-		password = NULL;
-		goto out;
+	pswd_hash = malloc(sizeof(mctx.hash) + 1);
+	if (!pswd_hash) {
+		free(pswd_plain);
+		pr_err("Out of memory\n");
+		return NULL;
 	}
 
-	len = strlen(password);
-	if (len < 0 && len > MAX_NT_PWD_LEN) {
-		cifsd_err("Password length(%d) invalid!"
-				" allowed length 1 ~ %d\n",
-				len, MAX_NT_PWD_LEN - 1);
-		goto retry;
-	}
+	memset(pswd_hash, 0x00, sizeof(mctx.hash) + 1);
 
-	if (password[len - 1] == '\n')
-		password[len - 1] = 0;
+	md4_init(&mctx);
+	md4_update(&mctx, pswd_plain, len);
+	md4_final(&mctx, pswd_hash);
 
-out:
-	term_toggle_echo(1);
-	return password;
+	pswd_b64 = base64_encode(pswd_hash,
+				 MD4_HASH_WORDS * sizeof(unsigned int));
+
+	__sanity_check(pswd_hash, pswd_b64);
+	free(pswd_plain);
+	free(pswd_hash);
+	return pswd_b64;
 }
 
-/**
- * get_enc_pwd() - function to read and encrypted user password
- *
- * Return:	pointer for user supplied pwd. otherwise NULL.
- */
-unsigned char *get_enc_pwd()
+static void write_user(struct cifsd_user *user)
 {
-	char *new_pwd = NULL;
-	char *re_pwd = NULL;
-	unsigned char *encrypt = NULL;
-	int err = -1;
-
-	new_pwd = get_pwd_prompt("New Password:\n");
-	if (!new_pwd) {
-		cifsd_err("Error while setting password.\n");
-		goto out;
-	}
-
-	re_pwd = get_pwd_prompt("Retype Password:\n");
-	if (!re_pwd) {
-		cifsd_err("Error while setting password.\n");
-		goto out;
-	}
-
-	if (strcmp(new_pwd, re_pwd)) {
-		cifsd_err("Passwords mismatch.\n");
-		goto out;
-	}
-
-	encrypt = (unsigned char *)malloc(CIFS_NTHASH_SIZE + 1);
-	if (!encrypt)
-		goto out;
-	memset(encrypt, 0, CIFS_NTHASH_SIZE + 1);
-
-	if (convert_nthash(encrypt, new_pwd))
-		goto out;
-
-	err = 0;
-out:
-	if (new_pwd)
-		free(new_pwd);
-	if (re_pwd)
-		free(re_pwd);
-	if (err < 0 && encrypt) {
-		free(encrypt);
-		encrypt = NULL;
-	}
-
-	return encrypt;
-}
-
-/**
- * getusrpwd() - helper function to extract username and pwd from i/p string
- * @line:	input string containing username and pwd
- * @fusrname:	initialize with username or NULL
- * @pwd1:	initialize with password or NULL
- * @len:	length of input line string
- *
- * Return:	success: 1; fail: 0
- */
-int getusrpwd(char *line, char **fusrname, char **pwd1, int len)
-{
-	char *name = NULL;
-	char *pwd = NULL;
-
-	init_2_strings(line, &name, &pwd, len);
-
-	if (name && pwd) {
-		*fusrname = name;
-		*pwd1 = pwd;
-	} else {
-		*fusrname = NULL;
-		*pwd1 = NULL;
-		return 0;
-	}
-
-	return 1;
-}
-
-/**
- * updatedb() - helper function to replace existing user entry
- *		with new details in database file
- * @nstr:	source string to be updated in database file
- * @nsz:	source length to be updated in database file
- * @lno:	line number to be updated in database file
- *
- * Return:	success: 1; fail: 0
- */
-int updatedb(int fd, char *nstr, size_t nsz, int lno)
-{
-	char *line;
-	int eof = 0;
-	int cnt = 1;
-
-	if (lseek(fd, 0, SEEK_SET) == -1)
-		return 0;
-
-	while (cnt++ < lno) {
-		if (get_entry(fd, &line, &eof) != -1)
-			free(line);
-	}
-
-	if (write(fd, nstr, nsz) != nsz)
-		return 0;
-
-	if (write(fd, "\n", 1) != 1)
-		return 0;
-
-	return 1;
-}
-
-int update_current_user_entry(int fd, char *username, unsigned char *password,
-		int line_num, int is_root)
-{
-	unsigned char *new_pwd;
-	int ret = CIFS_SUCCESS;
-
-	if (!is_root) {
-		char *old_pwd;
-		unsigned char enc_pwd[CIFS_NTHASH_SIZE + 1];
-
-		old_pwd = get_pwd_prompt("Old Password:\n");
-		if (!old_pwd) {
-			cifsd_err("Error while setting password.\n");
-			ret = CIFS_FAIL;
-			goto out;
-		}
-
-		if (convert_nthash(enc_pwd, old_pwd)) {
-			free(old_pwd);
-			ret = CIFS_FAIL;
-			goto out;
-		}
-
-		if (strcmp((const char *)password,
-				(const char *)enc_pwd)) {
-			cifsd_err(
-				"Password authentication failed\n");
-			goto out;
-		}
-
-		free(old_pwd);
-	}
-
-	new_pwd = get_enc_pwd();
-	if (new_pwd) {
-		char *newline;
-		size_t sz;
-		int ulen = strlen(username);
-
-		sz = ulen + CIFS_NTHASH_SIZE + 2;
-
-		newline = (char *)malloc(sz);
-		if (!newline) {
-			free(new_pwd);
-			ret = CIFS_FAIL;
-			goto out;
-		}
-
-		memset(newline, 0, sz);
-		memcpy(newline, username, ulen);
-		memcpy(newline + ulen, ":", 1);
-		memcpy(newline + ulen + 1, new_pwd, CIFS_NTHASH_SIZE);
-
-		updatedb(fd, newline, sz - 1, line_num);
-
-		free(new_pwd);
-		free(newline);
-	}
-
-out:
-	return ret;
-}
-
-int add_new_user_entry(int fd, char *username)
-{
-	unsigned char *newpwd;
-
-	newpwd = get_enc_pwd();
-	if (newpwd) {
-		size_t sz, val = strlen(username);
-		char *construct;
-
-		if (lseek(fd, 0, SEEK_END) == -1) {
-			free(newpwd);
-			return CIFS_FAIL;
-		}
-
-		sz = val + CIFS_NTHASH_SIZE + 3;
-
-		construct = (char *)malloc(sz);
-		if (!construct) {
-			free(newpwd);
-			return CIFS_FAIL;
-		}
-
-		memset(construct, 0, sz);
-		memcpy(construct, username, val);
-		memcpy(construct + val, ":", 1);
-		memcpy(construct + val + 1, newpwd, 16);
-		memcpy(construct + val + 1 + 16, "\n", 1);
-
-		if (write(fd, construct, sz - 1) != sz - 1) {
-			cifsd_err("%d: file operation failed, errno : %d\n",
-					__LINE__, errno);
-			free(construct);
-			free(newpwd);
-			return CIFS_FAIL;
-		}
-
-		free(construct);
-		free(newpwd);
-	}
-
-	return CIFS_SUCCESS;
-}
-
-/**
- * add_user_account() - function to add/modify user account to local DB file
- * @username:	user entry to be added/modified
- * @flag:	flag indicating caller context as Root/Non-Root
- *		  - Root can add/modify any user account
- *		  - Non-Root can only add/modify it's own account
- *
- * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
- */
-int add_user_account(int fd, char *username, int flag)
-{
-	char *fusrname, *line;
-	unsigned char *passwd = NULL;
-	int iseof = 0, lno = 0, len;
-	int ret = CIFS_FAIL;
-
-	if (lseek(fd, 0, SEEK_SET) == -1)
-		return CIFS_FAIL;
-
-	do {
-		len = get_entry(fd, &line, &iseof);
-		if (len == -ENOMEM)
-			goto out;
-
-		if (len < 0) {
-			free(line);
-			continue;
-		}
-
-		if (iseof) {
-			free(line);
-			break;
-		}
-
-		lno++;
-		if (!getusrpwd(line, &fusrname, (char **)&passwd, len)) {
-			free(line);
-			goto out;
-		}
-
-		if (!strcmp((const char *)fusrname,
-					(const char *)username)) {
-			ret = update_current_user_entry(fd, username, passwd,
-				lno, flag & AM_ROOT);
-				goto out;
-		}
-
-		free(line);
-		free(fusrname);
-	} while (!iseof);
-
-	ret = add_new_user_entry(fd, username);
-out:
-
-	return ret;
-}
-
-/**
- * remove_user_entry() - function to delete user account from local database
- *		file and running cifsd if available
- * @usrname:	user name to be removed
- * @lno:	line number of user entry in local database file
- *
- * Return:	success: 1; fail: 0
- */
-int remove_user_entry(int fd, char *usrname, int lno)
-{
-	long pos1, pos2, pos3;
+	size_t sz = strlen(user->name) + strlen(user->pass_b64) + 4;
 	char *data;
-	size_t rem;
-	char *line = NULL;
-	int eof = 0;
-	int len;
-	int cnt = 1;
+	int ret, nr = 0;
+	size_t wsz;
 
-	if (lseek(fd, 0, SEEK_SET) == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		return 0;
-	}
-
-	while (cnt++ < lno) {
-		if (get_entry(fd, &line, &eof) != -1)
-			free(line);
-	}
-
-	pos1 = lseek(fd, 0, SEEK_CUR);
-	if (pos1 == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		return 0;
-	}
-
-	len = get_entry(fd, &line, &eof);
-	if (len >= 0)
-		free(line);
-
-	len += 1; /* add '\n' to length */
-	pos2 = pos1 + len;
-	if (lseek(fd, 0, SEEK_END) == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		return 0;
-	}
-
-	pos3 = lseek(fd, 0, SEEK_CUR);
-	if (pos3 == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		return 0;
-	}
-
-	rem = pos3 - pos2;
-	data = (char *)malloc(rem);
+	data = malloc(sz);
 	if (!data) {
-		cifsd_debug("%d: memory allocation failed\n", __LINE__);
-		return 0;
+		pr_err("Out of memory allocating %d bytes for user %s\n",
+				sz, user->name);
+		exit(1);
 	}
 
-	if (lseek(fd, pos2, SEEK_SET) == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		free(data);
-		return 0;
-	}
+	memset(data, 0x00, sz);
+	wsz = snprintf(data, sz, "%s:%s\n", user->name, user->pass_b64);
 
-	if (read(fd, data, rem) != rem) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		free(data);
-		return 0;
-	}
+	while (wsz && (ret = write(conf_fd, data + nr, wsz)) != 0) {
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+			pr_err("%s\n", strerror(errno));
+			exit(1);
+		}
 
-	if (lseek(fd, pos1, SEEK_SET) == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		free(data);
-		return 0;
-	}
-
-	if (write(fd, data, rem) != rem) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		free(data);
-		return 0;
-	}
-
-	if (ftruncate(fd, pos3 - len) == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		free(data);
-		return 0;
+		nr += ret;
+		wsz -= ret;
 	}
 
 	free(data);
-
-	return 1;
 }
 
-/**
- * remove_user_account() - function to remove user account
- * @nlsock:	netlink socket
- * @fd:		user db file descriptor
- * @username:	account for username to be removed
- *
- * Return:	success: CIFS_SUCCESS; fail: CIFS_FAIL
- */
-int remove_user_account(struct nl_sock *nlsock, int fd, char *username)
+static void write_user_cb(gpointer key, gpointer value, gpointer user_data)
 {
-	struct cifsd_uevent ev;
-	char *line, *name;
-	int iseof = 0, lcnt = 0, removed = 0, len;
-	int ret;
-	if (lseek(fd, 0, SEEK_SET) == -1) {
-		cifsd_debug("%d: file operation failed\n", __LINE__);
-		return CIFS_FAIL;
+	struct cifsd_user *user = (struct cifsd_user *)value;
+	write_user(user);
+}
+
+static void write_remove_user_cb(gpointer key,
+				 gpointer value,
+				 gpointer user_data)
+{
+	struct cifsd_user *user = (struct cifsd_user *)value;
+
+	if (!g_ascii_strncasecmp(user->name, account, strlen(account)))
+		return;
+
+	write_user_cb(key, value, user_data);
+}
+
+static int command_add_user(char *pwddb)
+{
+	struct cifsd_user *user = usm_lookup_user(account);
+	char *pswd;
+
+	if (user) {
+		put_cifsd_user(user);
+		pr_err("Account `%s' already exists\n", account);
+		return -EEXIST;
 	}
 
-	do {
-		len = get_entry(fd, &line, &iseof);
-		if (len == -ENOMEM)
-			break;
-
-		if (len < 0) {
-			free(line);
-			continue;
-		}
-
-		lcnt++;
-		name = strtok(line, ":");
-		if (name && !strcmp(name, username)) {
-			if (remove_user_entry(fd, username, lcnt)) {
-				cifsd_debug("[%s] remove success\n",
-					username);
-				removed = 1;
-			}
-		}
-		free(line);
-
-	} while (!iseof && !removed);
-
-	ret = removed ? CIFS_SUCCESS : CIFS_FAIL;
-	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSADMIN_KEVENT_REMOVE_USER;
-	ev.error = ret;
-	strncpy(ev.k.u_del.username, username, strlen(username));
-
-	if (cifsd_common_sendmsg(nlsock, &ev, NULL, 0) < 0)
-		return CIFS_FAIL;
-
-	return ret;
-}
-
-/**
- * query_user_account() - function to check cifsd user account status
- * @nlsock:	netlink socket
- * @usrname:	user name for the account under query
- *
- * Return:	success: CIFS_SUCCESS (user configured with cifsd)
- *		fail: CIFS_FAIL (cifsd not available)
- */
-int query_user_account(struct nl_sock *nlsock, char *username)
-{
-	struct cifsd_uevent ev;
-
-	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSADMIN_KEVENT_QUERY_USER;
-	strncpy(ev.k.u_query.username, username, strlen(username));
-
-	if (cifsd_common_sendmsg(nlsock, &ev, NULL, 0) < 0)
-		return CIFS_FAIL;
-
-	return CIFS_SUCCESS;
-}
-
-/**
- * handle_query_user_account() - handler for cifsd query user account
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	success: CIFS_SUCCESS (user configured with cifsd)
- *		fail: CIFS_NONE_USR (user not configured with cifsd)
- */
-static int handle_query_user_account(struct nl_sock *nlsock)
-{
-	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
-	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
-	char *username = ev->k.u_query.username;
-
-	if (ev->error) {
-		fprintf(stdout, "[%s] is not configured with cifsd\n",
-				username);
-		return CIFS_NONE_USR;
-	}
-
-	fprintf(stdout, "[%s] is configured with cifsd\n", username);
-	return CIFS_SUCCESS;
-}
-
-/**
- * handle_remove_user_account() - handler for cifsd remove user account
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	success: CIFS_SUCCESS (user configured with cifsd)
- *		fail: CIFS_NONE_USR (user not configured with cifsd)
- */
-static int handle_remove_user_account(struct nl_sock *nlsock)
-{
-
-	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
-	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
-	char *username = ev->k.u_query.username;
-
-	if (ev->error) {
-		fprintf(stdout, "[%s] is not present\n", username);
-		return CIFS_NONE_USR;
-	}
-	return CIFS_SUCCESS;
-}
-
-/**
- * handle_cifsd_kernel_debug() - handler for cifsd kernel debug setting
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	success: 0
- *		fail: -EINVAL
- */
-static int handle_cifsd_kernel_debug(struct nl_sock *nlsock)
-{
-	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
-	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
-
-	if (ev->error) {
-		fprintf(stdout, "cifsd kernel debug setting failed\n");
+	pswd = get_hashed_b64_password();
+	if (!pswd) {
+		pr_err("Out of memory\n");
 		return -EINVAL;
 	}
+
+	/* pswd is already strdup-ed */
+	if (usm_add_new_user(account, pswd)) {
+		pr_err("Could not add new account\n");
+		return -EINVAL;
+	}
+
+	conf_fd = open(pwddb, O_WRONLY);
+	if (conf_fd == -1) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		return -EINVAL;
+	}
+
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_user(write_user_cb, NULL);
+	close(conf_fd);
 	return 0;
 }
 
-/**
- * handle_cifsd_caseless_search() - handler for cifsd caseless search setting
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	success: 0
- *		fail: -EINVAL
- */
-static int handle_cifsd_caseless_search(struct nl_sock *nlsock)
+static int command_del_user(char *pwddb)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
-	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
+	conf_fd = open(pwddb, O_WRONLY);
 
-	if (ev->error) {
-		fprintf(stdout, "cifsd kernel caseless search failed\n");
+	if (conf_fd == -1) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		return -EINVAL;
 	}
+
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_user(write_remove_user_cb, NULL);
+	close(conf_fd);
 	return 0;
 }
 
-/**
- * cifsadmin_request_handler() - to handle cifsd events
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	0: on success or error code on fail
- *		error code: on fail
- */
-
-int cifsadmin_request_handler(struct nl_sock *nlsock)
+static int command_update_user(char *pwddb)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)nlsock->nlsk_rcv_buf;
-	struct cifsd_uevent *ev = NLMSG_DATA(nlh);
-	int ret = 0;
+	struct cifsd_user *user = usm_lookup_user(account);
+	char *pswd;
 
-	cifsd_debug("start cifsadmin event\n");
-
-	switch (nlh->nlmsg_type) {
-	case CIFSADMIN_UEVENT_QUERY_USER_RSP:
-		ret = handle_query_user_account(nlsock);
-		break;
-	case CIFSADMIN_UEVENT_REMOVE_USER_RSP:
-		ret = handle_remove_user_account(nlsock);
-		break;
-	case CIFSADMIN_UEVENT_KERNEL_DEBUG_RSP:
-		ret = handle_cifsd_kernel_debug(nlsock);
-		break;
-	case CIFSADMIN_UEVENT_CASELESS_SEARCH_RSP:
-		ret = handle_cifsd_caseless_search(nlsock);
-		break;
-	default:
-		cifsd_err("unknown event %u\n", ev->type);
-		ret = -EINVAL;
-		break;
+	if (!user) {
+		pr_err("Unknown account\n");
+		return -EINVAL;
 	}
-	return ret;
+
+	pswd = get_hashed_b64_password();
+	if (!pswd) {
+		pr_err("Out of memory\n");
+		put_cifsd_user(user);
+		return -EINVAL;
+	}
+
+	if (usm_update_user_password(user, pswd)) {
+		pr_err("Out of memory\n");
+		put_cifsd_user(user);
+		return -ENOMEM;
+	}
+
+	put_cifsd_user(user);
+	free(pswd);
+
+	conf_fd = open(pwddb, O_WRONLY);
+	if (conf_fd == -1) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		return -EINVAL;
+	}
+
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerror(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_user(write_user_cb, NULL);
+	close(conf_fd);
+	return 0;
 }
 
-/**
- * cifsd_kernel_debug() - function to enable cifsd kernel debug mode
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	success: CIFS_SUCCESS
- *		fail: CIFS_FAIL (cifsd not available)
- */
-int cifsd_kernel_debug(struct nl_sock *nlsock, char *arg)
+int main(int argc, char *argv[])
 {
-	struct cifsd_uevent ev;
+	int ret = EXIT_FAILURE;
+	char *pwddb = PATH_PWDDB;
+	char *smbconf = PATH_SMBCONF;
+	int c, cmd = 0;
 
-	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSADMIN_KEVENT_KERNEL_DEBUG;
+	set_logger_app_name("cifsd_admin");
 
-	if (cifsd_common_sendmsg(nlsock, &ev, arg, (strlen(arg) + 1)) < 0)
-		return CIFS_FAIL;
-
-	return CIFS_SUCCESS;
-}
-
-/**
- * cifsd_caseless_search() - function to enable cifsd caseless search
- * @nlsock:	netlink structure for socket communication
- *
- * Return:	success: CIFS_SUCCESS
- *		fail: CIFS_FAIL (cifsd not available)
- */
-int cifsd_caseless_search(struct nl_sock *nlsock, char *arg)
-{
-	struct cifsd_uevent ev;
-
-	memset(&ev, 0, sizeof(ev));
-	ev.type = CIFSADMIN_KEVENT_CASELESS_SEARCH;
-
-	if (cifsd_common_sendmsg(nlsock, &ev, arg, (strlen(arg) + 1)) < 0)
-		return CIFS_FAIL;
-
-	return CIFS_SUCCESS;
-}
-/**
- * usage() - utility function to show usage details
- */
-void usage(void)
-{
-	fprintf(stdout, "cifsd-tools version : %s, date : %s\n"
-			"Usage: cifsadmin [option]\n"
-			"option:\n"
-			"	-a <username> add/update user account\n"
-			"	-d <username> delete user account\n"
-			"	-D <0 or 1> enable Kernel space debug print\n"
-			"	-h help\n"
-			"	-i <0 or 1> enable caseless search\n"
-			"	-q <username> query user exists in cifsd\n"
-			"	-v verbose\n",
-			CIFSD_TOOLS_VERSION, CIFSD_TOOLS_DATE);
-
-	exit(0);
-}
-
-/**
- * parse_options() - utility function to parse commandline arguments
- * @argc:	commandline argument count
- * @argv:	commandline argument list
- *
- * Return:	user selected option flag value
- */
-int parse_options(int argc, char **argv)
-{
-	int ch;
-	int s_flags = 0;
-
-	while ((ch = getopt(argc, argv, "a:d:D:i:q:hv")) != EOF) {
-		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D'
-			|| ch == 'i') {
-			if (!optarg) {
-				cifsd_debug("option [value] missing\n");
-				usage();
-			}
-			if (dup_optarg)
-				free(dup_optarg);
-			dup_optarg = strdup(optarg);
-		}
-
-		if (ch == 'a' || ch == 'd' || ch == 'q' || ch == 'D'
-			|| ch == 'i') {
-			if (s_flags && s_flags != F_VERBOSE) {
-				cifsd_err("Try with single flag at a time\n");
-				usage();
-			}
-		}
-
-		switch (ch) {
+	opterr = 0;
+	while ((c = getopt(argc, argv, "c:i:a:d:u:vh")) != EOF)
+		switch (c) {
 		case 'a':
-			s_flags |= F_ADD_USER;
-		break;
+			account = strdup(optarg);
+			cmd = COMMAND_ADD_USER;
+			break;
 		case 'd':
-			s_flags |= F_REMOVE_USER;
-		break;
-		case 'D':
-			s_flags |= F_DEBUG;
-		break;
+			account = strdup(optarg);
+			cmd = COMMAND_DEL_USER;
+			break;
+		case 'u':
+			account = strdup(optarg);
+			cmd = COMMAND_UPDATE_USER;
+			break;
+		case 'c':
+			smbconf = strdup(optarg);
+			break;
 		case 'i':
-			s_flags |= F_CASELESS_SEARCH;
-		break;
-		case 'q':
-			s_flags |= F_QUERY_USER;
-		break;
+			pwddb = strdup(optarg);
+			break;
 		case 'v':
-			if (argc <= 2) {
-				cifsd_debug(
-					"[option] needed with verbose\n");
-				usage();
-			}
-			s_flags |= F_VERBOSE;
-		break;
+			break;
 		case '?':
 		case 'h':
 		default:
 			usage();
-		}
 	}
 
-	return s_flags;
-}
-
-/**
- * sigcatcher_setup() - utility function to setup SIGINT handler
- */
-void sigcatcher_setup(void)
-{
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(struct sigaction));
-	sa.sa_sigaction = handle_sigint;
-	sa.sa_flags = SA_SIGINFO;
-
-	sigaction(SIGINT, &sa, 0);
-}
-
-/**
- * main() - entry point of application
- * @argc:	commandline argument count
- * @argv:	commandline argument list
- *
- * Return: success/fail: 0
- */
-int main(int argc, char *argv[])
-{
-	struct nl_sock *nlsock = NULL;
-	int options = 0, ret = 0;
-	int fd_db;
-
-	if (argc < 2)
-		usage();
-
-	sigcatcher_setup();
-	dup_optarg = NULL;
-
-	options = parse_options(argc, argv);
-
-	fd_db = open(PATH_PWDDB, O_RDWR);
-	if (fd_db < 0) {
-		/* file not existing, create it now */
-		fd_db = open(PATH_PWDDB, O_CREAT | O_RDWR, 0666);
-		if (fd_db < 0) {
-			cifsd_err("[%s] open failed\n", PATH_PWDDB);
-			return 0;
-		}
+	if (!smbconf || !pwddb) {
+		pr_err("Out of memory\n");
+		goto out;
 	}
 
-	if (getuid() == 0)
-		options |= AM_ROOT;
-
-	if ((options & F_QUERY_USER) || (options & F_REMOVE_USER)
-		|| (options & F_DEBUG) || (options & F_CASELESS_SEARCH)) {
-		nlsock = nl_init();
-		if (!nlsock) {
-			cifsd_err("Failed to allocate memory"
-					" for netlink socket\n");
-			return -ENOMEM;
-		}
-
-		nl_handle_init_cifsadmin(nlsock);
+	ret = usm_init();
+	if (ret) {
+		pr_err("Failed to init user management\n");
+		goto out;
 	}
 
-	if ((options & F_QUERY_USER) && dup_optarg)
-		ret = query_user_account(nlsock, dup_optarg);
-	else if (((options & F_ADD_USER) || (options & F_REMOVE_USER))
-		&& dup_optarg) {
-		struct passwd *p = getpwuid(getuid());
-		if ((options & AM_ROOT) || !strcmp(p->pw_name, dup_optarg)) {
-			if (options & F_ADD_USER) {
-				ret = add_user_account(fd_db, dup_optarg,
-							 options);
-				goto out;
-			}
-			else if (options & F_REMOVE_USER)
-				ret = remove_user_account(nlsock, fd_db,
-							dup_optarg);
-		}
-	} else if ((options & F_DEBUG) && dup_optarg)
-		ret = cifsd_kernel_debug(nlsock, dup_optarg);
-	else if ((options & F_CASELESS_SEARCH) && dup_optarg)
-		ret = cifsd_caseless_search(nlsock, dup_optarg);
-
-	if (nlsock) {
-		nlsock->event_handle_cb = cifsadmin_request_handler;
-		nl_handle_event(nlsock);
-		nl_exit(nlsock);
+	ret = shm_init();
+	if (ret) {
+		pr_err("Failed to init net share management\n");
+		goto out;
 	}
 
+	ret = parse_configs(pwddb, smbconf);
+	if (ret) {
+		pr_err("Unable to parse configuration files\n");
+		goto out;
+	}
+
+	if (cmd == COMMAND_ADD_USER)
+		ret = command_add_user(pwddb);
+	if (cmd == COMMAND_DEL_USER)
+		ret = command_del_user(pwddb);
+	if (cmd == COMMAND_UPDATE_USER)
+		ret = command_update_user(pwddb);
 out:
-	close(fd_db);
-	if (dup_optarg)
-		free(dup_optarg);
-
+	shm_destroy();
+	usm_destroy();
 	return ret;
 }

@@ -1,0 +1,9 @@
+[Unit]
+Description=CIFSD userspace service
+
+[Service]
+Type=forking
+ExecStart=/usr/local/sbin/cifsd -s
+
+[Install]
+WantedBy=multi-user.target
