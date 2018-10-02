@@ -350,8 +350,60 @@ static int command_add_user(char *pwddb)
 	return 0;
 }
 
+static void lookup_can_del_user(gpointer key,
+				gpointer value,
+				gpointer user_data)
+{
+	struct cifsd_share *share = (struct cifsd_share *)value;
+	int ret = 0;
+	int *abort_del_user = (int *)user_data;
+
+	if (*abort_del_user)
+		return;
+
+	ret = shm_lookup_users_map(share,
+				   CIFSD_SHARE_ADMIN_USERS_MAP,
+				   account);
+	if (ret == 0)
+		goto conflict;
+
+	ret = shm_lookup_users_map(share,
+				   CIFSD_SHARE_WRITE_LIST_MAP,
+				   account);
+	if (ret == 0)
+		goto conflict;
+
+	ret = shm_lookup_users_map(share,
+				   CIFSD_SHARE_VALID_USERS_MAP,
+				   account);
+	if (ret == 0)
+		goto conflict;
+
+	*abort_del_user = 0;
+	return;
+
+conflict:
+	pr_err("Share %s requires user %s to exist\n", share->name, account);
+	*abort_del_user = 1;
+}
+
 static int command_del_user(char *pwddb)
 {
+	int abort_del_user = 0;
+
+	if (!cp_key_cmp(global_conf.guest_account, account)) {
+		pr_err("User %s is a global guest account. Abort deletion.\n",
+				account);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_share(lookup_can_del_user, &abort_del_user);
+
+	if (abort_del_user) {
+		pr_err("Aborting user deletion\n");
+		return -EINVAL;
+	}
+
 	conf_fd = open(pwddb, O_WRONLY);
 
 	if (conf_fd == -1) {
