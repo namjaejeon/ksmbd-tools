@@ -394,7 +394,7 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	size_t raw_len, conv_len;
 	char *raw_value = value;
 	char *conv_value;
-	char *charset = CHARSET_UTF16LE;
+	char *charset = CIFSD_CHARSET_UTF16LE;
 	int ret;
 
 	if (!value)
@@ -402,15 +402,15 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	raw_len = strlen(raw_value) + 1;
 
 	if (!(dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN))
-		charset = CHARSET_UTF16BE;
+		charset = CIFSD_CHARSET_UTF16BE;
 
 	if (dce->flags & CIFSD_DCERPC_ASCII_STRING)
-		charset = CHARSET_UTF8;
+		charset = CIFSD_CHARSET_UTF8;
 
 	out = g_convert(raw_value,
 			raw_len,
 			charset,
-			CHARSET_DEFAULT,
+			CIFSD_CHARSET_DEFAULT,
 			&bytes_read,
 			&bytes_written,
 			&err);
@@ -449,7 +449,7 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 	GError *err = NULL;
 
 	size_t raw_len;
-	char *charset = CHARSET_UTF16LE;
+	char *charset = CIFSD_CHARSET_UTF16LE;
 	int ret;
 
 	raw_len = ndr_read_int32(dce);
@@ -457,10 +457,10 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 	ndr_read_int32(dce);
 
 	if (!(dce->flags & CIFSD_DCERPC_LITTLE_ENDIAN))
-		charset = CHARSET_UTF16BE;
+		charset = CIFSD_CHARSET_UTF16BE;
 
 	if (dce->flags & CIFSD_DCERPC_ASCII_STRING)
-		charset = CHARSET_UTF8;
+		charset = CIFSD_CHARSET_UTF8;
 
 	if (raw_len == 0) {
 		out = strdup("");
@@ -469,7 +469,7 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 
 	out = g_convert(PAYLOAD_HEAD(dce),
 			raw_len * 2,
-			CHARSET_DEFAULT,
+			CIFSD_CHARSET_DEFAULT,
 			charset,
 			&bytes_read,
 			&bytes_written,
