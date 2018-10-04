@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
-#include <iconv.h>
 
 #include <config_parser.h>
 #include <cifsdtools.h>
@@ -163,52 +162,32 @@ again:
 
 static char *get_utf8_password(long *len)
 {
-	size_t sz;
-	char *pswd1, *pswd2, *pswd1o, *pswd2o;
-	size_t dstsz;
-	iconv_t conv;
-	size_t ret;
+	size_t raw_sz;
+	char *pswd_raw, *pswd_converted;
+	gsize bytes_read = 0;
+	gsize bytes_written = 0;
+	GError *err = NULL;
 
-	pswd1 = prompt_password(&sz);
-	if (!pswd1)
+	pswd_raw = prompt_password(&raw_sz);
+	if (!pswd_raw)
 		return NULL;
 
-	dstsz = sz * sizeof(unsigned short) * 2;
-	pswd2 = malloc(dstsz);
-	if (!pswd2) {
-		free(pswd1);
-		pr_err("Out of memory\n");
-		return NULL;
-	}
-
-	memset(pswd2, 0x00, dstsz);
-
-	conv = iconv_open("UTF16LE", "UTF-8");
-	if (conv == (iconv_t)-1) {
-		conv = iconv_open("UCS-2LE", "UTF-8");
-		if (conv == (iconv_t)-1) {
-			pr_err("iconv() has failed: %s\n", strerror(errno));
-			return NULL;
-		}
-	}
-
-	pswd1o = pswd1;
-	pswd2o = pswd2;
-	ret = iconv(conv, &pswd1, &sz, &pswd2, &dstsz);
-	iconv_close(conv);
-	if (ret == (size_t)-1) {
-		pr_err("%s\n", strerror(errno));
-		free(pswd1o);
-		free(pswd2o);
+	pswd_converted = g_convert(pswd_raw,
+				   raw_sz,
+				   CIFSD_CHARSET_UTF16LE,
+				   CIFSD_CHARSET_DEFAULT,
+				   &bytes_read,
+				   &bytes_written,
+				   &err);
+	if (err) {
+		pr_err("Can't convert string: %s\n", err->message);
+		g_error_free(err);
 		return NULL;
 	}
 
-	*len = pswd2 - pswd2o;
-	pswd1 = pswd1o;
-	pswd2 = pswd2o;
-
-	free(pswd1);
-	return pswd2;
+	*len = bytes_written;
+	free(pswd_raw);
+	return pswd_converted;
 }
 
 static void __sanity_check(char *pswd_hash, char *pswd_b64)
@@ -350,8 +329,60 @@ static int command_add_user(char *pwddb)
 	return 0;
 }
 
+static void lookup_can_del_user(gpointer key,
+				gpointer value,
+				gpointer user_data)
+{
+	struct cifsd_share *share = (struct cifsd_share *)value;
+	int ret = 0;
+	int *abort_del_user = (int *)user_data;
+
+	if (*abort_del_user)
+		return;
+
+	ret = shm_lookup_users_map(share,
+				   CIFSD_SHARE_ADMIN_USERS_MAP,
+				   account);
+	if (ret == 0)
+		goto conflict;
+
+	ret = shm_lookup_users_map(share,
+				   CIFSD_SHARE_WRITE_LIST_MAP,
+				   account);
+	if (ret == 0)
+		goto conflict;
+
+	ret = shm_lookup_users_map(share,
+				   CIFSD_SHARE_VALID_USERS_MAP,
+				   account);
+	if (ret == 0)
+		goto conflict;
+
+	*abort_del_user = 0;
+	return;
+
+conflict:
+	pr_err("Share %s requires user %s to exist\n", share->name, account);
+	*abort_del_user = 1;
+}
+
 static int command_del_user(char *pwddb)
 {
+	int abort_del_user = 0;
+
+	if (!cp_key_cmp(global_conf.guest_account, account)) {
+		pr_err("User %s is a global guest account. Abort deletion.\n",
+				account);
+		return -EINVAL;
+	}
+
+	for_each_cifsd_share(lookup_can_del_user, &abort_del_user);
+
+	if (abort_del_user) {
+		pr_err("Aborting user deletion\n");
+		return -EINVAL;
+	}
+
 	conf_fd = open(pwddb, O_WRONLY);
 
 	if (conf_fd == -1) {
