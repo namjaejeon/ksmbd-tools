@@ -379,6 +379,16 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(_k, "tcp port")) {
+		global_conf.tcp_port = cp_get_group_kv_long(_v);
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "ipc timeout")) {
+		global_conf.ipc_timeout = cp_get_group_kv_long(_v);
+		return;
+	}
+
 	if (!cp_key_cmp(_k, "map to guest")) {
 		global_conf.map_to_guest = CIFSD_CONF_MAP_TO_GUEST_NEVER;
 		if (!cp_key_cmp(_v, "bad user"))
@@ -413,6 +423,8 @@ static void global_group(struct smbconf_group *group)
 	if (!global_conf.work_group)
 		global_conf.work_group =
 			cp_get_group_kv_string(CIFSD_CONF_DEFAULT_WORK_GROUP);
+	if (!global_conf.tcp_port)
+		global_conf.tcp_port = CIFSD_CONF_DEFAULT_TPC_PORT;
 
 	if (global_conf.sessions_cap <= 0)
 		global_conf.sessions_cap = CIFSD_CONF_DEFAULT_SESS_CAP;
