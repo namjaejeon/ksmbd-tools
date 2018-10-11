@@ -32,6 +32,8 @@ struct cifsd_startup_request {
 	__s8	netbios_name[16];
 	__s8	work_group[64];
 	__s8	server_string[64];
+	__u16	tcp_port;
+	__u16	ipc_timeout;
 } __align;
 
 struct cifsd_shutdown_request {
