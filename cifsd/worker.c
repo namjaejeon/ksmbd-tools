@@ -139,25 +139,9 @@ static int logout_request(struct cifsd_ipc_msg *msg)
 
 static int heartbeat_request(struct cifsd_ipc_msg *msg)
 {
-	struct cifsd_heartbeat *in;
-	struct cifsd_heartbeat *out;
-	struct cifsd_ipc_msg *resp_msg;
-
 	if (VALID_IPC_MSG(msg, struct cifsd_heartbeat))
 		return -EINVAL;
 
-	resp_msg = ipc_msg_alloc(sizeof(*out));
-	if (!resp_msg)
-		goto out;
-
-	in = CIFSD_IPC_MSG_PAYLOAD(msg);
-	out = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
-	resp_msg->type = CIFSD_EVENT_HEARTBEAT_RESPONSE;
-	out->handle = in->handle;
-
-	ipc_msg_send(resp_msg);
-out:
-	ipc_msg_free(resp_msg);
 	return 0;
 }
 
