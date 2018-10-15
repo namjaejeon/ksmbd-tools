@@ -32,7 +32,7 @@
 #include <management/tree_conn.h>
 
 static pid_t worker_pid;
-static int lock_fd;
+static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
 
@@ -70,8 +70,12 @@ static int create_lock_file()
 
 static void delete_lock_file()
 {
+	if (lock_fd == -1)
+		return;
+
 	flock(lock_fd, LOCK_UN);
 	close(lock_fd);
+	lock_fd = -1;
 	remove(LOCK_FILE);
 }
 
@@ -177,6 +181,7 @@ static void child_sig_handler(int signo)
 	pr_err("Child received signal: %d (%s)\n",
 		signo, sys_siglist[signo]);
 	worker_process_free();
+	delete_lock_file();
 	exit(EXIT_SUCCESS);
 }
 
