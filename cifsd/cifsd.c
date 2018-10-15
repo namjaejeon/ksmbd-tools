@@ -47,6 +47,7 @@ static void usage(void)
 		CIFSD_TOOLS_VERSION,
 		CIFSD_TOOLS_DATE);
 	fprintf(stderr, "Usage: cifsd\n");
+	fprintf(stderr, "\t-p tcp port NUM | --port=NUM\n");
 	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
 	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
 	fprintf(stderr, "\t-n | --nodetach\n");
@@ -329,8 +330,12 @@ int main(int argc, char *argv[])
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:snh")) != EOF)
+	while ((c = getopt(argc, argv, "p:c:i:snh")) != EOF)
 		switch (c) {
+		case 'p':
+			global_conf.tcp_port = cp_get_group_kv_long(optarg);
+			pr_debug("TCP port option override\n");
+			break;
 		case 'c':
 			smbconf = strdup(optarg);
 			break;
