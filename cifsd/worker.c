@@ -139,9 +139,10 @@ static int logout_request(struct cifsd_ipc_msg *msg)
 
 static int heartbeat_request(struct cifsd_ipc_msg *msg)
 {
-	if (VALID_IPC_MSG(msg, struct cifsd_heartbeat))
+	if (!VALID_IPC_MSG(msg, struct cifsd_heartbeat))
 		return -EINVAL;
 
+	pr_debug("HEARTBEAT frame from the server\n");
 	return 0;
 }
 
