@@ -181,6 +181,7 @@ static char *get_utf8_password(long *len)
 				   &err);
 	if (err) {
 		pr_err("Can't convert string: %s\n", err->message);
+		free(pswd_raw);
 		g_error_free(err);
 		return NULL;
 	}

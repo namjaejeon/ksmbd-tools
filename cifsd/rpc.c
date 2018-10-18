@@ -128,7 +128,7 @@ static struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
 		return NULL;
 	}
 
-	memset(dce->payload, sz, 0x00);
+	memset(dce->payload, 0x00, sz);
 	dce->payload_sz = sz;
 	dce->flags = flags;
 	dce->num_pointers = 1;
