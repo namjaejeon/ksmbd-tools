@@ -123,6 +123,8 @@ again:
 	if (fgets(pswd1, MAX_NT_PWD_LEN, stdin) == NULL) {
 		term_toggle_echo(1);
 		pr_err("Fatal error: %s\n", strerror(errno));
+		free(pswd1);
+		free(pswd2);
 		return NULL;
 	}
 
@@ -130,6 +132,8 @@ again:
 	if (fgets(pswd2, MAX_NT_PWD_LEN, stdin) == NULL) {
 		term_toggle_echo(1);
 		pr_err("Fatal error: %s\n", strerror(errno));
+		free(pswd1);
+		free(pswd2);
 		return NULL;
 	}
 	term_toggle_echo(1);
