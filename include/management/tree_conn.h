@@ -31,7 +31,7 @@ static inline void clear_conn_flag(struct cifsd_tree_conn *conn, int bit)
 
 static inline int test_conn_flag(struct cifsd_tree_conn *conn, int bit)
 {
-	conn->flags & bit;
+	return conn->flags & bit;
 }
 
 void tcm_tree_conn_free(struct cifsd_tree_conn *conn);
