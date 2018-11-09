@@ -267,7 +267,7 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 			     struct cifsd_login_response *resp)
 {
 	struct cifsd_user *user = NULL;
-	size_t hash_sz;
+	int hash_sz;
 	int guest_login = 0;
 
 	if (req->account[0] == '\0')
