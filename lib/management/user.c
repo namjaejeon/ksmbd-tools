@@ -284,15 +284,15 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 		hash_sz = usm_copy_user_passhash(user,
 						 resp->hash,
 						 sizeof(resp->hash));
-		if (hash_sz > 0)
-			resp->hash_sz = hash_sz;
-		if (hash_sz < 0)
+		if (hash_sz < 0) {
 			resp->status = CIFSD_USER_FLAG_INVALID;
-
-		if (usm_copy_user_account(user,
-					  resp->account,
-					  sizeof(resp->account)))
-			resp->status = CIFSD_USER_FLAG_INVALID;
+		} else {
+			resp->hash_sz = (unsigned short)hash_sz;
+			if (usm_copy_user_account(user,
+						  resp->account,
+						  sizeof(resp->account)))
+				resp->status = CIFSD_USER_FLAG_INVALID;
+		}
 
 		put_cifsd_user(user);
 		return 0;
