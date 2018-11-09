@@ -554,7 +554,7 @@ int shm_share_config_payload_size(struct cifsd_share *share)
 int shm_handle_share_config_request(struct cifsd_share *share,
 				    struct cifsd_share_config_response *resp)
 {
-	void *config_payload;
+	unsigned char *config_payload;
 	size_t path_sz = 0;
 
 	if (!share)
@@ -571,7 +571,7 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 		memcpy(config_payload,
 		       share->veto_list,
 		       resp->veto_list_sz);
-		config_payload += resp->veto_list_sz;
+		config_payload += resp->veto_list_sz + 1;
 	}
 	memcpy(config_payload, share->path, strlen(share->path));
 	return 0;

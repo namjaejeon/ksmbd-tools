@@ -32,7 +32,7 @@
 #include <management/tree_conn.h>
 
 static pid_t worker_pid;
-static int lock_fd;
+static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
 
@@ -47,6 +47,7 @@ static void usage(void)
 		CIFSD_TOOLS_VERSION,
 		CIFSD_TOOLS_DATE);
 	fprintf(stderr, "Usage: cifsd\n");
+	fprintf(stderr, "\t-p tcp port NUM | --port=NUM\n");
 	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
 	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
 	fprintf(stderr, "\t-n | --nodetach\n");
@@ -70,8 +71,12 @@ static int create_lock_file()
 
 static void delete_lock_file()
 {
+	if (lock_fd == -1)
+		return;
+
 	flock(lock_fd, LOCK_UN);
 	close(lock_fd);
+	lock_fd = -1;
 	remove(LOCK_FILE);
 }
 
@@ -177,6 +182,7 @@ static void child_sig_handler(int signo)
 	pr_err("Child received signal: %d (%s)\n",
 		signo, sys_siglist[signo]);
 	worker_process_free();
+	delete_lock_file();
 	exit(EXIT_SUCCESS);
 }
 
@@ -324,8 +330,12 @@ int main(int argc, char *argv[])
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:snh")) != EOF)
+	while ((c = getopt(argc, argv, "p:c:i:snh")) != EOF)
 		switch (c) {
+		case 'p':
+			global_conf.tcp_port = cp_get_group_kv_long(optarg);
+			pr_debug("TCP port option override\n");
+			break;
 		case 'c':
 			smbconf = strdup(optarg);
 			break;

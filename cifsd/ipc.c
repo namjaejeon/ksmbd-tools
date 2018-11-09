@@ -113,6 +113,9 @@ static int ipc_cifsd_starting_up(void)
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
 	ev->signing = global_conf.server_signing;
+	ev->tcp_port = global_conf.tcp_port;
+	ev->ipc_timeout = global_conf.ipc_timeout;
+
 	if (global_conf.server_min_protocol) {
 		strncpy(ev->min_prot,
 			global_conf.server_min_protocol,
@@ -170,10 +173,6 @@ static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
 	},
 
 	[CIFSD_EVENT_HEARTBEAT_REQUEST] = {
-		.minlen = sizeof(struct cifsd_heartbeat),
-	},
-
-	[CIFSD_EVENT_HEARTBEAT_RESPONSE] = {
 		.minlen = sizeof(struct cifsd_heartbeat),
 	},
 
@@ -237,12 +236,6 @@ static struct genl_cmd cifsd_genl_cmds[] = {
 		.c_id		= CIFSD_EVENT_HEARTBEAT_REQUEST,
 		.c_attr_policy	= cifsd_nl_policy,
 		.c_msg_parser	= &handle_generic_event,
-		.c_maxattr	= CIFSD_EVENT_MAX,
-	},
-	{
-		.c_id		= CIFSD_EVENT_HEARTBEAT_RESPONSE,
-		.c_attr_policy	= cifsd_nl_policy,
-		.c_msg_parser	= &handle_unsupported_event,
 		.c_maxattr	= CIFSD_EVENT_MAX,
 	},
 	{
