@@ -44,7 +44,7 @@
 ;		a service to be limited.
 ;	- veto files
 ;		This is a list of files and directories that are neither visible
-		nor accessible.
+;		nor accessible.
 ;
 ;		Veto any files containing the word Security,
 ;		any ending in .tmp, and any directory containing the
