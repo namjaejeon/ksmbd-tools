@@ -20,8 +20,8 @@ struct cifsd_ipc_msg {
 	unsigned char	____payload[0];
 };
 
-#define CIFSD_IPC_MSG_PAYLOAD(m)	\
-	((void *)(m) + offsetof(struct cifsd_ipc_msg, ____payload))
+#define CIFSD_IPC_MSG_PAYLOAD(m)				\
+	(void *)(((struct cifsd_ipc_msg *)(m))->____payload)
 
 struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz);
 void ipc_msg_free(struct cifsd_ipc_msg *msg);

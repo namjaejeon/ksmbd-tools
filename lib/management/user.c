@@ -303,8 +303,8 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
 		return -EINVAL;
 
-	if (guest_login || (!guest_login &&
-		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER))
+	if (guest_login ||
+		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER)
 		user = usm_lookup_user(global_conf.guest_account);
 
 	if (!user)
