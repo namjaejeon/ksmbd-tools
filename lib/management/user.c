@@ -309,16 +309,16 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	}
 
 	resp->status = CIFSD_USER_FLAG_BAD_USER;
-	if (guest_login &&
+	if (!guest_login &&
 		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
-		return -EINVAL;
+		return 0;
 
 	if (guest_login ||
 		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER)
 		user = usm_lookup_user(global_conf.guest_account);
 
 	if (!user)
-		return -EINVAL;
+		return 0;
 
 	__handle_login_request(resp, user);
 	put_cifsd_user(user);
