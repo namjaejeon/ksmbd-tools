@@ -253,8 +253,12 @@ static int usm_copy_user_account(struct cifsd_user *user,
 				 char *account,
 				 size_t sz)
 {
-	int account_sz = strlen(user->name);
+	int account_sz;
 
+	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
+		return 0;
+
+	account_sz = strlen(user->name);
 	if (sz >= account_sz) {
 		memcpy(account, user->name, account_sz);
 		return 0;
@@ -263,11 +267,34 @@ static int usm_copy_user_account(struct cifsd_user *user,
 	return -ENOSPC;
 }
 
+static void __handle_login_request(struct cifsd_login_response *resp,
+				   struct cifsd_user *user)
+{
+	int hash_sz;
+
+	resp->gid = user->gid;
+	resp->uid = user->uid;
+	resp->status = user->flags;
+	resp->status |= CIFSD_USER_FLAG_OK;
+
+	hash_sz = usm_copy_user_passhash(user,
+					 resp->hash,
+					 sizeof(resp->hash));
+	if (hash_sz < 0) {
+		resp->status = CIFSD_USER_FLAG_INVALID;
+	} else {
+		resp->hash_sz = (unsigned short)hash_sz;
+		if (usm_copy_user_account(user,
+					  resp->account,
+					  sizeof(resp->account)))
+			resp->status = CIFSD_USER_FLAG_INVALID;
+	}
+}
+
 int usm_handle_login_request(struct cifsd_login_request *req,
 			     struct cifsd_login_response *resp)
 {
 	struct cifsd_user *user = NULL;
-	int hash_sz;
 	int guest_login = 0;
 
 	if (req->account[0] == '\0')
@@ -276,24 +303,7 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	if (!guest_login)
 		user = usm_lookup_user(req->account);
 	if (user) {
-		resp->gid = user->gid;
-		resp->uid = user->uid;
-		resp->status = user->flags;
-		resp->status |= CIFSD_USER_FLAG_OK;
-
-		hash_sz = usm_copy_user_passhash(user,
-						 resp->hash,
-						 sizeof(resp->hash));
-		if (hash_sz < 0) {
-			resp->status = CIFSD_USER_FLAG_INVALID;
-		} else {
-			resp->hash_sz = (unsigned short)hash_sz;
-			if (usm_copy_user_account(user,
-						  resp->account,
-						  sizeof(resp->account)))
-				resp->status = CIFSD_USER_FLAG_INVALID;
-		}
-
+		__handle_login_request(resp, user);
 		put_cifsd_user(user);
 		return 0;
 	}
@@ -310,15 +320,8 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	if (!user)
 		return -EINVAL;
 
-	resp->gid = user->gid;
-	resp->uid = user->uid;
-	resp->status = user->flags;
-	resp->status |= CIFSD_USER_FLAG_OK;
-	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
-
-	if (usm_copy_user_account(user, resp->account, sizeof(resp->account)))
-		resp->status = CIFSD_USER_FLAG_INVALID;
-
+	__handle_login_request(resp, user);
 	put_cifsd_user(user);
+	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
 	return 0;
 }
