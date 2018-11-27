@@ -115,7 +115,10 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
-	user = usm_lookup_user(req->account);
+	if (req->account_flags & CIFSD_USER_FLAG_ANONYMOUS)
+		user = usm_lookup_user(global_conf.guest_account);
+	else
+		user = usm_lookup_user(req->account);
 	if (!user) {
 		resp->status = CIFSD_TREE_CONN_STATUS_NO_USER;
 		pr_err("treecon: user account not found: %s\n", req->account);
