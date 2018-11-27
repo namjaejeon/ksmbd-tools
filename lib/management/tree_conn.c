@@ -115,7 +115,7 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
-	if (req->account_flags & CIFSD_USER_FLAG_ANONYMOUS)
+	if (req->account_flags & CIFSD_USER_FLAG_GUEST_ACCOUNT)
 		user = usm_lookup_user(global_conf.guest_account);
 	else
 		user = usm_lookup_user(req->account);

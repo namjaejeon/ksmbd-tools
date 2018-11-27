@@ -322,6 +322,5 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 
 	__handle_login_request(resp, user);
 	put_cifsd_user(user);
-	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
 	return 0;
 }
