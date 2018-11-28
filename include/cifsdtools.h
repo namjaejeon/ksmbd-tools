@@ -39,6 +39,7 @@ struct smbconf_global {
 	char			*server_max_protocol;
 	int			server_signing;
 	int			sessions_cap;
+	int			restrict_anon;
 	unsigned short		tcp_port;
 	unsigned short		ipc_timeout;
 };
