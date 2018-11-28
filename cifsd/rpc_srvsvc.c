@@ -170,25 +170,29 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 
 	share = shm_lookup_share(hdr->share_name.ptr);
 	if (!share)
-		return CIFSD_RPC_EBAD_FID;
+		return 0;
 
 	if (!test_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE)) {
 		put_cifsd_share(share);
-		return CIFSD_RPC_EBAD_FID;
+		return 0;
 	}
 
 	ret = shm_lookup_hosts_map(share,
 				   CIFSD_SHARE_HOSTS_ALLOW_MAP,
 				   hdr->server_name.ptr);
-	if (ret == -ENOENT)
-		return CIFSD_RPC_EBAD_DATA;
+	if (ret == -ENOENT) {
+		put_cifsd_share(share);
+		return 0;
+	}
 
 	if (ret != 0) {
 		ret = shm_lookup_hosts_map(share,
 					   CIFSD_SHARE_HOSTS_DENY_MAP,
 					   hdr->server_name.ptr);
-		if (ret == 0)
-			return CIFSD_RPC_EBAD_DATA;
+		if (ret == 0) {
+			put_cifsd_share(share);
+			return 0;
+		}
 	}
 
 	pipe->entries = g_array_append_val(pipe->entries, share);
