@@ -295,12 +295,12 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 			     struct cifsd_login_response *resp)
 {
 	struct cifsd_user *user = NULL;
-	int guest_login = 0;
+	int null_session = 0;
 
 	if (req->account[0] == '\0')
-		guest_login = 1;
+		null_session = 1;
 
-	if (!guest_login)
+	if (!null_session)
 		user = usm_lookup_user(req->account);
 	if (user) {
 		__handle_login_request(resp, user);
@@ -309,11 +309,11 @@ int usm_handle_login_request(struct cifsd_login_request *req,
 	}
 
 	resp->status = CIFSD_USER_FLAG_BAD_USER;
-	if (!guest_login &&
+	if (!null_session &&
 		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
 		return 0;
 
-	if (guest_login ||
+	if (null_session ||
 		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER)
 		user = usm_lookup_user(global_conf.guest_account);
 
