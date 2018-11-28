@@ -183,10 +183,9 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
-	int status;
+	int status = CIFSD_RPC_OK;
 
 	ndr_write_union_int32(dce, dce->si_req.level);
-	ndr_write_int32(dce, pipe->num_entries);
 
 	status = ndr_write_array_of_structs(pipe);
 	/*
@@ -195,11 +194,15 @@ static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
 	 */
 	ndr_write_int32(dce, pipe->num_entries);
 	if (status == CIFSD_RPC_EMORE_DATA) {
+		dce->num_pointers++;
+		ndr_write_int32(dce, dce->num_pointers);
 		ndr_write_int32(dce, 0x01);
 		/* Have pending data, set RETURN_READY again */
 		dce->flags |= CIFSD_DCERPC_RETURN_READY;
 	} else {
-		ndr_write_int32(dce, 0x00);
+		dce->num_pointers++;
+		ndr_write_int32(dce, dce->num_pointers);
+		ndr_write_int32(dce, 0);
 	}
 	return status;
 }
@@ -209,7 +212,7 @@ static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
 	struct cifsd_dcerpc *dce = pipe->dce;
 
 	ndr_write_union_int32(dce, dce->si_req.level);
-	return __ndr_write_array_of_structs(pipe, 1);
+	return __ndr_write_array_of_structs(pipe, pipe->num_entries);
 }
 
 static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
@@ -247,14 +250,16 @@ static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 
 static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce;
+	struct cifsd_dcerpc *dce = pipe->dce;
 	int ret;
 
-	dce = pipe->dce;
 	if (srvsvc_parse_share_info_req(dce, &dce->si_req))
 		return CIFSD_RPC_EBAD_DATA;
 
 	pipe->entry_processed = __share_entry_processed;
+
+	if (rpc_restricted_context(dce->rpc_req))
+		return 0;
 
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
 		ret = srvsvc_share_get_info_invoke(pipe, &dce->si_req);
@@ -305,6 +310,9 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 		status = srvsvc_share_get_info_return(pipe);
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL)
 		status = srvsvc_share_enum_all_return(pipe);
+
+	if (rpc_restricted_context(dce->rpc_req))
+		status = CIFSD_RPC_EACCESS_DENIED;
 
 	srvsvc_clear_headers(pipe, status);
 

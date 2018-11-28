@@ -311,6 +311,8 @@ void rpc_pipe_reset(struct cifsd_rpc_pipe *pipe);
 int rpc_init(void);
 void rpc_destroy(void);
 
+int rpc_restricted_context(struct cifsd_rpc_command *req);
+
 int rpc_ioctl_request(struct cifsd_rpc_command *req,
 		      struct cifsd_rpc_command *resp,
 		      int max_resp_sz);
