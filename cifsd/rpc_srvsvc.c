@@ -106,6 +106,23 @@ static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	return ret;
 }
 
+static int __share_entry_null_rep_ctr0(struct cifsd_dcerpc *dce,
+				       gpointer entry)
+{
+	return ndr_write_int32(dce, 0); /* ref pointer */
+}
+
+static int __share_entry_null_rep_ctr1(struct cifsd_dcerpc *dce,
+				       gpointer entry)
+{
+	int ret;
+
+	ret = ndr_write_int32(dce, 0); /* ref pointer */
+	ret |= ndr_write_int32(dce, 0);
+	ret |= ndr_write_int32(dce, 0); /* ref pointer */
+	return ret;
+}
+
 static int __share_entry_processed(struct cifsd_rpc_pipe *pipe, int i)
 {
 	struct cifsd_share *share;
@@ -212,7 +229,26 @@ static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
 	struct cifsd_dcerpc *dce = pipe->dce;
 
 	ndr_write_union_int32(dce, dce->si_req.level);
-	return __ndr_write_array_of_structs(pipe, pipe->num_entries);
+	if (pipe->num_entries)
+		return __ndr_write_array_of_structs(pipe, pipe->num_entries);
+
+	/*
+	 * No data. Either we didn't find the requested net share,
+	 * or we didn't even lookup it due to restricted context
+	 * rule. In any case, return a zero representation of the
+	 * corresponding share_info level.
+	 */
+	if (dce->si_req.level == 0) {
+		dce->entry_rep = __share_entry_null_rep_ctr0;
+	} else if (dce->si_req.level == 1) {
+		dce->entry_rep = __share_entry_null_rep_ctr1;
+	}
+
+	dce->entry_rep(dce, NULL);
+
+	if (!rpc_restricted_context(dce->rpc_req))
+		return CIFSD_RPC_EINVALID_PARAMETER;
+	return CIFSD_RPC_EACCESS_DENIED;
 }
 
 static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
