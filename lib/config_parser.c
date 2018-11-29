@@ -390,6 +390,11 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(_k, "restrict anonymous")) {
+		global_conf.restrict_anon = cp_get_group_kv_long(_v);
+		return;
+	}
+
 	if (!cp_key_cmp(_k, "map to guest")) {
 		global_conf.map_to_guest = CIFSD_CONF_MAP_TO_GUEST_NEVER;
 		if (!cp_key_cmp(_v, "bad user"))
