@@ -392,6 +392,12 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 	if (!cp_key_cmp(_k, "restrict anonymous")) {
 		global_conf.restrict_anon = cp_get_group_kv_long(_v);
+		if (global_conf.restrict_anon > CIFSD_RESTRICT_ANON_TYPE_2 ||
+				global_conf.restrict_anon < 0) {
+			global_conf.restrict_anon = 0;
+			pr_err("Invalid restrict anonymous value\n");
+		}
+
 		return;
 	}
 

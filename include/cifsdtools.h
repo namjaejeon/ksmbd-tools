@@ -44,6 +44,9 @@ struct smbconf_global {
 	unsigned short		ipc_timeout;
 };
 
+#define CIFSD_RESTRICT_ANON_TYPE_1	1
+#define CIFSD_RESTRICT_ANON_TYPE_2	2
+
 extern struct smbconf_global global_conf;
 
 #define CIFSD_CONF_MAP_TO_GUEST_NEVER		(0)
