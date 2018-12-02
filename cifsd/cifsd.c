@@ -58,7 +58,10 @@ static void usage(void)
 
 static int create_lock_file()
 {
-	lock_fd = open(LOCK_FILE, O_CREAT | O_EXCL,
+	char manager_pid[10];
+	size_t sz;
+
+	lock_fd = open(LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if (lock_fd < 0)
 		return -EINVAL;
@@ -66,6 +69,9 @@ static int create_lock_file()
 	if (flock(lock_fd, LOCK_EX | LOCK_NB) != 0)
 		return -EINVAL;
 
+	sz = snprintf(manager_pid, sizeof(manager_pid), "%d", getpid());
+	if (write(lock_fd, manager_pid, sz) == -1)
+		pr_err("Unable to record main PID: %s\n", strerror(errno));
 	return 0;
 }
 

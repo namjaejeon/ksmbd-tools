@@ -39,9 +39,13 @@ struct smbconf_global {
 	char			*server_max_protocol;
 	int			server_signing;
 	int			sessions_cap;
+	int			restrict_anon;
 	unsigned short		tcp_port;
 	unsigned short		ipc_timeout;
 };
+
+#define CIFSD_RESTRICT_ANON_TYPE_1	1
+#define CIFSD_RESTRICT_ANON_TYPE_2	2
 
 extern struct smbconf_global global_conf;
 

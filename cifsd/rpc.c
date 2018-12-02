@@ -586,6 +586,18 @@ int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe, int max_entry_nr)
 	return CIFSD_RPC_OK;
 }
 
+static int ndr_write_empty_array_of_struct(struct cifsd_rpc_pipe *pipe)
+{
+	struct cifsd_dcerpc *dce = pipe->dce;
+
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+
+	return CIFSD_RPC_OK;
+}
+
 int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
@@ -601,10 +613,14 @@ int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe)
 	 * structure, immediately preceding the array elements.
 	 */
 
+	if (pipe->num_entries == 0)
+		return ndr_write_empty_array_of_struct(pipe);
+
 	max_entry_nr = __max_entries(dce, pipe);
 	if (max_entry_nr != pipe->num_entries)
 		ret = CIFSD_RPC_EMORE_DATA;
 
+	ndr_write_int32(dce, max_entry_nr);
 	/*
 	 * ARRAY representation [per dimension]
 	 *    max_count
@@ -985,6 +1001,14 @@ static int dcerpc_bind_return(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
+int rpc_restricted_context(struct cifsd_rpc_command *req)
+{
+	if (global_conf.restrict_anon == 0)
+		return 0;
+
+	return req->flags & CIFSD_RPC_RESTRICTED_CONTEXT;
+}
+
 int rpc_ioctl_request(struct cifsd_rpc_command *req,
 		      struct cifsd_rpc_command *resp,
 		      int max_resp_sz)
@@ -1017,6 +1041,7 @@ int rpc_read_request(struct cifsd_rpc_command *req,
 
 	dce = pipe->dce;
 	dce->flags &= ~CIFSD_DCERPC_RETURN_READY;
+	dce->rpc_req = req;
 	dce->rpc_resp = resp;
 	dcerpc_set_ext_payload(dce, resp->payload, max_resp_sz);
 

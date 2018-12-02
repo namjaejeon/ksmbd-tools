@@ -253,8 +253,12 @@ static int usm_copy_user_account(struct cifsd_user *user,
 				 char *account,
 				 size_t sz)
 {
-	int account_sz = strlen(user->name);
+	int account_sz;
 
+	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
+		return 0;
+
+	account_sz = strlen(user->name);
 	if (sz >= account_sz) {
 		memcpy(account, user->name, account_sz);
 		return 0;
@@ -263,62 +267,60 @@ static int usm_copy_user_account(struct cifsd_user *user,
 	return -ENOSPC;
 }
 
-int usm_handle_login_request(struct cifsd_login_request *req,
-			     struct cifsd_login_response *resp)
+static void __handle_login_request(struct cifsd_login_response *resp,
+				   struct cifsd_user *user)
 {
-	struct cifsd_user *user = NULL;
 	int hash_sz;
-	int guest_login = 0;
-
-	if (req->account[0] == '\0')
-		guest_login = 1;
-
-	if (!guest_login)
-		user = usm_lookup_user(req->account);
-	if (user) {
-		resp->gid = user->gid;
-		resp->uid = user->uid;
-		resp->status = user->flags;
-		resp->status |= CIFSD_USER_FLAG_OK;
-
-		hash_sz = usm_copy_user_passhash(user,
-						 resp->hash,
-						 sizeof(resp->hash));
-		if (hash_sz < 0) {
-			resp->status = CIFSD_USER_FLAG_INVALID;
-		} else {
-			resp->hash_sz = (unsigned short)hash_sz;
-			if (usm_copy_user_account(user,
-						  resp->account,
-						  sizeof(resp->account)))
-				resp->status = CIFSD_USER_FLAG_INVALID;
-		}
-
-		put_cifsd_user(user);
-		return 0;
-	}
-
-	resp->status = CIFSD_USER_FLAG_BAD_USER;
-	if (!guest_login &&
-		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
-		return -EINVAL;
-
-	if (guest_login || (!guest_login &&
-		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER))
-		user = usm_lookup_user(global_conf.guest_account);
-
-	if (!user)
-		return -EINVAL;
 
 	resp->gid = user->gid;
 	resp->uid = user->uid;
 	resp->status = user->flags;
 	resp->status |= CIFSD_USER_FLAG_OK;
-	resp->status |= CIFSD_USER_FLAG_ANONYMOUS;
 
-	if (usm_copy_user_account(user, resp->account, sizeof(resp->account)))
+	hash_sz = usm_copy_user_passhash(user,
+					 resp->hash,
+					 sizeof(resp->hash));
+	if (hash_sz < 0) {
 		resp->status = CIFSD_USER_FLAG_INVALID;
+	} else {
+		resp->hash_sz = (unsigned short)hash_sz;
+		if (usm_copy_user_account(user,
+					  resp->account,
+					  sizeof(resp->account)))
+			resp->status = CIFSD_USER_FLAG_INVALID;
+	}
+}
 
+int usm_handle_login_request(struct cifsd_login_request *req,
+			     struct cifsd_login_response *resp)
+{
+	struct cifsd_user *user = NULL;
+	int null_session = 0;
+
+	if (req->account[0] == '\0')
+		null_session = 1;
+
+	if (!null_session)
+		user = usm_lookup_user(req->account);
+	if (user) {
+		__handle_login_request(resp, user);
+		put_cifsd_user(user);
+		return 0;
+	}
+
+	resp->status = CIFSD_USER_FLAG_BAD_USER;
+	if (!null_session &&
+		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_NEVER)
+		return 0;
+
+	if (null_session ||
+		global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER)
+		user = usm_lookup_user(global_conf.guest_account);
+
+	if (!user)
+		return 0;
+
+	__handle_login_request(resp, user);
 	put_cifsd_user(user);
 	return 0;
 }

@@ -100,6 +100,20 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
+	if (global_conf.restrict_anon >= CIFSD_RESTRICT_ANON_TYPE_1) {
+		int deny;
+
+		deny = !test_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK);
+		deny |= test_share_flag(share, CIFSD_SHARE_FLAG_PIPE);
+
+		if (req->account_flags & CIFSD_USER_FLAG_GUEST_ACCOUNT &&
+				deny) {
+			pr_debug("treecon: deny. Restricted session\n");
+			resp->status = CIFSD_TREE_CONN_STATUS_ERROR;
+			goto out_error;
+		}
+	}
+
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK)) {
 		pr_debug("treecon: net share permits guest login\n");
 		user = usm_lookup_user(share->guest_account);
@@ -115,7 +129,10 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
-	user = usm_lookup_user(req->account);
+	if (req->account_flags & CIFSD_USER_FLAG_GUEST_ACCOUNT)
+		user = usm_lookup_user(global_conf.guest_account);
+	else
+		user = usm_lookup_user(req->account);
 	if (!user) {
 		resp->status = CIFSD_TREE_CONN_STATUS_NO_USER;
 		pr_err("treecon: user account not found: %s\n", req->account);
