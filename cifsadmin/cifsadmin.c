@@ -53,7 +53,8 @@ static void usage(void)
 
 static void notify_cifsd_daemon(int command)
 {
-	int manager_pid;
+	char manager_pid[10];
+	int pid = 0;
 	int lock_fd;
 
 	/*
@@ -73,9 +74,10 @@ static void notify_cifsd_daemon(int command)
 
 	close(lock_fd);
 
-	if (kill(manager_pid, SIGHUP))
+	pid = cp_get_group_kv_long_base(manager_pid, 10);
+	if (kill(pid, SIGHUP))
 		pr_debug("Unable to send siangl to pid %d: %s\n",
-			 manager_pid, strerror(errno));
+			 pid, strerror(errno));
 }
 
 static int test_access(char *conf)
