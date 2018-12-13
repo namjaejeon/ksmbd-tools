@@ -69,11 +69,11 @@ extern struct smbconf_global global_conf;
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
-#define CIFSD_HEALTH_START			(0)
-#define CIFSD_HEALTH_RUNNING			(1 << 0)
-#define CIFSD_NOTIFICATION_RELOAD_CONFIG	(1 << 1)
+#define CIFSD_HEALTH_START		(0)
+#define CIFSD_HEALTH_RUNNING		(1 << 0)
+#define CIFSD_SHOULD_RELOAD_CONFIG	(1 << 1)
 
-static int cifsd_health_status;
+extern int cifsd_health_status;
 
 #define TRACING_DUMP_NL_MSG	0
 

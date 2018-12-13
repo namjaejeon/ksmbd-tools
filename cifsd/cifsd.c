@@ -21,16 +21,16 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#include <config_parser.h>
-
 #include <ipc.h>
 #include <rpc.h>
 #include <worker.h>
+#include <config_parser.h>
 #include <management/user.h>
 #include <management/share.h>
 #include <management/session.h>
 #include <management/tree_conn.h>
 
+int cifsd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
@@ -159,11 +159,6 @@ static int parse_configs(char *pwddb, char *smbconf)
 		pr_err("Unable to parse smb configuration file\n");
 		return ret;
 	}
-
-	if (pwddb != PATH_PWDDB)
-		free(pwddb);
-	if (smbconf!= PATH_SMBCONF)
-		free(smbconf);
 	return 0;
 }
 
@@ -192,7 +187,8 @@ static void child_sig_handler(int signo)
 		 * a flag and wait for normal execution context to re-read
 		 * the configs.
 		 */
-		cifsd_health_status |= CIFSD_NOTIFICATION_RELOAD_CONFIG;
+		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
+		pr_debug("Scheduled a config reload action.\n");
 		return;
 	}
 
@@ -221,6 +217,18 @@ static void manager_sig_handler(int signo)
 	pr_info("Exiting. Bye!\n");
 	delete_lock_file();
 	kill(0, SIGINT);
+}
+
+static int parse_reload_configs(const char *pwddb, const char *smbconf)
+{
+	int ret;
+
+	ret = cp_parse_reload_pwddb(pwddb);
+	if (ret) {
+		pr_err("Unable to parse-reload user database\n");
+		return ret;
+	}
+	return 0;
 }
 
 static int worker_process_init(void)
@@ -273,6 +281,16 @@ static int worker_process_init(void)
 	}
 
 	while (cifsd_health_status & CIFSD_HEALTH_RUNNING) {
+		if (cifsd_health_status & CIFSD_SHOULD_RELOAD_CONFIG) {
+			ret = parse_reload_configs(pwddb, smbconf);
+			if (ret)
+				pr_err("Failed to reload configs. "
+					"Continue with the old one.\n");
+
+			ret = 0;
+			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
+		}
+
 		ret = ipc_process_event();
 		if (ret)
 			break;

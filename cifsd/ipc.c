@@ -405,8 +405,10 @@ int ipc_init(void)
 		}
 	} while (ret);
 
-	if (ipc_cifsd_starting_up())
+	if (ipc_cifsd_starting_up()) {
+		pr_err("Unable to send startup event\n");
 		return -EINVAL;
+	}
 
 	cifsd_health_status = CIFSD_HEALTH_RUNNING;
 	return 0;

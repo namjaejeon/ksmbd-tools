@@ -42,8 +42,11 @@ void put_cifsd_user(struct cifsd_user *user);
 
 struct cifsd_user *usm_lookup_user(char *name);
 
+int usm_update_user_password(struct cifsd_user *user, char *pass);
+
 int usm_add_new_user(char *name, char *pwd);
 int usm_new_user_from_pwdentry(char *data);
+int usm_update_user_from_pwdentry(char *data);
 
 void usm_destroy(void);
 int usm_init(void);
@@ -52,8 +55,6 @@ typedef void (*walk_users)(gpointer key,
 			   gpointer value,
 			   gpointer user_data);
 void for_each_cifsd_user(walk_users cb, gpointer user_data);
-
-int usm_update_user_password(struct cifsd_user *user, char *pass);
 
 struct cifsd_login_request;
 struct cifsd_login_response;

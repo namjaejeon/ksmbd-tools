@@ -199,6 +199,42 @@ int usm_new_user_from_pwdentry(char *data)
 	return usm_add_new_user(name, pwd);
 }
 
+int usm_update_user_from_pwdentry(char *data)
+{
+	struct cifsd_user *user;
+	char *name;
+	char *pwd;
+	char *pos = strchr(data, ':');
+	size_t sz = 0;
+	int ret;
+
+	if (!pos) {
+		pr_err("Invalid pwd entry %s\n", data);
+		return -EINVAL;
+	}
+
+	*pos = 0x00;
+	name = strdup(data);
+	pwd = strdup(pos + 1);
+
+	if (!name || !pwd) {
+		free(name);
+		free(pwd);
+		return -ENOMEM;
+	}
+
+	user = usm_lookup_user(name);
+	if (user) {
+		ret = usm_update_user_password(user, pwd);
+		put_cifsd_user(user);
+
+		free(name);
+		free(pwd);
+		return ret;
+	}
+	return usm_add_new_user(name, pwd);
+}
+
 void for_each_cifsd_user(walk_users cb, gpointer user_data)
 {
 	g_rw_lock_reader_lock(&users_table_lock);
@@ -219,6 +255,7 @@ int usm_update_user_password(struct cifsd_user *user, char *pswd)
 		return -ENOMEM;
 	}
 
+	pr_debug("Update user password: %s\n", user->name);
 	g_rw_lock_writer_lock(&user->update_lock);
 	free(user->pass_b64);
 	free(user->pass);
