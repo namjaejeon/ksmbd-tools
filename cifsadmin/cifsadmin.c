@@ -53,7 +53,7 @@ static void usage(void)
 
 static void notify_cifsd_daemon(int command)
 {
-	char manager_pid[10];
+	char manager_pid[10] = {0, };
 	int pid = 0;
 	int lock_fd;
 
@@ -69,8 +69,10 @@ static void notify_cifsd_daemon(int command)
 		return;
 	}
 
-	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1)
+	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
 		pr_debug("Unable to read main PID: %s\n", strerror(errno));
+		return;
+	}
 
 	close(lock_fd);
 
