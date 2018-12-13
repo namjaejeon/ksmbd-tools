@@ -75,6 +75,8 @@ static void notify_cifsd_daemon(int command)
 	close(lock_fd);
 
 	pid = cp_get_group_kv_long_base(manager_pid, 10);
+
+	pr_debug("Send SIGHUP to pid %d\n", pid);
 	if (kill(pid, SIGHUP))
 		pr_debug("Unable to send siangl to pid %d: %s\n",
 			 pid, strerror(errno));
