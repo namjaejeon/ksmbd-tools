@@ -23,6 +23,7 @@
 #include <md4_hash.h>
 
 static char *account = NULL;
+static char *password = NULL;
 static int conf_fd = -1;
 
 #define MAX_NT_PWD_LEN 129
@@ -43,6 +44,7 @@ static void usage(void)
 	fprintf(stderr, "\t-a | --add-user=login\n");
 	fprintf(stderr, "\t-d | --del-user=login\n");
 	fprintf(stderr, "\t-u | --update-user=login\n");
+	fprintf(stderr, "\t-p | --password=pass\n");
 
 	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
 	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
@@ -100,7 +102,7 @@ static void term_toggle_echo(int on_off)
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
 }
 
-static char *prompt_password(size_t *sz)
+static char *__prompt_password_stdin(size_t *sz)
 {
 	char *pswd1 = malloc(MAX_NT_PWD_LEN + 1);
 	char *pswd2 = malloc(MAX_NT_PWD_LEN + 1);
@@ -162,6 +164,15 @@ again:
 	*sz = len;
 	free(pswd2);
 	return pswd1;
+}
+
+static char *prompt_password(size_t *sz)
+{
+	if (!password)
+		return __prompt_password_stdin(sz);
+
+	*sz = strlen(password);
+	return password;
 }
 
 static char *get_utf8_password(long *len)
@@ -459,7 +470,7 @@ int main(int argc, char *argv[])
 	set_logger_app_name("cifsd_admin");
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:a:d:u:vh")) != EOF)
+	while ((c = getopt(argc, argv, "c:i:a:d:u:p:vh")) != EOF)
 		switch (c) {
 		case 'a':
 			account = strdup(optarg);
@@ -472,6 +483,9 @@ int main(int argc, char *argv[])
 		case 'u':
 			account = strdup(optarg);
 			cmd = COMMAND_UPDATE_USER;
+			break;
+		case 'p':
+			password = strdup(optarg);
 			break;
 		case 'c':
 			smbconf = strdup(optarg);
