@@ -36,7 +36,6 @@ static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
 
-
 extern const char * const sys_siglist[];
 typedef int (*worker_fn)(void);
 
@@ -186,6 +185,17 @@ static void child_sig_handler(int signo)
 {
 	pr_err("Child received signal: %d (%s)\n",
 		signo, sys_siglist[signo]);
+
+	if (signo == SIGHUP) {
+		/*
+		 * This is a signal handler, we can't take any locks, set
+		 * a flag and wait for normal execution context to re-read
+		 * the configs.
+		 */
+		cifsd_health_status |= CIFSD_NOTIFICATION_RELOAD_CONFIG;
+		return;
+	}
+
 	worker_process_free();
 	delete_lock_file();
 	exit(EXIT_SUCCESS);
@@ -193,6 +203,19 @@ static void child_sig_handler(int signo)
 
 static void manager_sig_handler(int signo)
 {
+	/*
+	 * Pass SIGHUP to worker, so it will reload configs
+	 */
+	if (signo == SIGHUP) {
+		if (!worker_pid)
+			return;
+
+		if (kill(worker_pid, signo))
+			pr_err("Unable to send SIGHUP to %d: %s\n",
+				worker_pid, strerror(errno));
+		return;
+	}
+
 	setup_signals(SIG_DFL);
 	wait_group_kill(signo);
 	pr_info("Exiting. Bye!\n");
@@ -249,7 +272,11 @@ static int worker_process_init(void)
 		goto out;
 	}
 
-	ret = ipc_receive_loop();
+	while (cifsd_health_status & CIFSD_HEALTH_RUNNING) {
+		ret = ipc_process_event();
+		if (ret)
+			break;
+	}
 out:
 	worker_process_free();
 	return ret;

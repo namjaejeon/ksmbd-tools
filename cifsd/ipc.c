@@ -152,19 +152,13 @@ static int ipc_cifsd_shutting_down(void)
 	return 0;
 }
 
-int ipc_receive_loop(void)
+int ipc_process_event(void)
 {
-	if (ipc_cifsd_starting_up())
+	if (nl_recvmsgs_default(sk) < 0) {
+		pr_err("Recv() error %s\n", strerror(errno));
 		return -EINVAL;
-
-	cifsd_health_status = CIFSD_HEALTH_RUNNING;
-	while (cifsd_health_status == CIFSD_HEALTH_RUNNING) {
-		if (nl_recvmsgs_default(sk) < 0) {
-			pr_err("Recv() error\n");
-			break;
-		}
 	}
-	return -EINVAL;
+	return 0;
 }
 
 static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
@@ -410,6 +404,9 @@ int ipc_init(void)
 			sleep(5);
 		}
 	} while (ret);
+
+	if (ipc_cifsd_starting_up())
+		return -EINVAL;
 
 	cifsd_health_status = CIFSD_HEALTH_RUNNING;
 	return 0;
