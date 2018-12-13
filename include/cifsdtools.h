@@ -44,6 +44,8 @@ struct smbconf_global {
 	unsigned short		ipc_timeout;
 };
 
+#define CIFSD_LOCK_FILE		"/tmp/cifsd.lock"
+
 #define CIFSD_RESTRICT_ANON_TYPE_1	1
 #define CIFSD_RESTRICT_ANON_TYPE_2	2
 

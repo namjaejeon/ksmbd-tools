@@ -36,7 +36,6 @@ static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
 
-#define LOCK_FILE "/tmp/cifsd.lock"
 
 extern const char * const sys_siglist[];
 typedef int (*worker_fn)(void);
@@ -61,7 +60,7 @@ static int create_lock_file()
 	char manager_pid[10];
 	size_t sz;
 
-	lock_fd = open(LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
+	lock_fd = open(CIFSD_LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if (lock_fd < 0)
 		return -EINVAL;
@@ -83,7 +82,7 @@ static void delete_lock_file()
 	flock(lock_fd, LOCK_UN);
 	close(lock_fd);
 	lock_fd = -1;
-	remove(LOCK_FILE);
+	remove(CIFSD_LOCK_FILE);
 }
 
 static int wait_group_kill(int signo)

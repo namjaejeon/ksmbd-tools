@@ -12,6 +12,9 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <errno.h>
 
 #include <config_parser.h>
 #include <cifsdtools.h>
@@ -46,6 +49,33 @@ static void usage(void)
 	fprintf(stderr, "\t-v | --verbose\n");
 
 	exit(EXIT_FAILURE);
+}
+
+static void notify_cifsd_daemon(int command)
+{
+	int manager_pid;
+	int lock_fd;
+
+	/*
+	 * We support only add/update user at this point.
+	 */
+	if (command == COMMAND_DEL_USER)
+		return;
+
+	lock_fd = open(CIFSD_LOCK_FILE, O_RDONLY);
+	if (lock_fd < 0) {
+		pr_debug("Unalde to read lock file: %s\n", strerror(errno));
+		return;
+	}
+
+	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1)
+		pr_debug("Unable to read main PID: %s\n", strerror(errno));
+
+	close(lock_fd);
+
+	if (kill(manager_pid, SIGHUP))
+		pr_debug("Unable to send siangl to pid %d: %s\n",
+			 manager_pid, strerror(errno));
 }
 
 static int test_access(char *conf)
@@ -153,6 +183,9 @@ int main(int argc, char *argv[])
 		ret = command_del_user(pwddb, arg_account);
 	if (cmd == COMMAND_UPDATE_USER)
 		ret = command_update_user(pwddb, arg_account, arg_password);
+
+	if (ret == 0)
+		notify_cifsd_daemon(cmd);
 out:
 	shm_destroy();
 	usm_destroy();
