@@ -174,32 +174,7 @@ int usm_add_new_user(char *name, char *pwd)
 	return ret;
 }
 
-int usm_new_user_from_pwdentry(char *data)
-{
-	char *name;
-	char *pwd;
-	char *pos = strchr(data, ':');
-	size_t sz = 0;
-	int ret;
-
-	if (!pos) {
-		pr_err("Invalid pwd entry %s\n", data);
-		return -EINVAL;
-	}
-
-	*pos = 0x00;
-	name = strdup(data);
-	pwd = strdup(pos + 1);
-
-	if (!name || !pwd) {
-		free(name);
-		free(pwd);
-		return -ENOMEM;
-	}
-	return usm_add_new_user(name, pwd);
-}
-
-int usm_update_user_from_pwdentry(char *data)
+int usm_add_update_user_from_pwdentry(char *data)
 {
 	struct cifsd_user *user;
 	char *name;

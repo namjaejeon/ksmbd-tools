@@ -223,7 +223,7 @@ static int parse_reload_configs(const char *pwddb, const char *smbconf)
 {
 	int ret;
 
-	ret = cp_parse_reload_pwddb(pwddb);
+	ret = cp_parse_pwddb(pwddb);
 	if (ret) {
 		pr_err("Unable to parse-reload user database\n");
 		return ret;

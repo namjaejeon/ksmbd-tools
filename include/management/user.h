@@ -45,8 +45,7 @@ struct cifsd_user *usm_lookup_user(char *name);
 int usm_update_user_password(struct cifsd_user *user, char *pass);
 
 int usm_add_new_user(char *name, char *pwd);
-int usm_new_user_from_pwdentry(char *data);
-int usm_update_user_from_pwdentry(char *data);
+int usm_add_update_user_from_pwdentry(char *data);
 
 void usm_destroy(void);
 int usm_init(void);
