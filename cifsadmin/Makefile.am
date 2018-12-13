@@ -4,4 +4,4 @@ cifsadmin_LDADD = $(top_builddir)/lib/libcifsdtools.la
 
 sbin_PROGRAMS = cifsadmin
 
-cifsadmin_SOURCES = md4_hash.c cifsadmin.c
+cifsadmin_SOURCES = md4_hash.c user_admin.c cifsadmin.c
