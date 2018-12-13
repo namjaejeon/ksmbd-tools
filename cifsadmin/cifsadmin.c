@@ -21,6 +21,7 @@
 #include <management/share.h>
 
 #include <md4_hash.h>
+#include <linux/cifsd_server.h>
 
 static char *account = NULL;
 static char *password = NULL;
@@ -261,6 +262,9 @@ static void write_user(struct cifsd_user *user)
 	char *data;
 	int ret, nr = 0;
 	size_t wsz;
+
+	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
+		return;
 
 	data = malloc(sz);
 	if (!data) {
