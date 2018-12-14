@@ -21,22 +21,20 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#include <config_parser.h>
-
 #include <ipc.h>
 #include <rpc.h>
 #include <worker.h>
+#include <config_parser.h>
 #include <management/user.h>
 #include <management/share.h>
 #include <management/session.h>
 #include <management/tree_conn.h>
 
+int cifsd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
-
-#define LOCK_FILE "/tmp/cifsd.lock"
 
 extern const char * const sys_siglist[];
 typedef int (*worker_fn)(void);
@@ -61,7 +59,7 @@ static int create_lock_file()
 	char manager_pid[10];
 	size_t sz;
 
-	lock_fd = open(LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
+	lock_fd = open(CIFSD_LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if (lock_fd < 0)
 		return -EINVAL;
@@ -83,7 +81,7 @@ static void delete_lock_file()
 	flock(lock_fd, LOCK_UN);
 	close(lock_fd);
 	lock_fd = -1;
-	remove(LOCK_FILE);
+	remove(CIFSD_LOCK_FILE);
 }
 
 static int wait_group_kill(int signo)
@@ -161,11 +159,6 @@ static int parse_configs(char *pwddb, char *smbconf)
 		pr_err("Unable to parse smb configuration file\n");
 		return ret;
 	}
-
-	if (pwddb != PATH_PWDDB)
-		free(pwddb);
-	if (smbconf!= PATH_SMBCONF)
-		free(smbconf);
 	return 0;
 }
 
@@ -187,6 +180,18 @@ static void child_sig_handler(int signo)
 {
 	pr_err("Child received signal: %d (%s)\n",
 		signo, sys_siglist[signo]);
+
+	if (signo == SIGHUP) {
+		/*
+		 * This is a signal handler, we can't take any locks, set
+		 * a flag and wait for normal execution context to re-read
+		 * the configs.
+		 */
+		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
+		pr_debug("Scheduled a config reload action.\n");
+		return;
+	}
+
 	worker_process_free();
 	delete_lock_file();
 	exit(EXIT_SUCCESS);
@@ -194,11 +199,36 @@ static void child_sig_handler(int signo)
 
 static void manager_sig_handler(int signo)
 {
+	/*
+	 * Pass SIGHUP to worker, so it will reload configs
+	 */
+	if (signo == SIGHUP) {
+		if (!worker_pid)
+			return;
+
+		if (kill(worker_pid, signo))
+			pr_err("Unable to send SIGHUP to %d: %s\n",
+				worker_pid, strerror(errno));
+		return;
+	}
+
 	setup_signals(SIG_DFL);
 	wait_group_kill(signo);
 	pr_info("Exiting. Bye!\n");
 	delete_lock_file();
 	kill(0, SIGINT);
+}
+
+static int parse_reload_configs(const char *pwddb, const char *smbconf)
+{
+	int ret;
+
+	ret = cp_parse_pwddb(pwddb);
+	if (ret) {
+		pr_err("Unable to parse-reload user database\n");
+		return ret;
+	}
+	return 0;
 }
 
 static int worker_process_init(void)
@@ -250,7 +280,21 @@ static int worker_process_init(void)
 		goto out;
 	}
 
-	ret = ipc_receive_loop();
+	while (cifsd_health_status & CIFSD_HEALTH_RUNNING) {
+		if (cifsd_health_status & CIFSD_SHOULD_RELOAD_CONFIG) {
+			ret = parse_reload_configs(pwddb, smbconf);
+			if (ret)
+				pr_err("Failed to reload configs. "
+					"Continue with the old one.\n");
+
+			ret = 0;
+			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
+		}
+
+		ret = ipc_process_event();
+		if (ret)
+			break;
+	}
 out:
 	worker_process_free();
 	return ret;

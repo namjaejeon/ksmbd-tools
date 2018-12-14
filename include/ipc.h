@@ -28,7 +28,7 @@ void ipc_msg_free(struct cifsd_ipc_msg *msg);
 
 int ipc_msg_send(struct cifsd_ipc_msg *msg);
 
-int ipc_receive_loop(void);
+int ipc_process_event(void);
 void ipc_destroy(void);
 int ipc_init(void);
 

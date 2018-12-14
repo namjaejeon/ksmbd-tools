@@ -9,6 +9,7 @@
 #define __CIFSD_RPC_H__
 
 #include <linux/types.h>
+#include <glib.h>
 
 #define CIFSD_DCERPC_LITTLE_ENDIAN	(1 << 0)
 #define CIFSD_DCERPC_ALIGN2		(1 << 1)
