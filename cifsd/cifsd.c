@@ -30,6 +30,7 @@
 #include <management/session.h>
 #include <management/tree_conn.h>
 
+static int no_detach = 0;
 int cifsd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
@@ -174,13 +175,12 @@ static void worker_process_free(void)
 	sm_destroy();
 	shm_destroy();
 	usm_destroy();
+	if (no_detach)
+		delete_lock_file();
 }
 
 static void child_sig_handler(int signo)
 {
-	pr_err("Child received signal: %d (%s)\n",
-		signo, sys_siglist[signo]);
-
 	if (signo == SIGHUP) {
 		/*
 		 * This is a signal handler, we can't take any locks, set
@@ -192,8 +192,10 @@ static void child_sig_handler(int signo)
 		return;
 	}
 
+	pr_err("Child received signal: %d (%s)\n",
+		signo, sys_siglist[signo]);
+
 	worker_process_free();
-	delete_lock_file();
 	exit(EXIT_SUCCESS);
 }
 
@@ -206,6 +208,7 @@ static void manager_sig_handler(int signo)
 		if (!worker_pid)
 			return;
 
+		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
 		if (kill(worker_pid, signo))
 			pr_err("Unable to send SIGHUP to %d: %s\n",
 				worker_pid, strerror(errno));
@@ -329,6 +332,11 @@ static int manager_process_init(void)
 		goto out;
 	}
 
+	if (create_lock_file()) {
+		pr_err("Failed to create lock file: %s\n", strerror(errno));
+		goto out;
+	}
+
 	worker_pid = start_worker_process(worker_process_init);
 	if (worker_pid < 0)
 		goto out;
@@ -338,6 +346,12 @@ static int manager_process_init(void)
 		pid_t child;
 
 		child = waitpid(-1, &status, 0);
+		if (cifsd_health_status & CIFSD_SHOULD_RELOAD_CONFIG &&
+				errno == EINTR) {
+			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
+			continue;
+		}
+
 		pr_err("WARNING: child process exited abnormally: %d\n",
 				child);
 		if (child == -1) {
@@ -372,7 +386,6 @@ static int manager_systemd_service(void)
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
-	int no_detach = 0;
 	int systemd_service = 0;
 	int c;
 
@@ -409,15 +422,15 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if (create_lock_file()) {
-		pr_err("Failed to create lock file: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
 	setup_signals(manager_sig_handler);
 
 	if (no_detach) {
 		pr_logger_init(PR_LOGGER_STDIO);
+		if (create_lock_file()) {
+			pr_err("Failed to create lock file: %s\n",
+				strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		return worker_process_init();
 	}
 
