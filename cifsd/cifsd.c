@@ -30,6 +30,7 @@
 #include <management/session.h>
 #include <management/tree_conn.h>
 
+static int no_detach = 0;
 int cifsd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
@@ -174,6 +175,8 @@ static void worker_process_free(void)
 	sm_destroy();
 	shm_destroy();
 	usm_destroy();
+	if (no_detach)
+		delete_lock_file();
 }
 
 static void child_sig_handler(int signo)
@@ -193,7 +196,6 @@ static void child_sig_handler(int signo)
 		signo, sys_siglist[signo]);
 
 	worker_process_free();
-	delete_lock_file();
 	exit(EXIT_SUCCESS);
 }
 
@@ -384,7 +386,6 @@ static int manager_systemd_service(void)
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
-	int no_detach = 0;
 	int systemd_service = 0;
 	int c;
 
