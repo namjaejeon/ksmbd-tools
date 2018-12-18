@@ -329,6 +329,11 @@ static int manager_process_init(void)
 		goto out;
 	}
 
+	if (create_lock_file()) {
+		pr_err("Failed to create lock file: %s\n", strerror(errno));
+		goto out;
+	}
+
 	worker_pid = start_worker_process(worker_process_init);
 	if (worker_pid < 0)
 		goto out;
@@ -409,15 +414,15 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if (create_lock_file()) {
-		pr_err("Failed to create lock file: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
 	setup_signals(manager_sig_handler);
 
 	if (no_detach) {
 		pr_logger_init(PR_LOGGER_STDIO);
+		if (create_lock_file()) {
+			pr_err("Failed to create lock file: %s\n",
+				strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		return worker_process_init();
 	}
 
