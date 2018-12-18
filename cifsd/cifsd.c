@@ -178,9 +178,6 @@ static void worker_process_free(void)
 
 static void child_sig_handler(int signo)
 {
-	pr_err("Child received signal: %d (%s)\n",
-		signo, sys_siglist[signo]);
-
 	if (signo == SIGHUP) {
 		/*
 		 * This is a signal handler, we can't take any locks, set
@@ -191,6 +188,9 @@ static void child_sig_handler(int signo)
 		pr_debug("Scheduled a config reload action.\n");
 		return;
 	}
+
+	pr_err("Child received signal: %d (%s)\n",
+		signo, sys_siglist[signo]);
 
 	worker_process_free();
 	delete_lock_file();
@@ -206,6 +206,7 @@ static void manager_sig_handler(int signo)
 		if (!worker_pid)
 			return;
 
+		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
 		if (kill(worker_pid, signo))
 			pr_err("Unable to send SIGHUP to %d: %s\n",
 				worker_pid, strerror(errno));
@@ -343,6 +344,12 @@ static int manager_process_init(void)
 		pid_t child;
 
 		child = waitpid(-1, &status, 0);
+		if (cifsd_health_status & CIFSD_SHOULD_RELOAD_CONFIG &&
+				errno == EINTR) {
+			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
+			continue;
+		}
+
 		pr_err("WARNING: child process exited abnormally: %d\n",
 				child);
 		if (child == -1) {
