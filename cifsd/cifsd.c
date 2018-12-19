@@ -142,6 +142,9 @@ static int setup_signals(sighandler_t handler)
 	if (setup_signal_handler(SIGHUP, handler) != 0)
 		return -EINVAL;
 
+	if (setup_signal_handler(SIGSEGV, handler) != 0)
+		return -EINVAL;
+
 	return 0;
 }
 
