@@ -178,8 +178,6 @@ static void worker_process_free(void)
 	sm_destroy();
 	shm_destroy();
 	usm_destroy();
-	if (no_detach)
-		delete_lock_file();
 }
 
 static void child_sig_handler(int signo)
@@ -328,11 +326,12 @@ static int manager_process_init(void)
 	int ret;
 
 	setup_signals(manager_sig_handler);
-	pr_logger_init(PR_LOGGER_SYSLOG);
-
-	if (daemon(0, 0) != 0) {
-		pr_err("Daemonization failed\n");
-		goto out;
+	if (no_detach == 0) {
+		pr_logger_init(PR_LOGGER_SYSLOG);
+		if (daemon(0, 0) != 0) {
+			pr_err("Daemonization failed\n");
+			goto out;
+		}
 	}
 
 	if (create_lock_file()) {
@@ -394,6 +393,7 @@ int main(int argc, char *argv[])
 
 	set_logger_app_name("cifsd-manager");
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
+	pr_logger_init(PR_LOGGER_STDIO);
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "p:c:i:snh")) != EOF)
@@ -426,17 +426,6 @@ int main(int argc, char *argv[])
 	}
 
 	setup_signals(manager_sig_handler);
-
-	if (no_detach) {
-		pr_logger_init(PR_LOGGER_STDIO);
-		if (create_lock_file()) {
-			pr_err("Failed to create lock file: %s\n",
-				strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		return worker_process_init();
-	}
-
 	if (!systemd_service)
 		return manager_process_init();
 	return manager_systemd_service();
