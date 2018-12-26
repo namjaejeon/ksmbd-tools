@@ -21,6 +21,7 @@ struct smbconf_parser {
 };
 
 int cp_parse_pwddb(const char *pwddb);
+int cp_parse_reload_pwddb(const char *pwddb);
 int cp_parse_smbconf(const char *smbconf);
 
 int cp_key_cmp(char *k, char *v);

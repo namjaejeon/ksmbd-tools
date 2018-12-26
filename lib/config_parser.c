@@ -508,5 +508,5 @@ int cp_parse_smbconf(const char *smbconf)
 
 int cp_parse_pwddb(const char *pwddb)
 {
-	return __mmap_parse_file(pwddb, usm_new_user_from_pwdentry);
+	return __mmap_parse_file(pwddb, usm_add_update_user_from_pwdentry);
 }

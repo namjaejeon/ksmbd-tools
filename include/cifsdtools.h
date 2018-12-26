@@ -44,6 +44,8 @@ struct smbconf_global {
 	unsigned short		ipc_timeout;
 };
 
+#define CIFSD_LOCK_FILE		"/tmp/cifsd.lock"
+
 #define CIFSD_RESTRICT_ANON_TYPE_1	1
 #define CIFSD_RESTRICT_ANON_TYPE_2	2
 
@@ -67,10 +69,11 @@ extern struct smbconf_global global_conf;
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
-#define CIFSD_HEALTH_START	0
-#define CIFSD_HEALTH_RUNNING	1
+#define CIFSD_HEALTH_START		(0)
+#define CIFSD_HEALTH_RUNNING		(1 << 0)
+#define CIFSD_SHOULD_RELOAD_CONFIG	(1 << 1)
 
-static int cifsd_health_status;
+extern int cifsd_health_status;
 
 #define TRACING_DUMP_NL_MSG	0
 

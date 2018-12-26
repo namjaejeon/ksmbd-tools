@@ -21,22 +21,21 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#include <config_parser.h>
-
 #include <ipc.h>
 #include <rpc.h>
 #include <worker.h>
+#include <config_parser.h>
 #include <management/user.h>
 #include <management/share.h>
 #include <management/session.h>
 #include <management/tree_conn.h>
 
+static int no_detach = 0;
+int cifsd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
-
-#define LOCK_FILE "/tmp/cifsd.lock"
 
 extern const char * const sys_siglist[];
 typedef int (*worker_fn)(void);
@@ -61,7 +60,7 @@ static int create_lock_file()
 	char manager_pid[10];
 	size_t sz;
 
-	lock_fd = open(LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
+	lock_fd = open(CIFSD_LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if (lock_fd < 0)
 		return -EINVAL;
@@ -83,7 +82,7 @@ static void delete_lock_file()
 	flock(lock_fd, LOCK_UN);
 	close(lock_fd);
 	lock_fd = -1;
-	remove(LOCK_FILE);
+	remove(CIFSD_LOCK_FILE);
 }
 
 static int wait_group_kill(int signo)
@@ -143,6 +142,9 @@ static int setup_signals(sighandler_t handler)
 	if (setup_signal_handler(SIGHUP, handler) != 0)
 		return -EINVAL;
 
+	if (setup_signal_handler(SIGSEGV, handler) != 0)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -161,11 +163,6 @@ static int parse_configs(char *pwddb, char *smbconf)
 		pr_err("Unable to parse smb configuration file\n");
 		return ret;
 	}
-
-	if (pwddb != PATH_PWDDB)
-		free(pwddb);
-	if (smbconf!= PATH_SMBCONF)
-		free(smbconf);
 	return 0;
 }
 
@@ -185,20 +182,57 @@ static void worker_process_free(void)
 
 static void child_sig_handler(int signo)
 {
+	if (signo == SIGHUP) {
+		/*
+		 * This is a signal handler, we can't take any locks, set
+		 * a flag and wait for normal execution context to re-read
+		 * the configs.
+		 */
+		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
+		pr_debug("Scheduled a config reload action.\n");
+		return;
+	}
+
 	pr_err("Child received signal: %d (%s)\n",
 		signo, sys_siglist[signo]);
+
 	worker_process_free();
-	delete_lock_file();
 	exit(EXIT_SUCCESS);
 }
 
 static void manager_sig_handler(int signo)
 {
+	/*
+	 * Pass SIGHUP to worker, so it will reload configs
+	 */
+	if (signo == SIGHUP) {
+		if (!worker_pid)
+			return;
+
+		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
+		if (kill(worker_pid, signo))
+			pr_err("Unable to send SIGHUP to %d: %s\n",
+				worker_pid, strerror(errno));
+		return;
+	}
+
 	setup_signals(SIG_DFL);
 	wait_group_kill(signo);
 	pr_info("Exiting. Bye!\n");
 	delete_lock_file();
 	kill(0, SIGINT);
+}
+
+static int parse_reload_configs(const char *pwddb, const char *smbconf)
+{
+	int ret;
+
+	ret = cp_parse_pwddb(pwddb);
+	if (ret) {
+		pr_err("Unable to parse-reload user database\n");
+		return ret;
+	}
+	return 0;
 }
 
 static int worker_process_init(void)
@@ -250,7 +284,21 @@ static int worker_process_init(void)
 		goto out;
 	}
 
-	ret = ipc_receive_loop();
+	while (cifsd_health_status & CIFSD_HEALTH_RUNNING) {
+		if (cifsd_health_status & CIFSD_SHOULD_RELOAD_CONFIG) {
+			ret = parse_reload_configs(pwddb, smbconf);
+			if (ret)
+				pr_err("Failed to reload configs. "
+					"Continue with the old one.\n");
+
+			ret = 0;
+			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
+		}
+
+		ret = ipc_process_event();
+		if (ret)
+			break;
+	}
 out:
 	worker_process_free();
 	return ret;
@@ -278,10 +326,16 @@ static int manager_process_init(void)
 	int ret;
 
 	setup_signals(manager_sig_handler);
-	pr_logger_init(PR_LOGGER_SYSLOG);
+	if (no_detach == 0) {
+		pr_logger_init(PR_LOGGER_SYSLOG);
+		if (daemon(0, 0) != 0) {
+			pr_err("Daemonization failed\n");
+			goto out;
+		}
+	}
 
-	if (daemon(0, 0) != 0) {
-		pr_err("Daemonization failed\n");
+	if (create_lock_file()) {
+		pr_err("Failed to create lock file: %s\n", strerror(errno));
 		goto out;
 	}
 
@@ -294,6 +348,12 @@ static int manager_process_init(void)
 		pid_t child;
 
 		child = waitpid(-1, &status, 0);
+		if (cifsd_health_status & CIFSD_SHOULD_RELOAD_CONFIG &&
+				errno == EINTR) {
+			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
+			continue;
+		}
+
 		pr_err("WARNING: child process exited abnormally: %d\n",
 				child);
 		if (child == -1) {
@@ -328,12 +388,12 @@ static int manager_systemd_service(void)
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
-	int no_detach = 0;
 	int systemd_service = 0;
 	int c;
 
 	set_logger_app_name("cifsd-manager");
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
+	pr_logger_init(PR_LOGGER_STDIO);
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "p:c:i:snh")) != EOF)
@@ -365,18 +425,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if (create_lock_file()) {
-		pr_err("Failed to create lock file: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
 	setup_signals(manager_sig_handler);
-
-	if (no_detach) {
-		pr_logger_init(PR_LOGGER_STDIO);
-		return worker_process_init();
-	}
-
 	if (!systemd_service)
 		return manager_process_init();
 	return manager_systemd_service();
