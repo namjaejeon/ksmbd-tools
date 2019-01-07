@@ -545,7 +545,8 @@ int shm_share_config_payload_size(struct cifsd_share *share)
 
 	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
 		sz += strlen(share->path);
-		sz += share->veto_list_sz;
+		if (share->veto_list_sz)
+			sz += share->veto_list_sz + 1;
 	}
 
 	return sz;
