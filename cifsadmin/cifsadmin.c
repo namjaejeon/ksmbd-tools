@@ -44,7 +44,6 @@ static void usage(void)
 	fprintf(stderr, "\t-u | --update-user=login\n");
 	fprintf(stderr, "\t-p | --password=pass\n");
 
-	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
 	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
 	fprintf(stderr, "\t-v | --verbose\n");
 
@@ -97,7 +96,7 @@ static int test_access(char *conf)
 	return -EINVAL;
 }
 
-static int parse_configs(char *pwddb, char *smbconf)
+static int parse_configs(char *pwddb)
 {
 	int ret;
 
@@ -115,7 +114,6 @@ int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
 	char *pwddb = PATH_PWDDB;
-	char *smbconf = PATH_SMBCONF;
 	int c, cmd = 0;
 
 	set_logger_app_name("cifsd_admin");
@@ -138,9 +136,6 @@ int main(int argc, char *argv[])
 		case 'p':
 			arg_password = strdup(optarg);
 			break;
-		case 'c':
-			smbconf = strdup(optarg);
-			break;
 		case 'i':
 			pwddb = strdup(optarg);
 			break;
@@ -152,7 +147,7 @@ int main(int argc, char *argv[])
 			usage();
 	}
 
-	if (!smbconf || !pwddb) {
+	if (!pwddb) {
 		pr_err("Out of memory\n");
 		goto out;
 	}
@@ -169,7 +164,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	ret = parse_configs(pwddb, smbconf);
+	ret = parse_configs(pwddb);
 	if (ret) {
 		pr_err("Unable to parse configuration files\n");
 		goto out;
