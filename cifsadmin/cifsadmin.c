@@ -108,14 +108,6 @@ static int parse_configs(char *pwddb, char *smbconf)
 	ret = cp_parse_pwddb(pwddb);
 	if (ret)
 		return ret;
-
-	ret = test_access(smbconf);
-	if (ret)
-		return ret;
-
-	ret = cp_parse_smbconf(smbconf);
-	if (ret)
-		return ret;
 	return 0;
 }
 
