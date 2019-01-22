@@ -164,8 +164,8 @@ static int rpc_request(struct cifsd_ipc_msg *msg)
 
 	resp = CIFSD_IPC_MSG_PAYLOAD(resp_msg);
 
-	if (req->flags & CIFSD_RPC_RAP_METHOD) {
-		pr_err("RAP command is not supported yet\n");
+	if ((req->flags & CIFSD_RPC_RAP_METHOD) == CIFSD_RPC_RAP_METHOD) {
+		pr_err("RAP command is not supported yet %x\n", req->flags);
 		ret = CIFSD_RPC_ENOTIMPLEMENTED;
 	} else if (req->flags & CIFSD_RPC_OPEN_METHOD) {
 		ret = rpc_open_request(req, resp);
