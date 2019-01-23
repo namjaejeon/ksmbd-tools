@@ -1015,9 +1015,6 @@ int rpc_ioctl_request(struct cifsd_rpc_command *req,
 {
 	int ret;
 
-	if (req->flags == CIFSD_RPC_RAP_METHOD)
-		return CIFSD_RPC_ENOTIMPLEMENTED;
-
 	ret = rpc_write_request(req, resp);
 	if (ret == CIFSD_RPC_OK)
 		return rpc_read_request(req, resp, max_resp_sz);
