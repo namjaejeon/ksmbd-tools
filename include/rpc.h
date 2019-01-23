@@ -262,6 +262,7 @@ struct cifsd_rpc_pipe {
 	unsigned int		id;
 
 	int 			num_entries;
+	int			num_processed;
 	GArray			*entries;
 
 	struct cifsd_dcerpc	*dce;

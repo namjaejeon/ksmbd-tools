@@ -130,6 +130,7 @@ static int __share_entry_processed(struct cifsd_rpc_pipe *pipe, int i)
 	share = g_array_index(pipe->entries,  gpointer, i);
 	pipe->entries = g_array_remove_index(pipe->entries, i);
 	pipe->num_entries--;
+	pipe->num_processed++;
 	put_cifsd_share(share);
 }
 
@@ -213,7 +214,8 @@ static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
 	 * [out] DWORD* TotalEntries
 	 * [out, unique] DWORD* ResumeHandle
 	 */
-	ndr_write_int32(dce, pipe->num_entries);
+	ndr_write_int32(dce, pipe->num_processed);
+
 	if (status == CIFSD_RPC_EMORE_DATA) {
 		dce->num_pointers++;
 		ndr_write_int32(dce, dce->num_pointers);
@@ -332,6 +334,7 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 	 */
 	dce->offset = sizeof(struct dcerpc_header);
 	dce->offset += sizeof(struct dcerpc_response_header);
+	pipe->num_processed = 0;
 
 	if (dce->si_req.level == 0) {
 		dce->entry_size = __share_entry_size_ctr0;
