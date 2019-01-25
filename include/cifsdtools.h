@@ -121,7 +121,9 @@ char *base64_encode(unsigned char *src, size_t srclen);
 unsigned char *base64_decode(char const *src, size_t *dstlen);
 
 #define CIFSD_CHARSET_UTF16LE		"UTF16LE"
+#define CIFSD_CHARSET_UCS2LE		"UCS-2LE"
 #define CIFSD_CHARSET_UTF16BE		"UTF16BE"
+#define CIFSD_CHARSET_UCS2BE		"UCS-2BE"
 #define CIFSD_CHARSET_UTF8		"UTF8"
 #define CIFSD_CHARSET_DEFAULT		CIFSD_CHARSET_UTF8
 

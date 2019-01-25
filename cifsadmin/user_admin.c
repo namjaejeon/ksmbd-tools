@@ -137,10 +137,23 @@ static char *get_utf8_password(long *len)
 				   &bytes_written,
 				   &err);
 	if (err) {
-		pr_err("Can't convert string: %s\n", err->message);
-		free(pswd_raw);
+		pr_info("Can't convert string: %s\n", err->message);
 		g_error_free(err);
-		return NULL;
+
+		pswd_converted = g_convert(pswd_raw,
+					   raw_sz,
+					   CIFSD_CHARSET_UCS2LE,
+					   CIFSD_CHARSET_DEFAULT,
+					   &bytes_read,
+					   &bytes_written,
+					   &err);
+
+		if (err) {
+			pr_err("Can't convert string: %s\n", err->message);
+			free(pswd_raw);
+			g_error_free(err);
+			return NULL;
+		}
 	}
 
 	*len = bytes_written;
