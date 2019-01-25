@@ -6,7 +6,6 @@
  */
 
 #include <syslog.h>
-#include <glib.h>
 #include <glib/gi18n.h>
 
 #include <stdio.h>
@@ -120,4 +119,49 @@ unsigned char *base64_decode(char const *src, size_t *dstlen)
 	if (ret)
 		ret[*dstlen] = 0x00;
 	return ret;
+}
+
+gchar *cifsd_gconvert(const gchar *str,
+		      gssize       str_len,
+		      const gchar *to_codeset,
+		      const gchar *from_codeset,
+		      gsize       *bytes_read,
+		      gsize       *bytes_written)
+{
+	gchar *converted;
+	GError *err = NULL;
+
+retry:
+	converted = g_convert(str,
+			      str_len,
+			      to_codeset,
+			      from_codeset,
+			      bytes_read,
+			      bytes_written,
+			      &err);
+	if (err) {
+		if (to_codeset == CIFSD_CHARSET_UTF16LE) {
+			pr_info("Fallback to %s: %s\n",
+				CIFSD_CHARSET_UCS2LE,
+				err->message);
+			g_error_free(err);
+			to_codeset = CIFSD_CHARSET_UCS2LE;
+			goto retry;
+		}
+
+		if (to_codeset == CIFSD_CHARSET_UTF16BE) {
+			pr_info("Fallback to %s: %s\n",
+				CIFSD_CHARSET_UCS2BE,
+				err->message);
+			g_error_free(err);
+			to_codeset = CIFSD_CHARSET_UCS2BE;
+			goto retry;
+		}
+
+		pr_err("Can't convert string: %s\n", err->message);
+		g_error_free(err);
+		return NULL;
+	}
+
+	return converted;
 }

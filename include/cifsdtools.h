@@ -23,6 +23,7 @@
 #include <time.h>
 #include <poll.h>
 #include <getopt.h>
+#include <glib.h>
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -119,6 +120,13 @@ void pr_hex_dump(const void *mem, size_t sz);
 
 char *base64_encode(unsigned char *src, size_t srclen);
 unsigned char *base64_decode(char const *src, size_t *dstlen);
+
+gchar *cifsd_gconvert(const gchar *str,
+		      gssize       str_len,
+		      const gchar *to_codeset,
+		      const gchar *from_codeset,
+		      gsize       *bytes_read,
+		      gsize       *bytes_written);
 
 #define CIFSD_CHARSET_UTF16LE		"UTF16LE"
 #define CIFSD_CHARSET_UCS2LE		"UCS-2LE"
