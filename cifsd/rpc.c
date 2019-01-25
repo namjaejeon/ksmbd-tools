@@ -389,7 +389,6 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	gchar *out;
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
-	GError *err = NULL;
 
 	size_t raw_len, conv_len;
 	char *raw_value = value;
@@ -407,19 +406,14 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	if (dce->flags & CIFSD_DCERPC_ASCII_STRING)
 		charset = CIFSD_CHARSET_UTF8;
 
-	out = g_convert(raw_value,
-			raw_len,
-			charset,
-			CIFSD_CHARSET_DEFAULT,
-			&bytes_read,
-			&bytes_written,
-			&err);
-
-	if (err) {
-		pr_err("Can't convert string: %s\n", err->message);
-		g_error_free(err);
+	out = cifsd_gconvert(raw_value,
+			     raw_len,
+			     charset,
+			     CIFSD_CHARSET_DEFAULT,
+			     &bytes_read,
+			     &bytes_written);
+	if (!out)
 		return -EINVAL;
-	}
 
 	/*
 	 * NDR represents a conformant and varying string as an ordered
@@ -446,7 +440,6 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 	gchar *out;
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
-	GError *err = NULL;
 
 	size_t raw_len;
 	char *charset = CIFSD_CHARSET_UTF16LE;
@@ -467,19 +460,14 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 		return out;
 	}
 
-	out = g_convert(PAYLOAD_HEAD(dce),
-			raw_len * 2,
-			CIFSD_CHARSET_DEFAULT,
-			charset,
-			&bytes_read,
-			&bytes_written,
-			&err);
-
-	if (err) {
-		pr_err("Can't convert string: %s\n", err->message);
-		g_error_free(err);
+	out = cifsd_gconvert(PAYLOAD_HEAD(dce),
+			     raw_len * 2,
+			     CIFSD_CHARSET_DEFAULT,
+			     charset,
+			     &bytes_read,
+			     &bytes_written);
+	if (!out)
 		return NULL;
-	}
 
 	dce->offset += raw_len * 2;
 	auto_align_offset(dce);
