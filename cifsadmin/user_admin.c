@@ -123,37 +123,20 @@ static char *get_utf8_password(long *len)
 	char *pswd_raw, *pswd_converted;
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
-	GError *err = NULL;
 
 	pswd_raw = prompt_password(&raw_sz);
 	if (!pswd_raw)
 		return NULL;
 
-	pswd_converted = g_convert(pswd_raw,
-				   raw_sz,
-				   CIFSD_CHARSET_UTF16LE,
-				   CIFSD_CHARSET_DEFAULT,
-				   &bytes_read,
-				   &bytes_written,
-				   &err);
-	if (err) {
-		pr_info("Can't convert string: %s\n", err->message);
-		g_error_free(err);
-
-		pswd_converted = g_convert(pswd_raw,
-					   raw_sz,
-					   CIFSD_CHARSET_UCS2LE,
-					   CIFSD_CHARSET_DEFAULT,
-					   &bytes_read,
-					   &bytes_written,
-					   &err);
-
-		if (err) {
-			pr_err("Can't convert string: %s\n", err->message);
-			free(pswd_raw);
-			g_error_free(err);
-			return NULL;
-		}
+	pswd_converted = cifsd_gconvert(pswd_raw,
+					raw_sz,
+					CIFSD_CHARSET_UTF16LE,
+					CIFSD_CHARSET_DEFAULT,
+					&bytes_read,
+					&bytes_written);
+	if (!pswd_converted) {
+		free(pswd_raw);
+		return NULL;
 	}
 
 	*len = bytes_written;
