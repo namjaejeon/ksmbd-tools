@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 	char *pwddb = PATH_PWDDB;
 	int c, cmd = 0;
 
-	set_logger_app_name("cifsd_admin");
+	set_logger_app_name("cifsdadmin");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:vh")) != EOF)
