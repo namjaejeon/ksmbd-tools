@@ -260,6 +260,8 @@ static void release_smbconf_parser(void)
 
 int cp_key_cmp(char *k, char *v)
 {
+	if (!k || !v)
+		return -1;
 	return g_ascii_strncasecmp(k, v, strlen(v));
 }
 
