@@ -16,6 +16,15 @@ static int log_open;
 
 typedef void (*logger)(int level, const char *fmt, va_list list);
 
+char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1] = {
+	"UTF8",
+	"UTF16LE",
+	"UCS-2LE",
+	"UTF16BE",
+	"UCS-2BE",
+	"OOPS"
+};
+
 static int syslog_level(int level)
 {
 	if (level == PR_ERROR)
@@ -121,40 +130,63 @@ unsigned char *base64_decode(char const *src, size_t *dstlen)
 	return ret;
 }
 
+static int codeset_has_altname(int codeset)
+{
+	if (codeset == CIFSD_CHARSET_UTF16LE ||
+			codeset == CIFSD_CHARSET_UTF16BE)
+		return 1;
+	return 0;
+}
+
 gchar *cifsd_gconvert(const gchar *str,
 		      gssize       str_len,
-		      const gchar *to_codeset,
-		      const gchar *from_codeset,
+		      int          to_codeset,
+		      int          from_codeset,
 		      gsize       *bytes_read,
 		      gsize       *bytes_written)
 {
 	gchar *converted;
-	GError *err = NULL;
+	GError *err;
 
 retry:
+	err = NULL;
+	if (from_codeset >= CIFSD_CHARSET_MAX) {
+		pr_err("Unknown source codeset: %d\n", from_codeset);
+		return NULL;
+	}
+
+	if (to_codeset >= CIFSD_CHARSET_MAX) {
+		pr_err("Unknown target codeset: %d\n", to_codeset);
+		return NULL;
+	}
+
 	converted = g_convert(str,
 			      str_len,
-			      to_codeset,
-			      from_codeset,
+			      cifsd_conv_charsets[to_codeset],
+			      cifsd_conv_charsets[from_codeset],
 			      bytes_read,
 			      bytes_written,
 			      &err);
 	if (err) {
-		if (to_codeset == CIFSD_CHARSET_UTF16LE) {
-			pr_info("Fallback to %s: %s\n",
-				CIFSD_CHARSET_UCS2LE,
-				err->message);
-			g_error_free(err);
-			to_codeset = CIFSD_CHARSET_UCS2LE;
-			goto retry;
+		int has_altname = 0;
+
+		if (codeset_has_altname(to_codeset)) {
+			to_codeset++;
+			has_altname = 1;
 		}
 
-		if (to_codeset == CIFSD_CHARSET_UTF16BE) {
-			pr_info("Fallback to %s: %s\n",
-				CIFSD_CHARSET_UCS2BE,
-				err->message);
-			g_error_free(err);
-			to_codeset = CIFSD_CHARSET_UCS2BE;
+		if (codeset_has_altname(from_codeset)) {
+			from_codeset++;
+			has_altname = 1;
+		}
+
+		pr_info("%s\n", err->message);
+		g_error_free(err);
+
+		if (has_altname) {
+			pr_info("Will try '%s' and '%s'\n",
+				cifsd_conv_charsets[to_codeset],
+				cifsd_conv_charsets[from_codeset]);
 			goto retry;
 		}
 

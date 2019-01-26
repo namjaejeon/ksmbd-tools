@@ -393,7 +393,7 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	size_t raw_len, conv_len;
 	char *raw_value = value;
 	char *conv_value;
-	char *charset = CIFSD_CHARSET_UTF16LE;
+	int charset = CIFSD_CHARSET_UTF16LE;
 	int ret;
 
 	if (!value)
@@ -442,7 +442,7 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 	gsize bytes_written = 0;
 
 	size_t raw_len;
-	char *charset = CIFSD_CHARSET_UTF16LE;
+	int charset = CIFSD_CHARSET_UTF16LE;
 	int ret;
 
 	raw_len = ndr_read_int32(dce);

@@ -123,16 +123,22 @@ unsigned char *base64_decode(char const *src, size_t *dstlen);
 
 gchar *cifsd_gconvert(const gchar *str,
 		      gssize       str_len,
-		      const gchar *to_codeset,
-		      const gchar *from_codeset,
+		      int          to_codeset,
+		      int          from_codeset,
 		      gsize       *bytes_read,
 		      gsize       *bytes_written);
 
-#define CIFSD_CHARSET_UTF16LE		"UTF16LE"
-#define CIFSD_CHARSET_UCS2LE		"UCS-2LE"
-#define CIFSD_CHARSET_UTF16BE		"UTF16BE"
-#define CIFSD_CHARSET_UCS2BE		"UCS-2BE"
-#define CIFSD_CHARSET_UTF8		"UTF8"
+enum charset_idx {
+	CIFSD_CHARSET_UTF8		= 0,
+	CIFSD_CHARSET_UTF16LE,
+	CIFSD_CHARSET_UCS2LE,
+	CIFSD_CHARSET_UTF16BE,
+	CIFSD_CHARSET_UCS2BE,
+	CIFSD_CHARSET_MAX		= 5,
+};
+
 #define CIFSD_CHARSET_DEFAULT		CIFSD_CHARSET_UTF8
+
+extern char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1];
 
 #endif /* __CIFSDTOOLS_H__ */
