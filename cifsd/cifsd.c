@@ -37,7 +37,6 @@ static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
 static char *smbconf = PATH_SMBCONF;
 
-extern const char * const sys_siglist[];
 typedef int (*worker_fn)(void);
 
 static void usage(void)
@@ -121,7 +120,7 @@ static int setup_signal_handler(int signo, sighandler_t handler)
 	status = sigaction(signo, &act, NULL);
 	if (status != 0)
 		pr_err("Unable to register %s signal handler: %s",
-				sys_siglist[signo], strerror(errno));
+				strsignal(signo), strerror(errno));
 	return status;
 }
 
@@ -194,7 +193,7 @@ static void child_sig_handler(int signo)
 	}
 
 	pr_err("Child received signal: %d (%s)\n",
-		signo, sys_siglist[signo]);
+		signo, strsignal(signo));
 
 	worker_process_free();
 	exit(EXIT_SUCCESS);
