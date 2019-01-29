@@ -6,7 +6,6 @@
  */
 
 #include <syslog.h>
-#include <glib.h>
 #include <glib/gi18n.h>
 
 #include <stdio.h>
@@ -16,6 +15,15 @@ static const char *app_name = "unknown";
 static int log_open;
 
 typedef void (*logger)(int level, const char *fmt, va_list list);
+
+char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1] = {
+	"UTF8",
+	"UTF16LE",
+	"UCS-2LE",
+	"UTF16BE",
+	"UCS-2BE",
+	"OOPS"
+};
 
 static int syslog_level(int level)
 {
@@ -120,4 +128,72 @@ unsigned char *base64_decode(char const *src, size_t *dstlen)
 	if (ret)
 		ret[*dstlen] = 0x00;
 	return ret;
+}
+
+static int codeset_has_altname(int codeset)
+{
+	if (codeset == CIFSD_CHARSET_UTF16LE ||
+			codeset == CIFSD_CHARSET_UTF16BE)
+		return 1;
+	return 0;
+}
+
+gchar *cifsd_gconvert(const gchar *str,
+		      gssize       str_len,
+		      int          to_codeset,
+		      int          from_codeset,
+		      gsize       *bytes_read,
+		      gsize       *bytes_written)
+{
+	gchar *converted;
+	GError *err;
+
+retry:
+	err = NULL;
+	if (from_codeset >= CIFSD_CHARSET_MAX) {
+		pr_err("Unknown source codeset: %d\n", from_codeset);
+		return NULL;
+	}
+
+	if (to_codeset >= CIFSD_CHARSET_MAX) {
+		pr_err("Unknown target codeset: %d\n", to_codeset);
+		return NULL;
+	}
+
+	converted = g_convert(str,
+			      str_len,
+			      cifsd_conv_charsets[to_codeset],
+			      cifsd_conv_charsets[from_codeset],
+			      bytes_read,
+			      bytes_written,
+			      &err);
+	if (err) {
+		int has_altname = 0;
+
+		if (codeset_has_altname(to_codeset)) {
+			to_codeset++;
+			has_altname = 1;
+		}
+
+		if (codeset_has_altname(from_codeset)) {
+			from_codeset++;
+			has_altname = 1;
+		}
+
+		pr_info("%s\n", err->message);
+		g_error_free(err);
+
+		if (has_altname) {
+			pr_info("Will try '%s' and '%s'\n",
+				cifsd_conv_charsets[to_codeset],
+				cifsd_conv_charsets[from_codeset]);
+			goto retry;
+		}
+
+		pr_err("Can't convert string: %s\n", err->message);
+		g_error_free(err);
+		return NULL;
+	}
+
+	return converted;
 }
