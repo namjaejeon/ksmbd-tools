@@ -1,32 +1,16 @@
 AC_PREREQ([2.68])
 
+m4_define([cifsd_tools_major_ver], [2])
+m4_define([cifsd_tools_minor_ver], [0])
+m4_define([cifsd_tools_micro_ver], [0])
+
+m4_define([cifsd_tools_version],
+	  [cifsd_tools_major_ver.cifsd_tools_minor_ver.cifsd_tools_micro_ver])
+
 AC_INIT([CIFSD tools], [cifsd_tools_version],
 	[linux-cifsd-devel@lists.sourceforge.net])
 
-# Get version from file VERSION
-m4_define([cifsd_tools_version], m4_esyscmd([sed -n '1p' VERSION | tr -d '\n']))
-m4_define([cifsd_tools_date], m4_esyscmd([sed -n '2p' VERSION | tr -d '\n']))
-m4_define([cifsd_tools_gitdate],
-                m4_esyscmd([git log -1 --pretty=format:%ci 2> /dev/null]))
-
 AC_DEFINE([CIFSD_TOOLS_VERSION], "cifsd_tools_version", [cifsd-tools version])
-AC_DEFINE([CIFSD_MAJOR_VERSION], m4_bpatsubst(cifsd_tools_version,
-				 [\([0-9]*\)\(\w\|\W\)*], [\1]),
-				 [Major version for cifsd-tools])
-AC_DEFINE([CIFSD_MINOR_VERSION], m4_bpatsubst(cifsd_tools_version,
-				 [\([0-9]*\).\([0-9]*\)\(\w\|\W\)*], [\2]),
-				 [Minor version for cifsd-tools])
-
-if test -f ".git"; then
-	AC_DEFINE([CIFSD_TOOLS_DATE],
-		"m4_bpatsubst(cifsd_tools_gitdate,
-		[\([0-9-]*\)\(\w\|\W\)*], [\1])",
-		[cifsd-tools date based on Git commits])
-else
-	AC_DEFINE([CIFSD_TOOLS_DATE],
-		"cifsd_tools_date",
-		[cifsd-tools date based on Source releases])
-fi
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
