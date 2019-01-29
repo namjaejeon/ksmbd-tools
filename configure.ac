@@ -16,14 +16,17 @@ AC_DEFINE([CIFSD_MAJOR_VERSION], m4_bpatsubst(cifsd_tools_version,
 AC_DEFINE([CIFSD_MINOR_VERSION], m4_bpatsubst(cifsd_tools_version,
 				 [\([0-9]*\).\([0-9]*\)\(\w\|\W\)*], [\2]),
 				 [Minor version for cifsd-tools])
-AC_CHECK_FILE(.git,
-        AC_DEFINE([CIFSD_TOOLS_DATE],
-                "m4_bpatsubst(cifsd_tools_gitdate,
-                [\([0-9-]*\)\(\w\|\W\)*], [\1])",
-                [cifsd-tools date based on Git commits]),
-        AC_DEFINE([CIFSD_TOOLS_DATE],
-                "cifsd_tools_date",
-                [cifsd-tools date based on Source releases]))
+
+if test -f ".git"; then
+	AC_DEFINE([CIFSD_TOOLS_DATE],
+		"m4_bpatsubst(cifsd_tools_gitdate,
+		[\([0-9-]*\)\(\w\|\W\)*], [\1])",
+		[cifsd-tools date based on Git commits])
+else
+	AC_DEFINE([CIFSD_TOOLS_DATE],
+		"cifsd_tools_date",
+		[cifsd-tools date based on Source releases])
+fi
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
