@@ -63,10 +63,8 @@ static void notify_cifsd_daemon(int command)
 		return;
 
 	lock_fd = open(CIFSD_LOCK_FILE, O_RDONLY);
-	if (lock_fd < 0) {
-		pr_debug("Unalde to read lock file: %s\n", strerror(errno));
+	if (lock_fd < 0)
 		return;
-	}
 
 	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
 		pr_debug("Unable to read main PID: %s\n", strerror(errno));

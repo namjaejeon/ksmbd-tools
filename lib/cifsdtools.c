@@ -17,10 +17,10 @@ static int log_open;
 typedef void (*logger)(int level, const char *fmt, va_list list);
 
 char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1] = {
-	"UTF8",
-	"UTF16LE",
+	"UTF-8",
+	"UTF-16LE",
 	"UCS-2LE",
-	"UTF16BE",
+	"UTF-16BE",
 	"UCS-2BE",
 	"OOPS"
 };
