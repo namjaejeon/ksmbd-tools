@@ -240,8 +240,12 @@ static void write_remove_user_cb(gpointer key,
 {
 	struct cifsd_user *user = (struct cifsd_user *)value;
 
-	if (!g_ascii_strncasecmp(user->name, arg_account, strlen(arg_account)))
+	if (!g_ascii_strncasecmp(user->name,
+				 arg_account,
+				 strlen(arg_account))) {
+		pr_info("User '%s' removed\n", user->name);
 		return;
+	}
 
 	write_user_cb(key, value, user_data);
 }
@@ -309,6 +313,8 @@ int command_add_user(char *pwddb, char *account, char *password)
 	if (usm_add_new_user(arg_account, pswd)) {
 		pr_err("Could not add new account\n");
 		return -EINVAL;
+	} else {
+		pr_info("User '%s' added\n", arg_account);
 	}
 
 	conf_fd = open(pwddb, O_WRONLY);
@@ -353,6 +359,8 @@ int command_update_user(char *pwddb, char *account, char *password)
 		pr_err("Out of memory\n");
 		put_cifsd_user(user);
 		return -ENOMEM;
+	} else {
+		pr_info("User '%s' updated\n", account);
 	}
 
 	put_cifsd_user(user);
