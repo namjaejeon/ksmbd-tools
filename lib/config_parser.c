@@ -418,11 +418,9 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 }
 
-static void global_group(struct smbconf_group *group)
+static void fixup_missing_global_group(void)
 {
 	int ret;
-
-	g_hash_table_foreach(group->kv, global_group_kv, NULL);
 
 	/*
 	 * Set default global parameters which were not specified
@@ -453,6 +451,11 @@ static void global_group(struct smbconf_group *group)
 	if (ret)
 		pr_err("Fatal error: Cannot set a global guest account %d\n",
 			ret);
+}
+
+static void global_group(struct smbconf_group *group)
+{
+	g_hash_table_foreach(group->kv, global_group_kv, NULL);
 }
 
 static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
@@ -488,6 +491,7 @@ static int cp_add_ipc_share(void)
 	}
 
 	g_hash_table_foreach(parser.groups, groups_callback, NULL);
+	fixup_missing_global_group();
 out:
 	free(comment);
 	release_smbconf_parser();
