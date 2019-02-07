@@ -225,8 +225,10 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 
 void sm_destroy(void)
 {
-	sm_clear_sessions();
-	g_hash_table_destroy(sessions_table);
+	if (sessions_table) {
+		sm_clear_sessions();
+		g_hash_table_destroy(sessions_table);
+	}
 	g_rw_lock_clear(&sessions_table_lock);
 }
 
