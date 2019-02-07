@@ -147,7 +147,7 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 	GMappedFile *file;
 	GError *err = NULL;
 	gchar *contents;
-	gsize len;
+	int len;
 	char *delim;
 	int fd, ret = 0;
 
@@ -170,10 +170,10 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 		goto out;
 
 	len = g_mapped_file_get_length(file);
-	while (len) {
+	while (len > 0) {
 		delim = strchr(contents, '\n');
 		if (!delim)
-			delim = strchr(contents, 0x00);
+			delim = contents + len - 1;
 
 		if (delim) {
 			size_t sz = delim - contents;
