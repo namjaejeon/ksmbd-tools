@@ -641,8 +641,10 @@ int rpc_init(void)
 
 void rpc_destroy(void)
 {
-	__clear_pipes_table();
-	g_hash_table_destroy(pipes_table);
+	if (pipes_table) {
+		__clear_pipes_table();
+		g_hash_table_destroy(pipes_table);
+	}
 	g_rw_lock_clear(&pipes_table_lock);
 }
 

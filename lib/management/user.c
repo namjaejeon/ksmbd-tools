@@ -110,8 +110,10 @@ static void usm_clear_users(void)
 
 void usm_destroy(void)
 {
-	usm_clear_users();
-	g_hash_table_destroy(users_table);
+	if (users_table) {
+		usm_clear_users();
+		g_hash_table_destroy(users_table);
+	}
 	g_rw_lock_clear(&users_table_lock);
 }
 
