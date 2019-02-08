@@ -55,9 +55,12 @@ static int __share_entry_size_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 {
 	struct cifsd_share *share = entry;
-	int sz;
+	int sz = 0;
 
-	sz = strlen(share->name) * 2 + strlen(share->comment) * 2;
+	sz = strlen(share->name) * 2;
+	if (share->comment)
+		sz += strlen(share->comment) * 2;
+
 	sz += 9 * sizeof(__u32);
 	return sz;
 }

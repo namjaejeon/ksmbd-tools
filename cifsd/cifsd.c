@@ -41,9 +41,7 @@ typedef int (*worker_fn)(void);
 
 static void usage(void)
 {
-	fprintf(stderr, "cifsd-tools version : %s, date : %s\n",
-		CIFSD_TOOLS_VERSION,
-		CIFSD_TOOLS_DATE);
+	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	fprintf(stderr, "Usage: cifsd\n");
 	fprintf(stderr, "\t-p tcp port NUM | --port=NUM\n");
 	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");

@@ -241,7 +241,8 @@ int wp_ipc_msg_push(struct cifsd_ipc_msg *msg)
 
 void wp_destroy(void)
 {
-	g_thread_pool_free(pool, 1, 1);
+	if (pool)
+		g_thread_pool_free(pool, 1, 1);
 }
 
 int wp_init(void)

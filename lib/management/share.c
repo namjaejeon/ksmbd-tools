@@ -150,8 +150,10 @@ static void shm_clear_shares(void)
 
 void shm_destroy(void)
 {
-	shm_clear_shares();
-	g_hash_table_destroy(shares_table);
+	if (shares_table) {
+		shm_clear_shares();
+		g_hash_table_destroy(shares_table);
+	}
 	g_rw_lock_clear(&shares_table_lock);
 }
 

@@ -34,9 +34,7 @@ enum {
 
 static void usage(void)
 {
-	fprintf(stderr, "cifsd-tools version : %s, date : %s\n",
-			CIFSD_TOOLS_VERSION,
-			CIFSD_TOOLS_DATE);
+	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	fprintf(stderr, "Usage: cifsd_admin\n");
 
 	fprintf(stderr, "\t-a | --add-user=login\n");
