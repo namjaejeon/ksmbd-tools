@@ -150,7 +150,10 @@ static int parse_configs(char *pwddb, char *smbconf)
 	int ret;
 
 	ret = cp_parse_pwddb(pwddb);
-	if (ret) {
+	if (ret == -ENOENT) {
+		pr_err("User database file does not exist. %s\n",
+			"Only guest sessions (if permitted) will work.");
+	} else {
 		pr_err("Unable to parse user database\n");
 		return ret;
 	}
@@ -225,8 +228,11 @@ static int parse_reload_configs(const char *pwddb, const char *smbconf)
 	int ret;
 
 	ret = cp_parse_pwddb(pwddb);
-	if (ret) {
-		pr_err("Unable to parse-reload user database\n");
+	if (ret == -ENOENT) {
+		pr_err("User database file does not exist. %s\n",
+			"Only guest sessions (if permitted) will work.");
+	} else {
+		pr_err("Unable to parse user database\n");
 		return ret;
 	}
 	return 0;
