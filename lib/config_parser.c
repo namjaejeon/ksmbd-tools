@@ -153,8 +153,9 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 
 	fd = g_open(fname, O_RDONLY, 0);
 	if (fd == -1) {
-		pr_err("Can't open `%s': %s\n", fname, strerror(errno));
-		return -ENOENT;
+		ret = errno;
+		pr_err("Can't open `%s': %s\n", fname, strerror(ret));
+		return -ret;
 	}
 
 	file = g_mapped_file_new_from_fd(fd, FALSE, &err);
