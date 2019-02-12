@@ -90,7 +90,7 @@ extern int cifsd_health_status;
 #define PR_INFO		1
 #define PR_DEBUG	2
 
-static int log_level = PR_DEBUG;
+static int log_level = PR_INFO;
 
 #define PR_LOGGER_STDIO         0
 #define PR_LOGGER_SYSLOG        1
