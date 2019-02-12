@@ -67,6 +67,9 @@ extern struct smbconf_global global_conf;
 #define CIFSD_CONF_DEFAULT_SESS_CAP	1024
 #define CIFSD_CONF_DEFAULT_TPC_PORT	445
 
+#define DEFAULT_CREATE_MASK	0744
+#define DEFAULT_DIRECTORY_MASK	0755
+
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
@@ -90,7 +93,7 @@ extern int cifsd_health_status;
 #define PR_INFO		1
 #define PR_DEBUG	2
 
-static int log_level = PR_DEBUG;
+static int log_level = PR_INFO;
 
 #define PR_LOGGER_STDIO         0
 #define PR_LOGGER_SYSLOG        1
