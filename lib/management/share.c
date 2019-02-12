@@ -412,6 +412,8 @@ static int init_share_from_group(struct cifsd_share *share,
 				 struct smbconf_group *group)
 {
 	share->name = strdup(group->name);
+	share->create_mask = DEFAULT_CREATE_MASK;
+	share->directory_mask = DEFAULT_DIRECTORY_MASK;
 
 	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
@@ -564,6 +566,8 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 		return -EINVAL;
 
 	resp->flags = share->flags;
+	resp->create_mask = share->create_mask;
+	resp->directory_mask = share->directory_mask;
 	resp->veto_list_sz = share->veto_list_sz;
 
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
