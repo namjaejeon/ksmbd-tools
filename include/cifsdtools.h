@@ -67,9 +67,6 @@ extern struct smbconf_global global_conf;
 #define CIFSD_CONF_DEFAULT_SESS_CAP	1024
 #define CIFSD_CONF_DEFAULT_TPC_PORT	445
 
-#define DEFAULT_CREATE_MASK	0744
-#define DEFAULT_DIRECTORY_MASK	0755
-
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
 
