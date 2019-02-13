@@ -65,7 +65,7 @@ static void notify_cifsd_daemon(int command)
 		return;
 
 	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
-		pr_debug("Unable to read main PID: %s\n", strerror(errno));
+		pr_debug("Unable to read main PID: %m\n");
 		return;
 	}
 
@@ -75,8 +75,7 @@ static void notify_cifsd_daemon(int command)
 
 	pr_debug("Send SIGHUP to pid %d\n", pid);
 	if (kill(pid, SIGHUP))
-		pr_debug("Unable to send siangl to pid %d: %s\n",
-			 pid, strerror(errno));
+		pr_debug("Unable to send siangl to pid %d: %m\n", pid);
 }
 
 static int test_access(char *conf)
@@ -88,7 +87,7 @@ static int test_access(char *conf)
 		return 0;
 	}
 
-	pr_err("%s %s\n", conf, strerror(errno));
+	pr_err("%s %m\n", conf);
 	return -EINVAL;
 }
 

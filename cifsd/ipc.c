@@ -155,7 +155,7 @@ static int ipc_cifsd_shutting_down(void)
 int ipc_process_event(void)
 {
 	if (nl_recvmsgs_default(sk) < 0) {
-		pr_err("Recv() error %s\n", strerror(errno));
+		pr_err("Recv() error %m\n");
 		return -EINVAL;
 	}
 	return 0;
