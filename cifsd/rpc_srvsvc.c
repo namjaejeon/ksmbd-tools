@@ -251,6 +251,11 @@ static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
 		dce->entry_rep = __share_entry_null_rep_ctr0;
 	} else if (dce->si_req.level == 1) {
 		dce->entry_rep = __share_entry_null_rep_ctr1;
+	} else {
+		pr_err("Unsupported share info level (read): %d\n",
+			dce->si_req.level);
+		dce->entry_rep = NULL;
+		return CIFSD_RPC_EINVALID_LEVEL;
 	}
 
 	dce->entry_rep(dce, NULL);
@@ -348,6 +353,8 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 		dce->entry_rep = __share_entry_rep_ctr1;
 		dce->entry_data = __share_entry_data_ctr1;
 	} else {
+		pr_err("Unsupported share info level (write): %d\n",
+			dce->si_req.level);
 		status = CIFSD_RPC_EINVALID_LEVEL;
 		rpc_pipe_reset(pipe);
 	}

@@ -330,6 +330,14 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(k, "hide dot files")) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
+		else
+			clear_share_flag(share,
+				CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
+	}
+
 	if (!cp_key_cmp(k, "valid users")) {
 		share->maps[CIFSD_SHARE_VALID_USERS_MAP] =
 			parse_list(share->maps[CIFSD_SHARE_VALID_USERS_MAP],
@@ -412,13 +420,14 @@ static int init_share_from_group(struct cifsd_share *share,
 				 struct smbconf_group *group)
 {
 	share->name = strdup(group->name);
-	share->create_mask = DEFAULT_CREATE_MASK;
-	share->directory_mask = DEFAULT_DIRECTORY_MASK;
+	share->create_mask = CIFSD_SHARE_DEFAULT_CREATE_MASK;
+	share->directory_mask = CIFSD_SHARE_DEFAULT_DIRECTORY_MASK;
 
 	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
 	set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
+	set_share_flag(share, CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
 
 	if (!cp_key_cmp(share->name, "IPC$"))
 		set_share_flag(share, CIFSD_SHARE_FLAG_PIPE);
