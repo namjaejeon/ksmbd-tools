@@ -31,6 +31,9 @@ enum share_hosts {
 	CIFSD_SHARE_HOSTS_MAX,
 };
 
+#define CIFSD_SHARE_DEFAULT_CREATE_MASK	0744
+#define CIFSD_SHARE_DEFAULT_DIRECTORY_MASK	0755
+
 struct cifsd_share {
 	char		*name;
 	char		*path;
