@@ -153,7 +153,7 @@ static int parse_configs(char *pwddb, char *smbconf)
 	if (ret == -ENOENT) {
 		pr_err("User database file does not exist. %s\n",
 			"Only guest sessions (if permitted) will work.");
-	} else {
+	} else if (ret) {
 		pr_err("Unable to parse user database\n");
 		return ret;
 	}
@@ -231,7 +231,7 @@ static int parse_reload_configs(const char *pwddb, const char *smbconf)
 	if (ret == -ENOENT) {
 		pr_err("User database file does not exist. %s\n",
 			"Only guest sessions (if permitted) will work.");
-	} else {
+	} else if (ret) {
 		pr_err("Unable to parse user database\n");
 		return ret;
 	}
