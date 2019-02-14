@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <config_parser.h>
 #include <cifsdtools.h>
@@ -22,6 +23,8 @@
 #include <management/user.h>
 #include <management/share.h>
 #include <user_admin.h>
+
+#include <linux/cifsd_server.h>
 
 static char *arg_account = NULL;
 static char *arg_password = NULL;
@@ -106,6 +109,30 @@ static int parse_configs(char *pwddb)
 	return 0;
 }
 
+static int sanity_check_user_name_simple(char *uname)
+{
+	int sz, i;
+
+	if (!uname)
+		return -EINVAL;
+
+	sz = strlen(uname);
+	if (sz < 1)
+		return -EINVAL;
+	if (sz >= CIFSD_REQ_MAX_ACCOUNT_NAME_SZ)
+		return -EINVAL;
+
+	/* 1'; Drop table users -- */
+	if (!strcmp(uname, "root"))
+		return -EINVAL;
+
+	for (i = 0; i < sz; i++) {
+		if (isalnum(uname[i]))
+			return 0;
+	}
+	return -EINVAL;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
@@ -141,6 +168,11 @@ int main(int argc, char *argv[])
 		case 'h':
 		default:
 			usage();
+	}
+
+	if (sanity_check_user_name_simple(arg_account)) {
+		pr_err("User name sanity check failure\n");
+		goto out;
 	}
 
 	if (!pwddb) {
