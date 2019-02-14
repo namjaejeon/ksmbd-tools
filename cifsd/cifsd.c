@@ -182,6 +182,8 @@ static void worker_process_free(void)
 
 static void child_sig_handler(int signo)
 {
+	static volatile int fatal_delivered = 0;
+
 	if (signo == SIGHUP) {
 		/*
 		 * This is a signal handler, we can't take any locks, set
@@ -196,6 +198,10 @@ static void child_sig_handler(int signo)
 	pr_err("Child received signal: %d (%s)\n",
 		signo, strsignal(signo));
 
+	if (!g_atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
+		return;
+
+	cifsd_health_status &= ~CIFSD_HEALTH_RUNNING;
 	worker_process_free();
 	exit(EXIT_SUCCESS);
 }
