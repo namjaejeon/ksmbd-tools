@@ -330,6 +330,16 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(k, "unix enforced uid")) {
+		share->force_uid = cp_get_group_kv_long_base(v, 10);
+		return;
+	}
+
+	if (!cp_key_cmp(k, "unix enforced gid")) {
+		share->force_gid = cp_get_group_kv_long_base(v, 10);
+		return;
+	}
+
 	if (!cp_key_cmp(k, "hide dot files")) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
@@ -422,6 +432,9 @@ static int init_share_from_group(struct cifsd_share *share,
 	share->name = strdup(group->name);
 	share->create_mask = CIFSD_SHARE_DEFAULT_CREATE_MASK;
 	share->directory_mask = CIFSD_SHARE_DEFAULT_DIRECTORY_MASK;
+
+	share->force_uid = CIFSD_SHARE_DEFAULT_UID;
+	share->force_gid = CIFSD_SHARE_DEFAULT_GID;
 
 	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);

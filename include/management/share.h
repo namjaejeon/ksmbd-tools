@@ -34,6 +34,9 @@ enum share_hosts {
 #define CIFSD_SHARE_DEFAULT_CREATE_MASK	0744
 #define CIFSD_SHARE_DEFAULT_DIRECTORY_MASK	0755
 
+#define CIFSD_SHARE_DEFAULT_UID		0
+#define CIFSD_SHARE_DEFAULT_GID		0
+
 struct cifsd_share {
 	char		*name;
 	char		*path;
@@ -46,6 +49,9 @@ struct cifsd_share {
 
 	unsigned short	create_mask;
 	unsigned short	directory_mask;
+	unsigned short	force_uid;
+	unsigned short	force_gid;
+
 	int		flags;
 
 	char		*veto_list;
