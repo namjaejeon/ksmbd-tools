@@ -320,22 +320,22 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
-	if (!cp_key_cmp(k, "unix create mask")) {
+	if (!cp_key_cmp(k, "create mask")) {
 		share->create_mask = cp_get_group_kv_long_base(v, 8);
 		return;
 	}
 
-	if (!cp_key_cmp(k, "unix directory mask")) {
+	if (!cp_key_cmp(k, "directory mask")) {
 		share->directory_mask = cp_get_group_kv_long_base(v, 8);
 		return;
 	}
 
-	if (!cp_key_cmp(k, "unix enforced uid")) {
+	if (!cp_key_cmp(k, "enforced uid")) {
 		share->force_uid = cp_get_group_kv_long_base(v, 10);
 		return;
 	}
 
-	if (!cp_key_cmp(k, "unix enforced gid")) {
+	if (!cp_key_cmp(k, "enforced gid")) {
 		share->force_gid = cp_get_group_kv_long_base(v, 10);
 		return;
 	}
