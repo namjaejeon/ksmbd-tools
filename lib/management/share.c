@@ -10,6 +10,7 @@
 #include <glib.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <grp.h>
 #include <config_parser.h>
 #include <linux/cifsd_server.h>
 
@@ -235,6 +236,18 @@ static void make_veto_list(struct cifsd_share *share)
 	}
 }
 
+static void force_group(struct cifsd_share *share, char *name)
+{
+	struct group *grp;
+
+	grp = getgrnam(name);
+	if (grp) {
+		share->force_gid = grp->gr_gid;
+	} else {
+		pr_err("Unable to lookup up /etc/group entry: %s\n", name);
+	}
+}
+
 static void force_user(struct cifsd_share *share, char *name)
 {
 	struct passwd *passwd;
@@ -346,11 +359,12 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(k, "force group")) {
+		force_group(share, v);
 		return;
 	}
 
 	if (!cp_key_cmp(k, "force user")) {
-		force_user(share, _v);
+		force_user(share, v);
 		return;
 	}
 
