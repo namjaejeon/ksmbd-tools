@@ -590,6 +590,8 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 	resp->flags = share->flags;
 	resp->create_mask = share->create_mask;
 	resp->directory_mask = share->directory_mask;
+	resp->force_uid = share->force_uid;
+	resp->force_gid = share->force_gid;
 	resp->veto_list_sz = share->veto_list_sz;
 
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
