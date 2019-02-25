@@ -44,8 +44,8 @@ struct cifsd_share {
 	GRWLock		update_lock;
 	int		ref_count;
 
-	int		create_mask;
-	int		directory_mask;
+	unsigned short	create_mask;
+	unsigned short	directory_mask;
 	int		flags;
 
 	char		*veto_list;
