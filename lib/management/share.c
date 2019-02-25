@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
+#include <sys/types.h>
+#include <pwd.h>
 #include <config_parser.h>
 #include <linux/cifsd_server.h>
 
@@ -233,6 +235,19 @@ static void make_veto_list(struct cifsd_share *share)
 	}
 }
 
+static void force_user(struct cifsd_share *share, char *name)
+{
+	struct passwd *passwd;
+
+	passwd = getpwnam(name);
+	if (passwd) {
+		share->force_uid = passwd->pw_uid;
+		share->force_gid = passwd->pw_gid;
+	} else {
+		pr_err("Unable to lookup up /etc/passwd entry: %s\n", name);
+	}
+}
+
 static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 {
 	struct cifsd_share *share = user_data;
@@ -330,13 +345,12 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
-	if (!cp_key_cmp(k, "enforced uid")) {
-		share->force_uid = cp_get_group_kv_long_base(v, 10);
+	if (!cp_key_cmp(k, "force group")) {
 		return;
 	}
 
-	if (!cp_key_cmp(k, "enforced gid")) {
-		share->force_gid = cp_get_group_kv_long_base(v, 10);
+	if (!cp_key_cmp(k, "force user")) {
+		force_user(share, _v);
 		return;
 	}
 
