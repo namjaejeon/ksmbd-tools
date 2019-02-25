@@ -320,12 +320,12 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
-	if (!cp_key_cmp(k, "create mask")) {
+	if (!cp_key_cmp(k, "unix create mask")) {
 		share->create_mask = cp_get_group_kv_long_base(v, 8);
 		return;
 	}
 
-	if (!cp_key_cmp(k, "directory mask")) {
+	if (!cp_key_cmp(k, "unix directory mask")) {
 		share->directory_mask = cp_get_group_kv_long_base(v, 8);
 		return;
 	}
