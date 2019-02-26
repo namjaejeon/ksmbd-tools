@@ -255,7 +255,12 @@ static void force_user(struct cifsd_share *share, char *name)
 	passwd = getpwnam(name);
 	if (passwd) {
 		share->force_uid = passwd->pw_uid;
-		share->force_gid = passwd->pw_gid;
+		/*
+		 * smb.conf 'force group' has higher priority than
+		 * 'force user'.
+		 */
+		if (share->force_gid == 0)
+			share->force_gid = passwd->pw_gid;
 	} else {
 		pr_err("Unable to lookup up /etc/passwd entry: %s\n", name);
 	}
