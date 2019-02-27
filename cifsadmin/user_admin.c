@@ -66,7 +66,7 @@ again:
 	term_toggle_echo(0);
 	if (fgets(pswd1, MAX_NT_PWD_LEN, stdin) == NULL) {
 		term_toggle_echo(1);
-		pr_err("Fatal error: %m\n");
+		pr_err("Fatal error: %s\n", strerror(errno));
 		free(pswd1);
 		free(pswd2);
 		return NULL;
@@ -75,7 +75,7 @@ again:
 	printf("Retype new password:\n");
 	if (fgets(pswd2, MAX_NT_PWD_LEN, stdin) == NULL) {
 		term_toggle_echo(1);
-		pr_err("Fatal error: %m\n");
+		pr_err("Fatal error: %s\n", strerror(errno));
 		free(pswd1);
 		free(pswd2);
 		return NULL;
@@ -217,7 +217,7 @@ static void write_user(struct cifsd_user *user)
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
-			pr_err("%m\n");
+			pr_err("%s\n", strerror(errno));
 			exit(1);
 		}
 
@@ -319,12 +319,12 @@ int command_add_user(char *pwddb, char *account, char *password)
 
 	conf_fd = open(pwddb, O_WRONLY);
 	if (conf_fd == -1) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		return -EINVAL;
 	}
 
 	if (ftruncate(conf_fd, 0)) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		close(conf_fd);
 		return -EINVAL;
 	}
@@ -368,12 +368,12 @@ int command_update_user(char *pwddb, char *account, char *password)
 
 	conf_fd = open(pwddb, O_WRONLY);
 	if (conf_fd == -1) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		return -EINVAL;
 	}
 
 	if (ftruncate(conf_fd, 0)) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		close(conf_fd);
 		return -EINVAL;
 	}
@@ -404,12 +404,12 @@ int command_del_user(char *pwddb, char *account)
 	conf_fd = open(pwddb, O_WRONLY);
 
 	if (conf_fd == -1) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		return -EINVAL;
 	}
 
 	if (ftruncate(conf_fd, 0)) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("%s %s\n", strerror(errno), pwddb);
 		close(conf_fd);
 		return -EINVAL;
 	}

@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 #include <config_parser.h>
 #include <linux/cifsd_server.h>
 
@@ -233,6 +236,36 @@ static void make_veto_list(struct cifsd_share *share)
 	}
 }
 
+static void force_group(struct cifsd_share *share, char *name)
+{
+	struct group *grp;
+
+	grp = getgrnam(name);
+	if (grp) {
+		share->force_gid = grp->gr_gid;
+	} else {
+		pr_err("Unable to lookup up /etc/group entry: %s\n", name);
+	}
+}
+
+static void force_user(struct cifsd_share *share, char *name)
+{
+	struct passwd *passwd;
+
+	passwd = getpwnam(name);
+	if (passwd) {
+		share->force_uid = passwd->pw_uid;
+		/*
+		 * smb.conf 'force group' has higher priority than
+		 * 'force user'.
+		 */
+		if (share->force_gid == 0)
+			share->force_gid = passwd->pw_gid;
+	} else {
+		pr_err("Unable to lookup up /etc/passwd entry: %s\n", name);
+	}
+}
+
 static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 {
 	struct cifsd_share *share = user_data;
@@ -330,6 +363,16 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(k, "force group")) {
+		force_group(share, v);
+		return;
+	}
+
+	if (!cp_key_cmp(k, "force user")) {
+		force_user(share, v);
+		return;
+	}
+
 	if (!cp_key_cmp(k, "hide dot files")) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
@@ -422,6 +465,9 @@ static int init_share_from_group(struct cifsd_share *share,
 	share->name = strdup(group->name);
 	share->create_mask = CIFSD_SHARE_DEFAULT_CREATE_MASK;
 	share->directory_mask = CIFSD_SHARE_DEFAULT_DIRECTORY_MASK;
+
+	share->force_uid = CIFSD_SHARE_DEFAULT_UID;
+	share->force_gid = CIFSD_SHARE_DEFAULT_GID;
 
 	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
@@ -577,6 +623,8 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 	resp->flags = share->flags;
 	resp->create_mask = share->create_mask;
 	resp->directory_mask = share->directory_mask;
+	resp->force_uid = share->force_uid;
+	resp->force_gid = share->force_gid;
 	resp->veto_list_sz = share->veto_list_sz;
 
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
