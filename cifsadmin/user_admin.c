@@ -148,12 +148,12 @@ static void __sanity_check(char *pswd_hash, char *pswd_b64)
 
 	if (!pass) {
 		pr_err("Unable to decode NT hash\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	if (memcmp(pass, pswd_hash, pass_sz)) {
 		pr_err("NT hash encoding error\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	free(pass);
 }
@@ -202,7 +202,7 @@ static void write_user(struct cifsd_user *user)
 	if (!data) {
 		pr_err("Out of memory allocating %d bytes for user %s\n",
 				sz, user->name);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	wsz = snprintf(data, sz, "%s:%s\n", user->name, user->pass_b64);
@@ -212,7 +212,7 @@ static void write_user(struct cifsd_user *user)
 			if (errno == EINTR)
 				continue;
 			pr_err("%s\n", strerror(errno));
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		nr += ret;
