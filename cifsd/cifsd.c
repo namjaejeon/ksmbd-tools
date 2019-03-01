@@ -400,7 +400,6 @@ static int manager_systemd_service(void)
 
 int main(int argc, char *argv[])
 {
-	int ret = EXIT_FAILURE;
 	int systemd_service = 0;
 	int c;
 

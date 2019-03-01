@@ -181,7 +181,6 @@ int usm_add_update_user_from_pwdentry(char *data)
 	char *name;
 	char *pwd;
 	char *pos = strchr(data, ':');
-	size_t sz = 0;
 	int ret;
 
 	if (!pos) {

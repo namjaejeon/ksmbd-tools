@@ -73,8 +73,6 @@ static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
  */
 static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
 {
-	struct cifsd_share *share = entry;
-
 	dce->num_pointers++;
 	return ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
 }
@@ -135,6 +133,8 @@ static int __share_entry_processed(struct cifsd_rpc_pipe *pipe, int i)
 	pipe->num_entries--;
 	pipe->num_processed++;
 	put_cifsd_share(share);
+
+	return 0;
 }
 
 static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
@@ -327,6 +327,8 @@ static int srvsvc_clear_headers(struct cifsd_rpc_pipe *pipe,
 	ndr_free_uniq_vsting_ptr(&pipe->dce->si_req.server_name);
 	if (pipe->dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
 		ndr_free_vstring_ptr(&pipe->dce->si_req.share_name);
+
+	return 0;
 }
 
 static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)

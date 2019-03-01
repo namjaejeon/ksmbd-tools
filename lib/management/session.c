@@ -197,7 +197,6 @@ int sm_handle_tree_disconnect(unsigned long long sess_id,
 	struct cifsd_tree_conn dummy;
 	struct cifsd_session *sess;
 	GList *tc_list;
-	int drop;
 
 	sess = sm_lookup_session(sess_id);
 	if (!sess)
