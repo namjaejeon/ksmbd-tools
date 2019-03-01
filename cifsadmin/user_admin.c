@@ -46,8 +46,8 @@ static void term_toggle_echo(int on_off)
 
 static char *__prompt_password_stdin(size_t *sz)
 {
-	char *pswd1 = malloc(MAX_NT_PWD_LEN + 1);
-	char *pswd2 = malloc(MAX_NT_PWD_LEN + 1);
+	char *pswd1 = calloc(1, MAX_NT_PWD_LEN + 1);
+	char *pswd2 = calloc(1, MAX_NT_PWD_LEN + 1);
 	size_t len = 0;
 	int i;
 
@@ -59,9 +59,6 @@ static char *__prompt_password_stdin(size_t *sz)
 	}
 
 again:
-	memset(pswd1, 0x00, MAX_NT_PWD_LEN + 1);
-	memset(pswd2, 0x00, MAX_NT_PWD_LEN + 1);
-
 	printf("New password:\n");
 	term_toggle_echo(0);
 	if (fgets(pswd1, MAX_NT_PWD_LEN, stdin) == NULL) {
@@ -171,14 +168,12 @@ static char *get_hashed_b64_password(void)
 	if (!pswd_plain)
 		return NULL;
 
-	pswd_hash = malloc(sizeof(mctx.hash) + 1);
+	pswd_hash = calloc(1, sizeof(mctx.hash) + 1);
 	if (!pswd_hash) {
 		free(pswd_plain);
 		pr_err("Out of memory\n");
 		return NULL;
 	}
-
-	memset(pswd_hash, 0x00, sizeof(mctx.hash) + 1);
 
 	md4_init(&mctx);
 	md4_update(&mctx, pswd_plain, len);
@@ -203,14 +198,13 @@ static void write_user(struct cifsd_user *user)
 	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
 		return;
 
-	data = malloc(sz);
+	data = calloc(1, sz);
 	if (!data) {
 		pr_err("Out of memory allocating %d bytes for user %s\n",
 				sz, user->name);
 		exit(1);
 	}
 
-	memset(data, 0x00, sz);
 	wsz = snprintf(data, sz, "%s:%s\n", user->name, user->pass_b64);
 
 	while (wsz && (ret = write(conf_fd, data + nr, wsz)) != 0) {

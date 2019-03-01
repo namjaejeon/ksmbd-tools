@@ -107,10 +107,9 @@ static int setup_signal_handler(int signo, sighandler_t handler)
 {
 	int status;
 	sigset_t full_set;
-	struct sigaction act;
+	struct sigaction act = {};
 
 	sigfillset(&full_set);
-	memset(&act, 0, sizeof(act));
 
 	act.sa_handler = handler;
 	act.sa_mask = full_set;

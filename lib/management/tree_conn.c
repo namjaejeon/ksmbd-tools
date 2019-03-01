@@ -18,12 +18,12 @@
 
 static struct cifsd_tree_conn *new_cifsd_tree_conn(void)
 {
-	struct cifsd_tree_conn *conn = malloc(sizeof(struct cifsd_tree_conn));
+	struct cifsd_tree_conn *conn;
 
+	conn = calloc(1, sizeof(struct cifsd_tree_conn));
 	if (!conn)
 		return NULL;
 
-	memset(conn, 0x00, sizeof(struct cifsd_tree_conn));
 	conn->id = 0;
 	return conn;
 }

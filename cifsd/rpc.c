@@ -117,18 +117,16 @@ static struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
 {
 	struct cifsd_dcerpc *dce;
 
-	dce = malloc(sizeof(struct cifsd_dcerpc));
+	dce = calloc(1, sizeof(struct cifsd_dcerpc));
 	if (!dce)
 		return NULL;
 
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = malloc(sz);
+	dce->payload = calloc(1, sz);
 	if (!dce->payload) {
 		free(dce);
 		return NULL;
 	}
 
-	memset(dce->payload, 0x00, sz);
 	dce->payload_sz = sz;
 	dce->flags = flags;
 	dce->num_pointers = 1;
@@ -144,11 +142,10 @@ static struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
 {
 	struct cifsd_dcerpc *dce;
 
-	dce = malloc(sizeof(struct cifsd_dcerpc));
+	dce = calloc(1, sizeof(struct cifsd_dcerpc));
 	if (!dce)
 		return NULL;
 
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
 	dce->payload = payload;
 	dce->payload_sz = payload_sz;
 
@@ -199,12 +196,12 @@ static void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 
 static struct cifsd_rpc_pipe *rpc_pipe_alloc(void)
 {
-	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
+	struct cifsd_rpc_pipe *pipe;
 
+	pipe = calloc(1, sizeof(struct cifsd_rpc_pipe));
 	if (!pipe)
 		return NULL;
 
-	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
 	pipe->id = -1;
 	pipe->entries = g_array_new(0, 0, sizeof(void *));
 	if (!pipe->entries) {
@@ -791,13 +788,9 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 	if (!hdr->num_contexts)
 		return 0;
 
-	hdr->list = malloc(hdr->num_contexts * sizeof(struct dcerpc_context));
+	hdr->list = calloc(hdr->num_contexts, sizeof(struct dcerpc_context));
 	if (!hdr->list)
 		return -ENOMEM;
-
-	memset(hdr->list,
-		0x00,
-		hdr->num_contexts * sizeof(struct dcerpc_context));
 
 	for (i = 0; i < hdr->num_contexts; i++) {
 		struct dcerpc_context *ctx = &hdr->list[i];
@@ -811,14 +804,10 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 
 		__dcerpc_read_syntax(dce, &ctx->abstract_syntax);
 
-		ctx->transfer_syntaxes = malloc(ctx->num_syntaxes *
+		ctx->transfer_syntaxes = calloc(ctx->num_syntaxes,
 						sizeof(struct dcerpc_syntax));
 		if (!ctx->transfer_syntaxes)
 			return -ENOMEM;
-
-		memset(ctx->transfer_syntaxes,
-			0x00,
-			ctx->num_syntaxes * sizeof(struct dcerpc_syntax));
 
 		for (j = 0; j < ctx->num_syntaxes; j++)
 			__dcerpc_read_syntax(dce, &ctx->transfer_syntaxes[j]);

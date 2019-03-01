@@ -37,12 +37,12 @@ static void kill_cifsd_session(struct cifsd_session *sess)
 static struct cifsd_session *new_cifsd_session(unsigned long long id,
 					       struct cifsd_user *user)
 {
-	struct cifsd_session *sess = malloc(sizeof(struct cifsd_session));
+	struct cifsd_session *sess;
 
+	sess = calloc(1, sizeof(struct cifsd_session));
 	if (!sess)
 		return NULL;
 
-	memset(sess, 0x00, sizeof(struct cifsd_session));
 	g_rw_lock_init(&sess->update_lock);
 	sess->ref_counter = 1;
 	sess->id = id;

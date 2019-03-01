@@ -117,13 +117,12 @@ void put_cifsd_share(struct cifsd_share *share)
 
 static struct cifsd_share *new_cifsd_share(void)
 {
-	struct cifsd_share *share = malloc(sizeof(struct cifsd_share));
+	struct cifsd_share *share;
 	int i;
 
+	share = calloc(1, sizeof(struct cifsd_share));
 	if (!share)
 		return NULL;
-
-	memset(share, 0x00, sizeof(struct cifsd_share));
 
 	share->ref_count = 1;
 	/*
