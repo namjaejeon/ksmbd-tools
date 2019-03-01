@@ -330,7 +330,7 @@ static int cp_add_global_guest_account(gpointer _v)
 	user = usm_lookup_user(_v);
 	if (!user) {
 		pr_err("Fatal error: unable to find `%s' account.\n",
-			_v);
+			(const char *) _v);
 		return -EINVAL;
 	}
 

@@ -280,7 +280,7 @@ static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 		ptr = ndr_read_int32(dce); // read container array pointer
 					   // it should be null
 		if (ptr != 0x00) {
-			pr_err("SRVSVC: container array pointer is %p\n",
+			pr_err("SRVSVC: container array pointer is %x\n",
 				ptr);
 			return -EINVAL;
 		}

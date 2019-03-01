@@ -200,7 +200,7 @@ static void write_user(struct cifsd_user *user)
 
 	data = calloc(1, sz);
 	if (!data) {
-		pr_err("Out of memory allocating %d bytes for user %s\n",
+		pr_err("Out of memory allocating %zu bytes for user %s\n",
 				sz, user->name);
 		exit(EXIT_FAILURE);
 	}
