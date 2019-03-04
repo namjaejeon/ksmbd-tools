@@ -117,18 +117,16 @@ static struct cifsd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
 {
 	struct cifsd_dcerpc *dce;
 
-	dce = malloc(sizeof(struct cifsd_dcerpc));
+	dce = calloc(1, sizeof(struct cifsd_dcerpc));
 	if (!dce)
 		return NULL;
 
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
-	dce->payload = malloc(sz);
+	dce->payload = calloc(1, sz);
 	if (!dce->payload) {
 		free(dce);
 		return NULL;
 	}
 
-	memset(dce->payload, 0x00, sz);
 	dce->payload_sz = sz;
 	dce->flags = flags;
 	dce->num_pointers = 1;
@@ -144,11 +142,10 @@ static struct cifsd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
 {
 	struct cifsd_dcerpc *dce;
 
-	dce = malloc(sizeof(struct cifsd_dcerpc));
+	dce = calloc(1, sizeof(struct cifsd_dcerpc));
 	if (!dce)
 		return NULL;
 
-	memset(dce, 0x00, sizeof(struct cifsd_dcerpc));
 	dce->payload = payload;
 	dce->payload_sz = payload_sz;
 
@@ -199,12 +196,12 @@ static void rpc_pipe_free(struct cifsd_rpc_pipe *pipe)
 
 static struct cifsd_rpc_pipe *rpc_pipe_alloc(void)
 {
-	struct cifsd_rpc_pipe *pipe = malloc(sizeof(struct cifsd_rpc_pipe));
+	struct cifsd_rpc_pipe *pipe;
 
+	pipe = calloc(1, sizeof(struct cifsd_rpc_pipe));
 	if (!pipe)
 		return NULL;
 
-	memset(pipe, 0x00, sizeof(struct cifsd_rpc_pipe));
 	pipe->id = -1;
 	pipe->entries = g_array_new(0, 0, sizeof(void *));
 	if (!pipe->entries) {
@@ -390,9 +387,8 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
 
-	size_t raw_len, conv_len;
+	size_t raw_len;
 	char *raw_value = value;
-	char *conv_value;
 	int charset = CIFSD_CHARSET_UTF16LE;
 	int ret;
 
@@ -430,7 +426,7 @@ int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value)
 	ret |= ndr_write_int32(dce, raw_len);
 	ret |= ndr_write_bytes(dce, out, bytes_written);
 	auto_align_offset(dce);
-out:
+
 	g_free(out);
 	return ret;
 }
@@ -443,7 +439,6 @@ char *ndr_read_vstring(struct cifsd_dcerpc *dce)
 
 	size_t raw_len;
 	int charset = CIFSD_CHARSET_UTF16LE;
-	int ret;
 
 	raw_len = ndr_read_int32(dce);
 	ndr_read_int32(dce); /* read in offset */
@@ -511,7 +506,7 @@ void ndr_read_ptr(struct cifsd_dcerpc *dce, struct ndr_ptr *ctr)
 void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce, struct ndr_uniq_ptr *ctr)
 {
 	ctr->ref_id = ndr_read_int32(dce);
-	if (ctr->ref_id = 0) {
+	if (ctr->ref_id == 0) {
 		ctr->ptr = 0;
 		return;
 	}
@@ -589,9 +584,8 @@ static int ndr_write_empty_array_of_struct(struct cifsd_rpc_pipe *pipe)
 int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
-	int current_size;
 	int max_entry_nr;
-	int i, ret = CIFSD_RPC_OK;
+	int ret = CIFSD_RPC_OK;
 
 	/*
 	 * In the NDR representation of a structure that contains a
@@ -791,13 +785,9 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 	if (!hdr->num_contexts)
 		return 0;
 
-	hdr->list = malloc(hdr->num_contexts * sizeof(struct dcerpc_context));
+	hdr->list = calloc(hdr->num_contexts, sizeof(struct dcerpc_context));
 	if (!hdr->list)
 		return -ENOMEM;
-
-	memset(hdr->list,
-		0x00,
-		hdr->num_contexts * sizeof(struct dcerpc_context));
 
 	for (i = 0; i < hdr->num_contexts; i++) {
 		struct dcerpc_context *ctx = &hdr->list[i];
@@ -811,14 +801,10 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 
 		__dcerpc_read_syntax(dce, &ctx->abstract_syntax);
 
-		ctx->transfer_syntaxes = malloc(ctx->num_syntaxes *
+		ctx->transfer_syntaxes = calloc(ctx->num_syntaxes,
 						sizeof(struct dcerpc_syntax));
 		if (!ctx->transfer_syntaxes)
 			return -ENOMEM;
-
-		memset(ctx->transfer_syntaxes,
-			0x00,
-			ctx->num_syntaxes * sizeof(struct dcerpc_syntax));
 
 		for (j = 0; j < ctx->num_syntaxes; j++)
 			__dcerpc_read_syntax(dce, &ctx->transfer_syntaxes[j]);
@@ -829,7 +815,6 @@ static int dcerpc_parse_bind_req(struct cifsd_dcerpc *dce,
 static int dcerpc_bind_invoke(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce;
-	int ret;
 
 	dce = pipe->dce;
 	if (dcerpc_parse_bind_req(dce, &dce->bi_req))
@@ -966,7 +951,7 @@ static int dcerpc_bind_ack_return(struct cifsd_rpc_pipe *pipe)
 static int dcerpc_bind_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
-	int i, j, k, ack = 0, ret;
+	int i, j, ack = 0, ret;
 
 	for (i = 0; i < dce->bi_req.num_contexts; i++) {
 		for (j = 0; j < dce->bi_req.list[i].num_syntaxes; j++) {

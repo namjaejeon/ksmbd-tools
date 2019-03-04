@@ -95,9 +95,10 @@ static int log_level = PR_INFO;
 #define PR_LOGGER_STDIO         0
 #define PR_LOGGER_SYSLOG        1
 
+__attribute__ ((format (printf, 2, 3)))
+extern void __pr_log(int level, const char *fmt,...);
 extern void set_logger_app_name(const char *an);
 extern const char *get_logger_app_name(void);
-extern void __pr_log(int level, const char *fmt,...);
 extern void pr_logger_init(int flags);
 
 #define pr_log(l, f, ...)						\

@@ -72,14 +72,13 @@ void put_cifsd_user(struct cifsd_user *user)
 
 static struct cifsd_user *new_cifsd_user(char *name, char *pwd)
 {
-	struct cifsd_user *user = malloc(sizeof(struct cifsd_user));
+	struct cifsd_user *user;
 	struct passwd *passwd;
 	size_t pass_sz;
 
+	user = calloc(1, sizeof(struct cifsd_user));
 	if (!user)
 		return NULL;
-
-	memset(user, 0x00, sizeof(struct cifsd_user));
 
 	g_rw_lock_clear(&user->update_lock);
 	user->name = name;
@@ -182,7 +181,6 @@ int usm_add_update_user_from_pwdentry(char *data)
 	char *name;
 	char *pwd;
 	char *pos = strchr(data, ':');
-	size_t sz = 0;
 	int ret;
 
 	if (!pos) {

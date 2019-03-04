@@ -107,10 +107,9 @@ static int setup_signal_handler(int signo, sighandler_t handler)
 {
 	int status;
 	sigset_t full_set;
-	struct sigaction act;
+	struct sigaction act = {};
 
 	sigfillset(&full_set);
-	memset(&act, 0, sizeof(act));
 
 	act.sa_handler = handler;
 	act.sa_mask = full_set;
@@ -401,7 +400,6 @@ static int manager_systemd_service(void)
 
 int main(int argc, char *argv[])
 {
-	int ret = EXIT_FAILURE;
 	int systemd_service = 0;
 	int c;
 
