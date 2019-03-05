@@ -107,10 +107,9 @@ static int setup_signal_handler(int signo, sighandler_t handler)
 {
 	int status;
 	sigset_t full_set;
-	struct sigaction act;
+	struct sigaction act = {};
 
 	sigfillset(&full_set);
-	memset(&act, 0, sizeof(act));
 
 	act.sa_handler = handler;
 	act.sa_mask = full_set;
@@ -332,8 +331,6 @@ static pid_t start_worker_process(worker_fn fn)
 
 static int manager_process_init(void)
 {
-	int ret;
-
 	setup_signals(manager_sig_handler);
 	if (no_detach == 0) {
 		pr_logger_init(PR_LOGGER_SYSLOG);
@@ -341,6 +338,13 @@ static int manager_process_init(void)
 			pr_err("Daemonization failed\n");
 			goto out;
 		}
+	} else {
+		/*
+		 * Make ourselves a process group leader; if we are
+		 * the group leader already then the function will do
+		 * nothing (apart from setting errnor to EPERM).
+		 */
+		setsid();
 	}
 
 	if (create_lock_file()) {
@@ -380,7 +384,7 @@ static int manager_process_init(void)
 out:
 	delete_lock_file();
 	kill(0, SIGTERM);
-	return ret;
+	return 0;
 }
 
 static int manager_systemd_service(void)
@@ -396,7 +400,6 @@ static int manager_systemd_service(void)
 
 int main(int argc, char *argv[])
 {
-	int ret = EXIT_FAILURE;
 	int systemd_service = 0;
 	int c;
 
