@@ -117,13 +117,12 @@ void put_cifsd_share(struct cifsd_share *share)
 
 static struct cifsd_share *new_cifsd_share(void)
 {
-	struct cifsd_share *share = malloc(sizeof(struct cifsd_share));
+	struct cifsd_share *share;
 	int i;
 
+	share = calloc(1, sizeof(struct cifsd_share));
 	if (!share)
 		return NULL;
-
-	memset(share, 0x00, sizeof(struct cifsd_share));
 
 	share->ref_count = 1;
 	/*
@@ -459,7 +458,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 }
 
-static int init_share_from_group(struct cifsd_share *share,
+static void init_share_from_group(struct cifsd_share *share,
 				 struct smbconf_group *group)
 {
 	share->name = strdup(group->name);
@@ -615,7 +614,6 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 				    struct cifsd_share_config_response *resp)
 {
 	unsigned char *config_payload;
-	size_t path_sz = 0;
 
 	if (!share)
 		return -EINVAL;
