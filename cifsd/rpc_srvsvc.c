@@ -357,7 +357,6 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 	} else {
 		pr_err("Unsupported share info level (write): %d\n",
 			dce->si_req.level);
-		status = CIFSD_RPC_EINVALID_LEVEL;
 		rpc_pipe_reset(pipe);
 	}
 
