@@ -301,7 +301,7 @@ static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret;
+	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
 
 	if (srvsvc_parse_share_info_req(dce, &dce->si_req))
 		return CIFSD_RPC_EBAD_DATA;
