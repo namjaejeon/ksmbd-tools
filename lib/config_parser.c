@@ -417,6 +417,16 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 				CIFSD_CONF_MAP_TO_GUEST_BAD_UID;
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "bind interfaces only")) {
+		global_conf.bind_interfaces_only = cp_get_group_kv_bool(_v);
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "interfaces")) {
+		global_conf.interfaces = cp_get_group_kv_string(_v);
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
