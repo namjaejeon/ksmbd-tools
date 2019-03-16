@@ -84,12 +84,13 @@ void pr_logger_init(int flag)
 	}
 }
 
+#if TRACING_DUMP_NL_MSG
+#define PR_HEX_DUMP_WIDTH	160
 void pr_hex_dump(const void *mem, size_t sz)
 {
-	const int WIDTH = 160;
+	char xline[PR_HEX_DUMP_WIDTH];
+	char sline[PR_HEX_DUMP_WIDTH];
 	int xi = 0, si = 0, mi = 0;
-	char xline[WIDTH];
-	char sline[WIDTH];
 
 	while (mi < sz) {
 		char c = *((char *)mem + mi);
@@ -100,7 +101,7 @@ void pr_hex_dump(const void *mem, size_t sz)
 			si += sprintf(sline + si, "%c", c);
 		else
 			si += sprintf(sline + si, ".");
-		if (xi >= WIDTH / 2) {
+		if (xi >= PR_HEX_DUMP_WIDTH / 2) {
 			pr_err("%s         %s\n", xline, sline);
 			xi = 0;
 			si = 0;
@@ -108,14 +109,19 @@ void pr_hex_dump(const void *mem, size_t sz)
 	}
 
 	if (xi) {
-		int sz = WIDTH / 2 - xi + 1;
+		int sz = PR_HEX_DUMP_WIDTH / 2 - xi + 1;
 		if (sz > 0) {
 			memset(xline + xi, ' ', sz);
-			xline[WIDTH / 2 + 1] = 0x00;
+			xline[PR_HEX_DUMP_WIDTH / 2 + 1] = 0x00;
 		}
 		pr_err("%s         %s\n", xline, sline);
 	}
 }
+#else
+void pr_hex_dump(const void *mem, size_t sz)
+{
+}
+#endif
 
 char *base64_encode(unsigned char *src, size_t srclen)
 {
