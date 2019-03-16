@@ -102,9 +102,14 @@ static int handle_unsupported_event(struct nl_cache_ops *unused,
 static int ipc_cifsd_starting_up(void)
 {
 	struct cifsd_startup_request *ev;
-	struct cifsd_ipc_msg *msg = ipc_msg_alloc(sizeof(*ev));
+	struct cifsd_ipc_msg *msg;
+	int ifc_alloc_size = 0;
 	int ret;
 
+	if (global_conf.bind_interfaces_only && global_conf.interfaces)
+		ifc_alloc_size = strlen(global_conf.interfaces);
+
+	msg = ipc_msg_alloc(sizeof(*ev) + ifc_alloc_size);
 	if (!msg)
 		return -ENOMEM;
 
@@ -139,6 +144,13 @@ static int ipc_cifsd_starting_up(void)
 		strncpy(ev->work_group,
 			global_conf.work_group,
 			sizeof(ev->work_group) - 1);
+	}
+
+	if (global_conf.bind_interfaces_only && global_conf.interfaces) {
+		char *config_payload;
+
+		config_payload = CIFSD_STARTUP_CONFIG_INTERFACES(ev);
+		strcpy(config_payload, global_conf.interfaces);
 	}
 
 	ret = ipc_msg_send(msg);

@@ -52,7 +52,7 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static int create_lock_file()
+static int create_lock_file(void)
 {
 	char manager_pid[10];
 	size_t sz;
@@ -71,7 +71,7 @@ static int create_lock_file()
 	return 0;
 }
 
-static void delete_lock_file()
+static void delete_lock_file(void)
 {
 	if (lock_fd == -1)
 		return;
@@ -298,8 +298,6 @@ static int worker_process_init(void)
 			if (ret)
 				pr_err("Failed to reload configs. "
 					"Continue with the old one.\n");
-
-			ret = 0;
 			cifsd_health_status &= ~CIFSD_SHOULD_RELOAD_CONFIG;
 		}
 

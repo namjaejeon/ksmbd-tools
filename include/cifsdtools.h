@@ -43,6 +43,8 @@ struct smbconf_global {
 	int			restrict_anon;
 	unsigned short		tcp_port;
 	unsigned short		ipc_timeout;
+	int			bind_interfaces_only;
+	char			*interfaces;
 };
 
 #define CIFSD_LOCK_FILE		"/tmp/cifsd.lock"
