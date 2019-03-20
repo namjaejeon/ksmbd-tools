@@ -292,7 +292,7 @@ static void __handle_login_request(struct cifsd_login_response *resp,
 	hash_sz = usm_copy_user_passhash(user,
 					 resp->hash,
 					 sizeof(resp->hash));
-	if (hash_sz < 0) {
+	if (hash_sz != CIFSD_REQ_MAX_HASH_SZ - 2) {
 		resp->status = CIFSD_USER_FLAG_INVALID;
 	} else {
 		resp->hash_sz = (unsigned short)hash_sz;
