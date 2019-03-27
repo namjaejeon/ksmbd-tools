@@ -43,6 +43,7 @@ struct smbconf_global {
 	int			restrict_anon;
 	unsigned short		tcp_port;
 	unsigned short		ipc_timeout;
+	unsigned int		deadtime;
 	int			bind_interfaces_only;
 	char			*interfaces;
 };
