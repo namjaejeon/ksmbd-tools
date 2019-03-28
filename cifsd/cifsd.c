@@ -43,11 +43,11 @@ static void usage(void)
 {
 	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	fprintf(stderr, "Usage: cifsd\n");
-	fprintf(stderr, "\t-p tcp port NUM | --port=NUM\n");
-	fprintf(stderr, "\t-c smb.conf | --config=smb.conf\n");
-	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
-	fprintf(stderr, "\t-n | --nodetach\n");
-	fprintf(stderr, "\t-s systemd service mode | --systemd\n");
+	fprintf(stderr, "\t--p=NUM | --port=NUM              TCP port NUM\n");
+	fprintf(stderr, "\t--c=smb.conf | --config=smb.conf  config file\n");
+	fprintf(stderr, "\t--u=pwd.db | --users=pwd.db       Users DB\n");
+	fprintf(stderr, "\t--n | --nodetach                  Don't detach\n");
+	fprintf(stderr, "\t--s | --systemd                   Service mode\n");
 
 	exit(EXIT_FAILURE);
 }
@@ -342,7 +342,8 @@ static int manager_process_init(void)
 		 * the group leader already then the function will do
 		 * nothing (apart from setting errnor to EPERM).
 		 */
-		setsid();
+		if (no_detach == 1)
+			setsid();
 	}
 
 	if (create_lock_file()) {
@@ -396,6 +397,17 @@ static int manager_systemd_service(void)
 	return 0;
 }
 
+static struct option opts[] = {
+	{"port",	required_argument,	NULL,	'p' },
+	{"config",	required_argument,	NULL,	'c' },
+	{"users",	required_argument,	NULL,	'u' },
+	{"systemd",	no_argument,		NULL,	's' },
+	{"nodetach",	optional_argument,	NULL,	'n' },
+	{"help",	no_argument,		NULL,	'h' },
+	{"?",		no_argument,		NULL,	'?' },
+	{NULL,		0,			NULL,	 0  }
+};
+
 int main(int argc, char *argv[])
 {
 	int systemd_service = 0;
@@ -406,8 +418,17 @@ int main(int argc, char *argv[])
 	pr_logger_init(PR_LOGGER_STDIO);
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "p:c:i:snh")) != EOF)
+	while (1) {
+		c = getopt_long(argc, argv, ":n::p:c:u:shW;", opts, NULL);
+
+		if (c < 0)
+			break;
+
 		switch (c) {
+		case 0: /* getopt_long() set a variable, just keep going */
+			break;
+		case 1:
+			break;
 		case 'p':
 			global_conf.tcp_port = cp_get_group_kv_long(optarg);
 			pr_debug("TCP port option override\n");
@@ -415,19 +436,25 @@ int main(int argc, char *argv[])
 		case 'c':
 			smbconf = strdup(optarg);
 			break;
-		case 'i':
+		case 'u':
 			pwddb = strdup(optarg);
 			break;
 		case 'n':
-			no_detach = 1;
+			if (!optarg)
+				no_detach = 1;
+			else
+				no_detach = cp_get_group_kv_long(optarg);
 			break;
 		case 's':
 			systemd_service = 1;
 			break;
+		case ':':
+			pr_err("Missing option argument\n");
 		case '?':
 		case 'h':
 		default:
 			usage();
+		}
 	}
 
 	if (!smbconf || !pwddb) {
