@@ -46,6 +46,7 @@ struct smbconf_global {
 	unsigned int		deadtime;
 	int			bind_interfaces_only;
 	char			*interfaces;
+	unsigned long long	file_max;
 };
 
 #define CIFSD_LOCK_FILE		"/tmp/cifsd.lock"
@@ -69,6 +70,8 @@ extern struct smbconf_global global_conf;
 
 #define CIFSD_CONF_DEFAULT_SESS_CAP	1024
 #define CIFSD_CONF_DEFAULT_TPC_PORT	445
+
+#define CIFSD_CONF_FILE_MAX		10000
 
 #define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
 #define PATH_SMBCONF	"/etc/cifs/smb.conf"
