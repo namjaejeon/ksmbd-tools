@@ -120,6 +120,7 @@ static int ipc_cifsd_starting_up(void)
 	ev->tcp_port = global_conf.tcp_port;
 	ev->ipc_timeout = global_conf.ipc_timeout;
 	ev->deadtime = global_conf.deadtime;
+	ev->file_max = global_conf.file_max;
 
 	if (global_conf.server_min_protocol) {
 		strncpy(ev->min_prot,
