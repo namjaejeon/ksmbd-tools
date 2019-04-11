@@ -393,6 +393,11 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(_k, "max open files")) {
+		global_conf.file_max = cp_get_group_kv_long(_v);
+		return;
+	}
+
 	if (!cp_key_cmp(_k, "restrict anonymous")) {
 		global_conf.restrict_anon = cp_get_group_kv_long(_v);
 		if (global_conf.restrict_anon > CIFSD_RESTRICT_ANON_TYPE_2 ||
@@ -442,6 +447,8 @@ static void fixup_missing_global_group(void)
 	 * Set default global parameters which were not specified
 	 * in smb.conf
 	 */
+	if (!global_conf.file_max)
+		global_conf.file_max = CIFSD_CONF_FILE_MAX;
 	if (!global_conf.server_string)
 		global_conf.server_string =
 			cp_get_group_kv_string(CIFSD_CONF_DEFAULT_SERVER_STRING);
