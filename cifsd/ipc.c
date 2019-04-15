@@ -152,7 +152,9 @@ static int ipc_cifsd_starting_up(void)
 		char *config_payload;
 
 		config_payload = CIFSD_STARTUP_CONFIG_INTERFACES(ev);
-		strcpy(config_payload, global_conf.interfaces);
+		strncpy(config_payload,
+				global_conf.interfaces,
+				sizeof(config_payload) - 1);
 	}
 
 	ret = ipc_msg_send(msg);
