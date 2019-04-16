@@ -107,7 +107,7 @@ static int ipc_cifsd_starting_up(void)
 	int ret;
 
 	if (global_conf.bind_interfaces_only && global_conf.interfaces)
-		ifc_alloc_size = strlen(global_conf.interfaces);
+		ifc_alloc_size = strlen(global_conf.interfaces) + 1;
 
 	msg = ipc_msg_alloc(sizeof(*ev) + ifc_alloc_size);
 	if (!msg)
@@ -148,11 +148,12 @@ static int ipc_cifsd_starting_up(void)
 			sizeof(ev->work_group) - 1);
 	}
 
-	if (global_conf.bind_interfaces_only && global_conf.interfaces) {
-		char *config_payload;
+	if (ifc_alloc_size) {
+		char *config_payload = CIFSD_STARTUP_CONFIG_INTERFACES(ev);
 
-		config_payload = CIFSD_STARTUP_CONFIG_INTERFACES(ev);
-		strcpy(config_payload, global_conf.interfaces);
+		strncpy(config_payload,
+			global_conf.interfaces,
+			ifc_alloc_size - 1);
 	}
 
 	ret = ipc_msg_send(msg);
