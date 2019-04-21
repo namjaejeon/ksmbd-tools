@@ -103,11 +103,11 @@ static int ipc_cifsd_starting_up(void)
 {
 	struct cifsd_startup_request *ev;
 	struct cifsd_ipc_msg *msg;
-	int ifc_alloc_size = 0;
+	int ifc_alloc_size = 1;
 	int ret;
 
 	if (global_conf.bind_interfaces_only && global_conf.interfaces)
-		ifc_alloc_size = strlen(global_conf.interfaces) + 1;
+		ifc_alloc_size += strlen(global_conf.interfaces);
 
 	msg = ipc_msg_alloc(sizeof(*ev) + ifc_alloc_size);
 	if (!msg)
