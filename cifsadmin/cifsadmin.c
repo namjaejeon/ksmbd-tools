@@ -69,6 +69,7 @@ static void notify_cifsd_daemon(int command)
 
 	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
 		pr_debug("Unable to read main PID: %s\n", strerr(errno));
+		close(lock_fd);
 		return;
 	}
 
