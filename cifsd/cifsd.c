@@ -67,7 +67,7 @@ static int create_lock_file(void)
 
 	sz = snprintf(manager_pid, sizeof(manager_pid), "%d", getpid());
 	if (write(lock_fd, manager_pid, sz) == -1)
-		pr_err("Unable to record main PID: %s\n", strerror(errno));
+		pr_err("Unable to record main PID: %s\n", strerr(errno));
 	return 0;
 }
 
@@ -90,7 +90,7 @@ static int wait_group_kill(int signo)
 	if (kill(worker_pid, signo) != 0)
 		pr_err("can't execute kill %d: %s\n",
 			worker_pid,
-			strerror(errno));
+			strerr(errno));
 
 	while (1) {
 		pid = waitpid(-1, &status, 0);
@@ -117,7 +117,7 @@ static int setup_signal_handler(int signo, sighandler_t handler)
 	status = sigaction(signo, &act, NULL);
 	if (status != 0)
 		pr_err("Unable to register %s signal handler: %s",
-				strsignal(signo), strerror(errno));
+				strsignal(signo), strerr(errno));
 	return status;
 }
 
@@ -217,7 +217,7 @@ static void manager_sig_handler(int signo)
 		cifsd_health_status |= CIFSD_SHOULD_RELOAD_CONFIG;
 		if (kill(worker_pid, signo))
 			pr_err("Unable to send SIGHUP to %d: %s\n",
-				worker_pid, strerror(errno));
+				worker_pid, strerr(errno));
 		return;
 	}
 
@@ -317,7 +317,7 @@ static pid_t start_worker_process(worker_fn fn)
 
 	__pid = fork();
 	if (__pid < 0) {
-		pr_err("Can't fork child process: `%s'\n", strerror(errno));
+		pr_err("Can't fork child process: `%s'\n", strerr(errno));
 		return -EINVAL;
 	}
 	if (__pid == 0) {
@@ -347,7 +347,7 @@ static int manager_process_init(void)
 	}
 
 	if (create_lock_file()) {
-		pr_err("Failed to create lock file: %s\n", strerror(errno));
+		pr_err("Failed to create lock file: %s\n", strerr(errno));
 		goto out;
 	}
 
@@ -370,7 +370,7 @@ static int manager_process_init(void)
 				child);
 		if (child == -1) {
 			pr_err("waitpid() returned error code: %s\n",
-				strerror(errno));
+				strerr(errno));
 			goto out;
 		}
 
