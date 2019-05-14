@@ -168,11 +168,12 @@ static int ipc_cifsd_shutting_down(void)
 
 int ipc_process_event(void)
 {
-	if (nl_recvmsgs_default(sk) < 0) {
-		pr_err("Recv() error %s\n", strerror(errno));
-		return -EINVAL;
-	}
-	return 0;
+	int ret = 0;
+
+	ret = nl_recvmsgs_default(sk);
+	if (ret < 0)
+		pr_err("Recv() error %s [%d]\n", nl_geterror(ret), ret);
+	return ret;
 }
 
 static struct nla_policy cifsd_nl_policy[CIFSD_EVENT_MAX] = {
