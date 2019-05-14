@@ -450,8 +450,10 @@ int main(int argc, char *argv[])
 			break;
 		case ':':
 			pr_err("Missing option argument\n");
+			/* Fall through */
 		case '?':
 		case 'h':
+			/* Fall through */
 		default:
 			usage();
 		}
