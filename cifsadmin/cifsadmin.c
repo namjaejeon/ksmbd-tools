@@ -79,7 +79,7 @@ static void notify_cifsd_daemon(int command)
 
 	pr_debug("Send SIGHUP to pid %d\n", pid);
 	if (kill(pid, SIGHUP))
-		pr_debug("Unable to send siangl to pid %d: %s\n",
+		pr_debug("Unable to send signal to pid %d: %s\n",
 			 pid, strerr(errno));
 }
 
