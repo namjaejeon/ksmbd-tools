@@ -412,6 +412,7 @@ static int srvsvc_return(struct cifsd_rpc_pipe *pipe,
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
 		if (dce->si_req.max_size < (unsigned int)max_resp_sz)
 			max_resp_sz = dce->si_req.max_size;
+		/* Fall through */
 	case SRVSVC_OPNUM_GET_SHARE_INFO:
 		dcerpc_set_ext_payload(dce, resp->payload, max_resp_sz);
 
