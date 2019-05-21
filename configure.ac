@@ -24,6 +24,8 @@ AC_PROG_CC_STDC
 AM_SILENT_RULES([yes])
 AC_PROG_LIBTOOL
 
+PKG_PROG_PKG_CONFIG([0.9])
+
 # Checks for header files.
 AC_CHECK_HEADERS([linux/netlink.h fcntl.h stdlib.h string.h \
 		  unistd.h sys/socket.h])
