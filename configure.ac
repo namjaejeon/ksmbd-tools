@@ -47,14 +47,14 @@ AC_CHECK_FUNCS_ONCE([
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.40], [has_glib2=1], [has_glib2=0])
 AS_IF([test "$has_glib2" -eq 0],
-      AC_MSG_ERROR([No glib2 was found])
+      AC_MSG_ERROR([No glib2 (libglib2.0-dev) was found])
 ])
 
 has_libnl_ver=0
 dnl libnl-genl-3.0.pc pkg-config file just for libnl-3.0 case.
 PKG_CHECK_MODULES([LIBNL], [libnl-3.0 >= 3.0 libnl-genl-3.0 >= 3.0], [has_libnl_ver=3], [has_libnl_ver=0])
 AS_IF([test "$has_libnl_ver" -eq 0], [
-	AC_MSG_ERROR([libnl and libnl-genl are required but were not found])
+	AC_MSG_ERROR([No libnl (libnl-3-dev) and libnl-genl (libnl-genl-3-dev) were not found])
 ])
 
 AC_CONFIG_FILES([
