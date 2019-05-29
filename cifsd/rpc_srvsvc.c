@@ -273,8 +273,8 @@ static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL) {
 		int ptr;
 
-		hdr->level = ndr_read_int32(dce);
-		ndr_read_int32(dce); // read switch selector
+		/* Read union switch selector */
+		hdr->level = ndr_read_union_int32(dce);
 		ndr_read_int32(dce); // read container pointer ref id
 		ndr_read_int32(dce); // read container array size
 		ptr = ndr_read_int32(dce); // read container array pointer
