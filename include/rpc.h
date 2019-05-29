@@ -137,6 +137,8 @@ struct ndr_uniq_char_ptr {
 	char	*ptr;
 };
 
+#define STR_VAL(x)	((x).ptr)
+
 struct srvsvc_share_info_request {
 	int				level;
 	size_t				max_size;
@@ -145,6 +147,11 @@ struct srvsvc_share_info_request {
 	struct ndr_char_ptr		share_name;
 
 	struct ndr_uniq_ptr		payload_handle;
+};
+
+struct wkssvc_netwksta_info_request {
+	struct ndr_uniq_char_ptr	server_name;
+	int				level;
 };
 
 struct dcerpc_guid {
@@ -233,6 +240,7 @@ struct cifsd_dcerpc {
 	union {
 		struct srvsvc_share_info_request	si_req;
 		struct dcerpc_bind_request		bi_req;
+		struct wkssvc_netwksta_info_request	wi_req;
 	};
 
 	struct cifsd_rpc_command	*rpc_req;
