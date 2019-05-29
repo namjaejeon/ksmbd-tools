@@ -354,9 +354,11 @@ NDR_WRITE_UNION(int32, __u32);
 type ndr_read_union_##name(struct cifsd_dcerpc *dce)			\
 {									\
 	type ret = ndr_read_##name(dce);				\
-	if (ndr_read_##name(dce) != ret)				\
+	if (ndr_read_##name(dce) != ret) {				\
 		pr_err("NDR: union representation mismatch %lu\n",	\
 				(unsigned long)ret);			\
+		ret = -EINVAL;						\
+	}								\
 	return ret;							\
 }
 
