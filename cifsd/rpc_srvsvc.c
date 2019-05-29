@@ -172,7 +172,7 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 	struct cifsd_share *share;
 	int ret;
 
-	share = shm_lookup_share(hdr->share_name.ptr);
+	share = shm_lookup_share(STR_VAL(hdr->share_name));
 	if (!share)
 		return 0;
 
@@ -183,7 +183,7 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 
 	ret = shm_lookup_hosts_map(share,
 				   CIFSD_SHARE_HOSTS_ALLOW_MAP,
-				   hdr->server_name.ptr);
+				   STR_VAL(hdr->server_name));
 	if (ret == -ENOENT) {
 		put_cifsd_share(share);
 		return 0;
@@ -192,7 +192,7 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 	if (ret != 0) {
 		ret = shm_lookup_hosts_map(share,
 					   CIFSD_SHARE_HOSTS_DENY_MAP,
-					   hdr->server_name.ptr);
+					   STR_VAL(hdr->server_name));
 		if (ret == 0) {
 			put_cifsd_share(share);
 			return 0;

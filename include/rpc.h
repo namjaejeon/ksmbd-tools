@@ -137,6 +137,8 @@ struct ndr_uniq_char_ptr {
 	char	*ptr;
 };
 
+#define STR_VAL(x)	((x).ptr)
+
 struct srvsvc_share_info_request {
 	int				level;
 	size_t				max_size;
