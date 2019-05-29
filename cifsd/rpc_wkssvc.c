@@ -38,7 +38,7 @@ static int wkssvc_clear_headers(struct cifsd_rpc_pipe *pipe,
 static int __netwksta_entry_rep_ctr100(struct cifsd_dcerpc *dce,
 				       gpointer entry)
 {
-	int ret;
+	int ret = 0;
 
 	/* srvsvc_PlatformId */
 	ret |= ndr_write_int32(dce, WKSSVC_PLATFORM_ID_NT);
@@ -60,13 +60,13 @@ static int __netwksta_entry_rep_ctr100(struct cifsd_dcerpc *dce,
 static int __netwksta_entry_data_ctr100(struct cifsd_dcerpc *dce,
 					gpointer entry)
 {
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Umm... Hmm... Huh...
 	 */
-	ret |= ndr_write_vstring(dce, CIFSD_CONF_DEFAULT_NETBIOS_NAME);
-	ret |= ndr_write_vstring(dce, CIFSD_CONF_DEFAULT_SERVER_STRING);
+	ret |= ndr_write_vstring(dce, global_conf.server_string);
+	ret |= ndr_write_vstring(dce, global_conf.work_group);
 	return ret;
 }
 
@@ -91,7 +91,7 @@ static int wkssvc_netwksta_get_info_return(struct cifsd_rpc_pipe *pipe)
 static int wkssvc_netwksta_info_return(struct cifsd_rpc_pipe *pipe)
 {
 	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret = CIFSD_RPC_OK, status;
+	int ret = CIFSD_RPC_OK, status = CIFSD_RPC_ENOTIMPLEMENTED;
 
 	/*
 	 * Reserve space for response NDR header. We don't know yet if
@@ -137,7 +137,7 @@ static int
 wkssvc_netwksta_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 				struct wkssvc_netwksta_info_request *hdr)
 {
-	return 0;
+	return CIFSD_RPC_OK;
 }
 
 static int
@@ -159,7 +159,7 @@ static int wkssvc_netwksta_info_invoke(struct cifsd_rpc_pipe *pipe)
 		return CIFSD_RPC_EBAD_DATA;
 
 	if (rpc_restricted_context(dce->rpc_req))
-		return 0;
+		return CIFSD_RPC_OK;
 
 	if (dce->req_hdr.opnum == WKSSVC_NETWKSTA_GET_INFO)
 		ret = wkssvc_netwksta_get_info_invoke(pipe, &dce->wi_req);
