@@ -65,7 +65,7 @@ static int __netwksta_entry_data_ctr100(struct cifsd_dcerpc *dce,
 	/*
 	 * Umm... Hmm... Huh...
 	 */
-	ret |= ndr_write_vstring(dce, global_conf.server_string);
+	ret |= ndr_write_vstring(dce, dce->wi_req.server_name.ptr);
 	ret |= ndr_write_vstring(dce, global_conf.work_group);
 	return ret;
 }
