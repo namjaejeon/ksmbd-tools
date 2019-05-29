@@ -275,6 +275,8 @@ static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 
 		/* Read union switch selector */
 		hdr->level = ndr_read_union_int32(dce);
+		if (hdr->level == -EINVAL)
+			return -EINVAL;
 		ndr_read_int32(dce); // read container pointer ref id
 		ndr_read_int32(dce); // read container array size
 		ptr = ndr_read_int32(dce); // read container array pointer
