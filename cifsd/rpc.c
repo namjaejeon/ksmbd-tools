@@ -354,9 +354,11 @@ NDR_WRITE_UNION(int32, __u32);
 type ndr_read_union_##name(struct cifsd_dcerpc *dce)			\
 {									\
 	type ret = ndr_read_##name(dce);				\
-	if (ndr_read_##name(dce) != ret)				\
+	if (ndr_read_##name(dce) != ret) {				\
 		pr_err("NDR: union representation mismatch %lu\n",	\
 				(unsigned long)ret);			\
+		ret = -EINVAL;						\
+	}								\
 	return ret;							\
 }
 
@@ -1063,11 +1065,11 @@ int rpc_write_request(struct cifsd_rpc_command *req,
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		return CIFSD_RPC_ENOTIMPLEMENTED;
 
-	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE) {
-		if (dcerpc_request_hdr_read(dce, &dce->req_hdr))
-			return CIFSD_RPC_EBAD_DATA;
+	if (dcerpc_request_hdr_read(dce, &dce->req_hdr))
+		return CIFSD_RPC_EBAD_DATA;
+
+	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
 		return rpc_srvsvc_write_request(pipe);
-	}
 
 	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_write_request(pipe);
