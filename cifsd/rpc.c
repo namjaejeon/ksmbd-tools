@@ -1065,11 +1065,11 @@ int rpc_write_request(struct cifsd_rpc_command *req,
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		return CIFSD_RPC_ENOTIMPLEMENTED;
 
-	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE) {
-		if (dcerpc_request_hdr_read(dce, &dce->req_hdr))
-			return CIFSD_RPC_EBAD_DATA;
+	if (dcerpc_request_hdr_read(dce, &dce->req_hdr))
+		return CIFSD_RPC_EBAD_DATA;
+
+	if (req->flags & CIFSD_RPC_SRVSVC_METHOD_INVOKE)
 		return rpc_srvsvc_write_request(pipe);
-	}
 
 	if (req->flags & CIFSD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_write_request(pipe);
