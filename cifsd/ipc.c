@@ -20,6 +20,7 @@
 #include <cifsdtools.h>
 #include <ipc.h>
 #include <worker.h>
+#include <config_parser.h>
 
 static struct nl_sock *sk;
 
@@ -180,6 +181,9 @@ static int ipc_cifsd_starting_up(void)
 			strcpy(config_payload + sz, ifc);
 			sz += strlen(ifc) + 1;
 		}
+
+		global_conf.bind_interfaces_only = 0;
+		cp_group_kv_list_free(global_conf.interfaces);
 	}
 
 	ret = ipc_msg_send(msg);
