@@ -99,17 +99,27 @@ static int handle_unsupported_event(struct nl_cache_ops *unused,
 	return NL_SKIP;
 }
 
+static int ifc_list_size(void)
+{
+	int len = 0;
+	int i;
+
+	for (i = 0; global_conf.interfaces[i] != NULL; i++)
+		len += strlen(global_conf.interfaces[i]) + 1;
+	return len;
+}
+
 static int ipc_cifsd_starting_up(void)
 {
 	struct cifsd_startup_request *ev;
 	struct cifsd_ipc_msg *msg;
-	int ifc_alloc_size = 1;
+	int ifc_list_sz = 0;
 	int ret;
 
 	if (global_conf.bind_interfaces_only && global_conf.interfaces)
-		ifc_alloc_size += strlen(global_conf.interfaces);
+		ifc_list_sz += ifc_list_size();
 
-	msg = ipc_msg_alloc(sizeof(*ev) + ifc_alloc_size);
+	msg = ipc_msg_alloc(sizeof(*ev) + ifc_list_sz);
 	if (!msg)
 		return -ENOMEM;
 
@@ -148,12 +158,20 @@ static int ipc_cifsd_starting_up(void)
 			sizeof(ev->work_group) - 1);
 	}
 
-	if (ifc_alloc_size) {
+	if (ifc_list_sz) {
+		int i;
+		int sz = 0;
 		char *config_payload = CIFSD_STARTUP_CONFIG_INTERFACES(ev);
 
-		strncpy(config_payload,
-			global_conf.interfaces,
-			ifc_alloc_size - 1);
+		ev->ifc_list_sz = ifc_list_sz;
+
+		for (i = 0; global_conf.interfaces[i] != NULL; i++) {
+			int len = strlen(global_conf.interfaces[i]);
+
+			strcpy(config_payload + sz,
+			       global_conf.interfaces[i]);
+			sz += len + 1;
+		}
 	}
 
 	ret = ipc_msg_send(msg);
