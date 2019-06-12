@@ -104,8 +104,14 @@ static int ifc_list_size(void)
 	int len = 0;
 	int i;
 
-	for (i = 0; global_conf.interfaces[i] != NULL; i++)
-		len += strlen(global_conf.interfaces[i]) + 1;
+	for (i = 0; global_conf.interfaces[i] != NULL; i++) {
+		char *ifc = global_conf.interfaces[i];
+
+		while (*ifc && *ifc == ' ') ifc++;
+		if (*ifc == 0x00) continue;
+
+		len += strlen(ifc) + 1;
+	}
 	return len;
 }
 
@@ -166,11 +172,13 @@ static int ipc_cifsd_starting_up(void)
 		ev->ifc_list_sz = ifc_list_sz;
 
 		for (i = 0; global_conf.interfaces[i] != NULL; i++) {
-			int len = strlen(global_conf.interfaces[i]);
+			char *ifc = global_conf.interfaces[i];
 
-			strcpy(config_payload + sz,
-			       global_conf.interfaces[i]);
-			sz += len + 1;
+			while (*ifc && *ifc == ' ') ifc++;
+			if (*ifc == 0x00) continue;
+
+			strcpy(config_payload + sz, ifc);
+			sz += strlen(ifc) + 1;
 		}
 	}
 
