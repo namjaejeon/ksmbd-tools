@@ -259,6 +259,17 @@ static void release_smbconf_parser(void)
 	parser.groups = NULL;
 }
 
+char *cp_ltrim(char *v)
+{
+	if (!v)
+		return NULL;
+
+	while (*v && *v == ' ') v++;
+	if (*v == 0x00)
+		return NULL;
+	return v;
+}
+
 int cp_key_cmp(char *k, char *v)
 {
 	if (!k || !v)

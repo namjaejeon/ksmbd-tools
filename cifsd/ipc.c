@@ -108,8 +108,8 @@ static int ifc_list_size(void)
 	for (i = 0; global_conf.interfaces[i] != NULL; i++) {
 		char *ifc = global_conf.interfaces[i];
 
-		while (*ifc && *ifc == ' ') ifc++;
-		if (*ifc == 0x00) continue;
+		ifc = cp_ltrim(ifc);
+		if (!ifc) continue;
 
 		len += strlen(ifc) + 1;
 	}
@@ -175,8 +175,8 @@ static int ipc_cifsd_starting_up(void)
 		for (i = 0; global_conf.interfaces[i] != NULL; i++) {
 			char *ifc = global_conf.interfaces[i];
 
-			while (*ifc && *ifc == ' ') ifc++;
-			if (*ifc == 0x00) continue;
+			ifc = cp_ltrim(ifc);
+			if (!ifc) continue;
 
 			strcpy(config_payload + sz, ifc);
 			sz += strlen(ifc) + 1;
