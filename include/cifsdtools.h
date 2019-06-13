@@ -45,7 +45,7 @@ struct smbconf_global {
 	unsigned short		ipc_timeout;
 	unsigned int		deadtime;
 	int			bind_interfaces_only;
-	char			*interfaces;
+	char			**interfaces;
 	unsigned long long	file_max;
 };
 

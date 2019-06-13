@@ -204,8 +204,8 @@ static GHashTable *parse_list(GHashTable *map, char **list)
 		struct cifsd_user *user;
 		char *p = list[i];
 
-		while (*p && *p == ' ') p++;
-		if (*p == 0x00) continue;
+		p = cp_ltrim(p);
+		if (!p) continue;
 
 		user = usm_lookup_user(p);
 		if (!user) {
