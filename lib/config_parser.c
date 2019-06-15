@@ -259,6 +259,17 @@ static void release_smbconf_parser(void)
 	parser.groups = NULL;
 }
 
+char *cp_ltrim(char *v)
+{
+	if (!v)
+		return NULL;
+
+	while (*v && *v == ' ') v++;
+	if (*v == 0x00)
+		return NULL;
+	return v;
+}
+
 int cp_key_cmp(char *k, char *v)
 {
 	if (!k || !v)
@@ -429,7 +440,7 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(_k, "interfaces")) {
-		global_conf.interfaces = cp_get_group_kv_string(_v);
+		global_conf.interfaces = cp_get_group_kv_list(_v);
 		return;
 	}
 

@@ -24,6 +24,7 @@ int cp_parse_pwddb(const char *pwddb);
 int cp_parse_reload_pwddb(const char *pwddb);
 int cp_parse_smbconf(const char *smbconf);
 
+char *cp_ltrim(char *v);
 int cp_key_cmp(char *k, char *v);
 char *cp_get_group_kv_string(char *v);
 int cp_get_group_kv_bool(char *v);
