@@ -20,6 +20,7 @@
 #include <cifsdtools.h>
 #include <ipc.h>
 #include <worker.h>
+#include <config_parser.h>
 
 static struct nl_sock *sk;
 
@@ -99,17 +100,33 @@ static int handle_unsupported_event(struct nl_cache_ops *unused,
 	return NL_SKIP;
 }
 
+static int ifc_list_size(void)
+{
+	int len = 0;
+	int i;
+
+	for (i = 0; global_conf.interfaces[i] != NULL; i++) {
+		char *ifc = global_conf.interfaces[i];
+
+		ifc = cp_ltrim(ifc);
+		if (!ifc) continue;
+
+		len += strlen(ifc) + 1;
+	}
+	return len;
+}
+
 static int ipc_cifsd_starting_up(void)
 {
 	struct cifsd_startup_request *ev;
 	struct cifsd_ipc_msg *msg;
-	int ifc_alloc_size = 1;
+	int ifc_list_sz = 0;
 	int ret;
 
 	if (global_conf.bind_interfaces_only && global_conf.interfaces)
-		ifc_alloc_size += strlen(global_conf.interfaces);
+		ifc_list_sz += ifc_list_size();
 
-	msg = ipc_msg_alloc(sizeof(*ev) + ifc_alloc_size);
+	msg = ipc_msg_alloc(sizeof(*ev) + ifc_list_sz);
 	if (!msg)
 		return -ENOMEM;
 
@@ -148,12 +165,25 @@ static int ipc_cifsd_starting_up(void)
 			sizeof(ev->work_group) - 1);
 	}
 
-	if (ifc_alloc_size) {
+	if (ifc_list_sz) {
+		int i;
+		int sz = 0;
 		char *config_payload = CIFSD_STARTUP_CONFIG_INTERFACES(ev);
 
-		strncpy(config_payload,
-			global_conf.interfaces,
-			ifc_alloc_size - 1);
+		ev->ifc_list_sz = ifc_list_sz;
+
+		for (i = 0; global_conf.interfaces[i] != NULL; i++) {
+			char *ifc = global_conf.interfaces[i];
+
+			ifc = cp_ltrim(ifc);
+			if (!ifc) continue;
+
+			strcpy(config_payload + sz, ifc);
+			sz += strlen(ifc) + 1;
+		}
+
+		global_conf.bind_interfaces_only = 0;
+		cp_group_kv_list_free(global_conf.interfaces);
 	}
 
 	ret = ipc_msg_send(msg);
