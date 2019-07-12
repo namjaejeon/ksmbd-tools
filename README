@@ -14,7 +14,7 @@ Install preprequisite packages:
 	sudo yum install glib2-devel libnl3-devel
 
 Build steps:
-        - cd into the cifsd-tools-v3 directory
+        - cd into the cifsd-tools directory
         - ./autogen.sh
         - ./configure
         - make
