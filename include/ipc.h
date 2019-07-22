@@ -23,6 +23,8 @@ struct cifsd_ipc_msg {
 #define CIFSD_IPC_MSG_PAYLOAD(m)				\
 	(void *)(((struct cifsd_ipc_msg *)(m))->____payload)
 
+#define CIFSD_STATUS_IPC_FATAL_ERROR	11
+
 struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz);
 void ipc_msg_free(struct cifsd_ipc_msg *msg);
 
