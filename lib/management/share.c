@@ -463,6 +463,13 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		else
 			clear_share_flag(share,	CIFSD_SHARE_FLAG_INHERIT_SMACK);
 	}
+
+	if (!cp_key_cmp(k, "inherit owner")) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, CIFSD_SHARE_FLAG_INHERIT_OWNER);
+		else
+			clear_share_flag(share,	CIFSD_SHARE_FLAG_INHERIT_OWNER);
+	}
 }
 
 static void init_share_from_group(struct cifsd_share *share,
