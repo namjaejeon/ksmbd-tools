@@ -367,6 +367,11 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
+	if (!cp_key_cmp(k, "force directory mode")) {
+		share->force_directory_mode = cp_get_group_kv_long_base(v, 8);
+		return;
+	}
+
 	if (!cp_key_cmp(k, "force group")) {
 		force_group(share, v);
 		return;
@@ -484,6 +489,7 @@ static void init_share_from_group(struct cifsd_share *share,
 	share->create_mask = CIFSD_SHARE_DEFAULT_CREATE_MASK;
 	share->directory_mask = CIFSD_SHARE_DEFAULT_DIRECTORY_MASK;
 	share->force_create_mode = 0;
+	share->force_directory_mode = 0;
 
 	share->force_uid = CIFSD_SHARE_DEFAULT_UID;
 	share->force_gid = CIFSD_SHARE_DEFAULT_GID;
@@ -642,6 +648,7 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 	resp->create_mask = share->create_mask;
 	resp->directory_mask = share->directory_mask;
 	resp->force_create_mode = share->force_create_mode;
+	resp->force_directory_mode = share->force_directory_mode;
 	resp->force_uid = share->force_uid;
 	resp->force_gid = share->force_gid;
 	resp->veto_list_sz = share->veto_list_sz;

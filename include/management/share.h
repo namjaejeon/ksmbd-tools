@@ -50,6 +50,7 @@ struct cifsd_share {
 	unsigned short	create_mask;
 	unsigned short	directory_mask;
 	unsigned short	force_create_mode;
+	unsigned short	force_directory_mode;
 	unsigned short	force_uid;
 	unsigned short	force_gid;
 
