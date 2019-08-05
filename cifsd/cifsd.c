@@ -302,8 +302,10 @@ static int worker_process_init(void)
 		}
 
 		ret = ipc_process_event();
-		if (ret)
+		if (ret == -CIFSD_STATUS_IPC_FATAL_ERROR) {
+			ret = CIFSD_STATUS_IPC_FATAL_ERROR;
 			break;
+		}
 	}
 out:
 	worker_process_free();
@@ -371,6 +373,12 @@ static int manager_process_init(void)
 		if (child == -1) {
 			pr_err("waitpid() returned error code: %s\n",
 				strerr(errno));
+			goto out;
+		}
+
+		if (WIFEXITED(status) &&
+			WEXITSTATUS(status) == CIFSD_STATUS_IPC_FATAL_ERROR) {
+			pr_err("Fatal IPC error. Terminating. Check dmesg.\n");
 			goto out;
 		}
 

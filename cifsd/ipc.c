@@ -201,8 +201,10 @@ int ipc_process_event(void)
 	int ret = 0;
 
 	ret = nl_recvmsgs_default(sk);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("Recv() error %s [%d]\n", nl_geterror(ret), ret);
+		return -CIFSD_STATUS_IPC_FATAL_ERROR;
+	}
 	return ret;
 }
 
