@@ -38,7 +38,7 @@ struct cifsd_startup_request {
 	__u32	file_max;
 	__u32	ifc_list_sz;
 	__s8	____payload[0];
-} ____cifsd_align;
+};
 
 #define CIFSD_STARTUP_CONFIG_INTERFACES(s)	((s)->____payload)
 
@@ -77,7 +77,7 @@ struct cifsd_share_config_response {
 	__u16	force_gid;
 	__u32	veto_list_sz;
 	__s8	____payload[0];
-} ____cifsd_align;
+};
 
 #define CIFSD_SHARE_CONFIG_VETO_LIST(s)	((s)->____payload)
 #define CIFSD_SHARE_CONFIG_PATH(s)				\
