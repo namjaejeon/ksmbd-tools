@@ -30,6 +30,7 @@
 #endif
 
 struct smbconf_global {
+	int			flags;
 	int			map_to_guest;
 	char			*guest_account;
 
