@@ -38,7 +38,7 @@ enum {
 static void usage(void)
 {
 	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	fprintf(stderr, "Usage: cifsd_admin\n");
+	fprintf(stderr, "Usage: cifsuseradd\n");
 
 	fprintf(stderr, "\t-a | --add-user=login\n");
 	fprintf(stderr, "\t-d | --del-user=login\n");
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 	char *pwddb = PATH_PWDDB;
 	int c, cmd = 0;
 
-	set_logger_app_name("cifsdadmin");
+	set_logger_app_name("cifsuseradd");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:vh")) != EOF)
