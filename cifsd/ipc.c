@@ -133,6 +133,7 @@ static int ipc_cifsd_starting_up(void)
 	ev = CIFSD_IPC_MSG_PAYLOAD(msg);
 	msg->type = CIFSD_EVENT_STARTING_UP;
 
+	ev->flags = global_conf.flags;
 	ev->signing = global_conf.server_signing;
 	ev->tcp_port = global_conf.tcp_port;
 	ev->ipc_timeout = global_conf.ipc_timeout;

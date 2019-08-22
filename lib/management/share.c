@@ -503,7 +503,6 @@ static void init_share_from_group(struct cifsd_share *share,
 
 	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
-	set_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
 	set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
 	set_share_flag(share, CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
 
