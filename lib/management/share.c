@@ -480,6 +480,13 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		else
 			clear_share_flag(share,	CIFSD_SHARE_FLAG_INHERIT_OWNER);
 	}
+
+	if (!cp_key_cmp(k, "streams")) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, CIFSD_SHARE_FLAG_STREAMS);
+		else
+			clear_share_flag(share,	CIFSD_SHARE_FLAG_STREAMS);
+	}
 }
 
 static void init_share_from_group(struct cifsd_share *share,
@@ -496,7 +503,6 @@ static void init_share_from_group(struct cifsd_share *share,
 
 	set_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE);
 	set_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE);
-	set_share_flag(share, CIFSD_SHARE_FLAG_OPLOCKS);
 	set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
 	set_share_flag(share, CIFSD_SHARE_FLAG_HIDE_DOT_FILES);
 
