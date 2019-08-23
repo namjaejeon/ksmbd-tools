@@ -24,7 +24,7 @@
  * This must match CIFSD_SHARE_CONF enum 1:1.
  * Add new entries ONLY to the bottom.
  */
-static char *SHARE_CONF[CIFSD_SHARE_CONF_MAX] = {
+char *CIFSD_SHARE_CONF[CIFSD_SHARE_CONF_MAX] = {
 	"comment",				/* 0 */
 	"path",
 	"guest ok",
@@ -64,7 +64,7 @@ int shm_share_config(char *k, enum CIFSD_SHARE_CONF c)
 	if (c >= CIFSD_SHARE_CONF_MAX)
 		return 0;
 
-	return !cp_key_cmp(k, SHARE_CONF[c]);
+	return !cp_key_cmp(k, CIFSD_SHARE_CONF[c]);
 }
 
 static void list_hosts_callback(gpointer k, gpointer v, gpointer user_data)

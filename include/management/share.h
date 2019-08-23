@@ -118,6 +118,8 @@ enum CIFSD_SHARE_CONF {
 	CIFSD_SHARE_CONF_MAX
 };
 
+extern char *CIFSD_SHARE_CONF[CIFSD_SHARE_CONF_MAX];
+
 int shm_share_config(char *k, enum CIFSD_SHARE_CONF c);
 
 static inline void set_share_flag(struct cifsd_share *share, int flag)
