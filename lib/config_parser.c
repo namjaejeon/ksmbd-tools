@@ -227,6 +227,9 @@ out:
 
 static int init_smbconf_parser(void)
 {
+	if (parser.groups)
+		return 0;
+
 	parser.groups = g_hash_table_new(g_str_hash, g_str_equal);
 	if (!parser.groups)
 		return -ENOMEM;
@@ -579,6 +582,9 @@ int cp_parse_external_smbconf_group(char *name, char *opts)
 	char *delim = opts;
 	char *pos;
 	int i, len;
+
+	if (init_smbconf_parser())
+		return -EINVAL;
 
 	if (!opts || !name)
 		return -EINVAL;
