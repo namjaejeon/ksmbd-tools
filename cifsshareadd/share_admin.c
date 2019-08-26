@@ -126,7 +126,7 @@ static void write_remove_share_cb(gpointer key,
 {
 	struct smbconf_group *g = (struct smbconf_group *)value;
 
-	if (!g_ascii_strncasecmp(g->name, name, strlen((char *)name))) {
+	if (!g_ascii_strcasecmp(g->name, name)) {
 		pr_info("share '%s' removed\n", g->name);
 		return;
 	}
