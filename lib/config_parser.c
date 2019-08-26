@@ -22,6 +22,11 @@
 struct smbconf_global global_conf;
 struct smbconf_parser parser;
 
+static void kv_release_cb(gpointer p)
+{
+	g_free(p);
+}
+
 static int is_ascii_space_tab(char c)
 {
 	return c == ' ' || c == '\t';
@@ -75,7 +80,10 @@ static int add_new_group(char *line)
 		goto out_free;
 
 	group->name = name;
-	group->kv = g_hash_table_new(g_str_hash, g_str_equal);
+	group->kv = g_hash_table_new_full(g_str_hash,
+					  g_str_equal,
+					  kv_release_cb,
+					  kv_release_cb);
 	if (!group->kv)
 		goto out_free;
 
@@ -236,17 +244,10 @@ static int init_smbconf_parser(void)
 	return 0;
 }
 
-static void release_group_key_value(gpointer k, gpointer v, gpointer user_data)
-{
-	free(k);
-	free(v);
-}
-
 static void release_smbconf_group(gpointer k, gpointer v, gpointer user_data)
 {
 	struct smbconf_group *g = v;
 
-	g_hash_table_foreach(g->kv, release_group_key_value, NULL);
 	g_hash_table_destroy(g->kv);
 	free(g->name);
 	free(g);
