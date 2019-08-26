@@ -24,11 +24,12 @@
 
 #include <linux/cifsd_server.h>
 
+#define MAX_NT_PWD_LEN 129
+
 static char *arg_account = NULL;
 static char *arg_password = NULL;
 static int conf_fd = -1;
-
-#define MAX_NT_PWD_LEN 129
+static char wbuf[2 * MAX_NT_PWD_LEN + 2 * CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
 
 static int __opendb_file(char *pwddb)
 {
@@ -207,7 +208,6 @@ static char *get_hashed_b64_password(void)
 
 static void write_user(struct cifsd_user *user)
 {
-	size_t sz = strlen(user->name) + strlen(user->pass_b64) + 4;
 	char *data;
 	int ret, nr = 0;
 	size_t wsz;
@@ -215,16 +215,15 @@ static void write_user(struct cifsd_user *user)
 	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
 		return;
 
-	data = calloc(1, sz);
-	if (!data) {
-		pr_err("Out of memory allocating %zu bytes for user %s\n",
-				sz, user->name);
+	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name, user->pass_b64);
+	if (wsz > sizeof(wbuf)) {
+		pr_err("Entry size is above the limit: %d > %d\n",
+			wsz,
+			sizeof(wbuf));
 		exit(EXIT_FAILURE);
 	}
 
-	wsz = snprintf(data, sz, "%s:%s\n", user->name, user->pass_b64);
-
-	while (wsz && (ret = write(conf_fd, data + nr, wsz)) != 0) {
+	while (wsz && (ret = write(conf_fd, wbuf + nr, wsz)) != 0) {
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
@@ -235,8 +234,6 @@ static void write_user(struct cifsd_user *user)
 		nr += ret;
 		wsz -= ret;
 	}
-
-	free(data);
 }
 
 static void write_user_cb(gpointer key, gpointer value, gpointer user_data)
