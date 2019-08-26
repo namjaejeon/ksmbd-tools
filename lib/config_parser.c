@@ -22,7 +22,7 @@
 struct smbconf_global global_conf;
 static struct smbconf_parser parser;
 
-static int is_ascii_spacei_tab(char c)
+static int is_ascii_space_tab(char c)
 {
 	return c == ' ' || c == '\t';
 }
@@ -104,8 +104,8 @@ static int add_group_key_value(char *line)
 	key--;
 	value++;
 
-	while (is_ascii_spacei_tab(*key)) key--;
-	while (is_ascii_spacei_tab(*value)) value++;
+	while (is_ascii_space_tab(*key)) key--;
+	while (is_ascii_space_tab(*value)) value++;
 
 	if (is_a_comment(value))
 		return 0;
@@ -131,7 +131,7 @@ static int add_group_key_value(char *line)
 
 static int process_smbconf_entry(char *data)
 {
-	while (is_ascii_spacei_tab(*data)) data++;
+	while (is_ascii_space_tab(*data)) data++;
 
 	if (is_a_comment(data))
 		return 0;
@@ -543,19 +543,77 @@ out:
 
 int cp_parse_smbconf(const char *smbconf)
 {
-	int ret = init_smbconf_parser();
+	int ret;
+
+	ret = cp_smbconfig_hash_create(smbconf);
 	if (ret)
 		return ret;
 
-	ret = __mmap_parse_file(smbconf, process_smbconf_entry);
-	if (!ret)
-		g_hash_table_foreach(parser.groups, groups_callback, NULL);
-	release_smbconf_parser();
-
-	return cp_add_ipc_share();
+	g_hash_table_foreach(parser.groups, groups_callback, NULL);
+	ret = cp_add_ipc_share();
+	cp_smbconfig_destroy();
+	return ret;
 }
 
 int cp_parse_pwddb(const char *pwddb)
 {
 	return __mmap_parse_file(pwddb, usm_add_update_user_from_pwdentry);
+}
+
+int cp_smbconfig_hash_create(const char *smbconf)
+{
+	int ret = init_smbconf_parser();
+
+	if (ret)
+		return ret;
+	return __mmap_parse_file(smbconf, process_smbconf_entry);
+}
+
+void cp_smbconfig_destroy(void)
+{
+	release_smbconf_parser();
+}
+
+int cp_parse_external_smbconf_group(char *name, char *opts)
+{
+	char *delim = opts;
+	char *pos;
+	int i, len;
+
+	if (!opts)
+		return -EINVAL;
+
+	len = strlen(opts);
+	/* fake smb.conf input */
+	for (i = 0; i < CIFSD_SHARE_CONF_MAX; i++) {
+		pos = strstr(opts, CIFSD_SHARE_CONF[i]);
+		if (!pos)
+			continue;
+		if (pos != opts)
+			*(pos - 1) = '\n';
+	}
+
+	if (add_new_group(name))
+		goto error;
+
+	/* split input and feed to normal process_smbconf_entry() */
+	while (len) {
+		char *delim = strchr(opts, '\n');
+
+		if (delim) {
+			*delim = 0x00;
+			len -= delim - opts;
+		} else {
+			len = 0;
+		}
+
+		process_smbconf_entry(opts);
+		if (delim)
+			opts = delim + 1;
+	}
+	return 0;
+
+error:
+	cp_smbconfig_destroy();
+	return -EINVAL;
 }
