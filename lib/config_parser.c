@@ -580,7 +580,7 @@ int cp_parse_external_smbconf_group(char *name, char *opts)
 	char *pos;
 	int i, len;
 
-	if (!opts)
+	if (!opts || !name)
 		return -EINVAL;
 
 	len = strlen(opts);
