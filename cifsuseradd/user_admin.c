@@ -30,6 +30,23 @@ static int conf_fd = -1;
 
 #define MAX_NT_PWD_LEN 129
 
+static int __opendb_file(char *pwddb)
+{
+	conf_fd = open(pwddb, O_WRONLY);
+	if (conf_fd == -1) {
+		pr_err("%s %s\n", strerr(errno), pwddb);
+		return -EINVAL;
+	}
+
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerr(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void term_toggle_echo(int on_off)
 {
 	struct termios term;
@@ -311,17 +328,8 @@ int command_add_user(char *pwddb, char *account, char *password)
 		pr_info("User '%s' added\n", arg_account);
 	}
 
-	conf_fd = open(pwddb, O_WRONLY);
-	if (conf_fd == -1) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
+	if (__opendb_file(pwddb))
 		return -EINVAL;
-	}
-
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
-		close(conf_fd);
-		return -EINVAL;
-	}
 
 	for_each_cifsd_user(write_user_cb, NULL);
 	close(conf_fd);
@@ -360,17 +368,8 @@ int command_update_user(char *pwddb, char *account, char *password)
 	put_cifsd_user(user);
 	free(pswd);
 
-	conf_fd = open(pwddb, O_WRONLY);
-	if (conf_fd == -1) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
+	if (__opendb_file(pwddb))
 		return -EINVAL;
-	}
-
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
-		close(conf_fd);
-		return -EINVAL;
-	}
 
 	for_each_cifsd_user(write_user_cb, NULL);
 	close(conf_fd);
@@ -395,18 +394,8 @@ int command_del_user(char *pwddb, char *account)
 		return -EINVAL;
 	}
 
-	conf_fd = open(pwddb, O_WRONLY);
-
-	if (conf_fd == -1) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
+	if (__opendb_file(pwddb))
 		return -EINVAL;
-	}
-
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
-		close(conf_fd);
-		return -EINVAL;
-	}
 
 	for_each_cifsd_user(write_remove_user_cb, NULL);
 	close(conf_fd);
