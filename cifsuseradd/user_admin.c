@@ -248,9 +248,7 @@ static void write_remove_user_cb(gpointer key,
 {
 	struct cifsd_user *user = (struct cifsd_user *)value;
 
-	if (!g_ascii_strncasecmp(user->name,
-				 arg_account,
-				 strlen(arg_account))) {
+	if (!g_ascii_strcasecmp(user->name, arg_account)) {
 		pr_info("User '%s' removed\n", user->name);
 		return;
 	}
