@@ -22,7 +22,7 @@
 #include <share_admin.h>
 
 static int conf_fd = -1;
-static char wbuf[8192];
+static char wbuf[16384];
 static char wsz;
 
 #define AUX_GROUP_PREFIX	"_a_u_x_grp_"
@@ -91,6 +91,12 @@ static void __write_share(gpointer key, gpointer value, gpointer buf)
 	char *v = (char *)value;
 
 	wsz = snprintf(wbuf, sizeof(wbuf), "\t%s = %s\n", k, v);
+	if (wsz > sizeof(wbuf)) {
+		pr_err("smb.conf entry size is above the limit: %d > %d\n",
+			wsz,
+			sizeof(wbuf));
+		exit(EXIT_FAILURE);
+	}
 	__write();
 }
 
