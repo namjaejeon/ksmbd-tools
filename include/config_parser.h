@@ -27,8 +27,8 @@ int cp_smbconfig_hash_create(const char *smbconf);
 void cp_smbconfig_destroy(void);
 
 int cp_parse_pwddb(const char *pwddb);
-int cp_parse_reload_pwddb(const char *pwddb);
 int cp_parse_smbconf(const char *smbconf);
+int cp_parse_reload_smbconf(const char *smbconf);
 
 char *cp_ltrim(char *v);
 int cp_key_cmp(char *k, char *v);

@@ -240,7 +240,11 @@ static int parse_reload_configs(const char *pwddb, const char *smbconf)
 		pr_err("Unable to parse user database\n");
 		return ret;
 	}
-	return 0;
+
+	ret = cp_parse_reload_smbconf(smbconf);
+	if (ret)
+		pr_err("Unable to parse smb.conf\n");
+	return ret;
 }
 
 static int worker_process_init(void)

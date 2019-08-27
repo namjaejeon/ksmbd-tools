@@ -505,11 +505,17 @@ static void global_group(struct smbconf_group *group)
 	g_hash_table_foreach(group->kv, global_group_kv, NULL);
 }
 
-static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
+#define GROUPS_CALLBACK_STARTUP_INIT	0x1
+#define GROUPS_CALLBACK_REINIT		0x2
+
+static void groups_callback(gpointer _k, gpointer _v, gpointer flags)
 {
-	if (g_ascii_strncasecmp(_k, "global", 6))
+	if (g_ascii_strncasecmp(_k, "global", 6)) {
 		shm_add_new_share((struct smbconf_group *)_v);
-	else
+		return;
+	}
+
+	if (flags == (gpointer)GROUPS_CALLBACK_STARTUP_INIT)
 		global_group((struct smbconf_group *)_v);
 }
 
@@ -545,7 +551,7 @@ out:
 	return ret;
 }
 
-int cp_parse_smbconf(const char *smbconf)
+static int __cp_parse_smbconfig(const char *smbconf, GHFunc cb, long flags)
 {
 	int ret;
 
@@ -553,10 +559,24 @@ int cp_parse_smbconf(const char *smbconf)
 	if (ret)
 		return ret;
 
-	g_hash_table_foreach(parser.groups, groups_callback, NULL);
+	g_hash_table_foreach(parser.groups, cb, (gpointer)flags);
 	ret = cp_add_ipc_share();
 	cp_smbconfig_destroy();
 	return ret;
+}
+
+int cp_parse_reload_smbconf(const char *smbconf)
+{
+	return __cp_parse_smbconfig(smbconf,
+				    groups_callback,
+				    GROUPS_CALLBACK_REINIT);
+}
+
+int cp_parse_smbconf(const char *smbconf)
+{
+	return __cp_parse_smbconfig(smbconf,
+				    groups_callback,
+				    GROUPS_CALLBACK_STARTUP_INIT);
 }
 
 int cp_parse_pwddb(const char *pwddb)
