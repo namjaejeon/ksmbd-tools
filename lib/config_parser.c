@@ -71,11 +71,11 @@ static int add_new_group(char *line)
 		parser.current = lookup;
 		pr_info("SMB conf: multiple group definitions `%s'\n",
 				name);
-		free(name);
+		g_free(name);
 		return 0;
 	}
 
-	group = malloc(sizeof(struct smbconf_group));
+	group = g_malloc(sizeof(struct smbconf_group));
 	if (!group)
 		goto out_free;
 
@@ -92,10 +92,10 @@ static int add_new_group(char *line)
 	return 0;
 
 out_free:
-	free(name);
+	g_free(name);
 	if (group && group->kv)
 		g_hash_table_destroy(group->kv);
-	free(group);
+	g_free(group);
 	return -ENOMEM;
 }
 
@@ -124,12 +124,12 @@ static int add_group_key_value(char *line)
 		return 0;
 	}
 
-	key = strndup(line, key - line + 1);
-	value = strdup(value);
+	key = g_strndup(line, key - line + 1);
+	value = g_strdup(value);
 
 	if (!key || !value) {
-		free(key);
-		free(value);
+		g_free(key);
+		g_free(value);
 		return -ENOMEM;
 	}
 
@@ -197,7 +197,7 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 			if (!sz)
 				break;
 
-			data = malloc(sz + 1);
+			data = g_malloc(sz + 1);
 			if (!data) {
 				ret = -ENOMEM;
 				goto out;
@@ -208,11 +208,11 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 
 			ret = callback(data);
 			if (ret) {
-				free(data);
+				g_free(data);
 				goto out;
 			}
 
-			free(data);
+			g_free(data);
 			contents = delim + 1;
 			len -= (sz + 1);
 		}
@@ -249,8 +249,8 @@ static void release_smbconf_group(gpointer k, gpointer v, gpointer user_data)
 	struct smbconf_group *g = v;
 
 	g_hash_table_destroy(g->kv);
-	free(g->name);
-	free(g);
+	g_free(g->name);
+	g_free(g);
 }
 
 static void release_smbconf_parser(void)
@@ -283,7 +283,7 @@ int cp_key_cmp(char *k, char *v)
 
 char *cp_get_group_kv_string(char *v)
 {
-	return strdup(v);
+	return g_strdup(v);
 }
 
 int cp_get_group_kv_bool(char *v)
@@ -337,7 +337,7 @@ static int cp_add_global_guest_account(gpointer _v)
 	struct cifsd_user *user;
 
 	if (usm_add_new_user(cp_get_group_kv_string(_v),
-			     strdup("NULL"))) {
+			     g_strdup("NULL"))) {
 		pr_err("Unable to add guest account\n");
 		return -ENOMEM;
 	}
@@ -529,7 +529,7 @@ static int cp_add_ipc_share(void)
 		goto out;
 	}
 
-	comment = strdup("comment = IPC share");
+	comment = g_strdup("comment = IPC share");
 	ret = add_new_group("[IPC$]");
 	ret |= add_group_key_value(comment);
 	if (ret) {
@@ -540,7 +540,7 @@ static int cp_add_ipc_share(void)
 	g_hash_table_foreach(parser.groups, groups_callback, NULL);
 	fixup_missing_global_group();
 out:
-	free(comment);
+	g_free(comment);
 	release_smbconf_parser();
 	return ret;
 }

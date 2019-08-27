@@ -101,22 +101,22 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:vh")) != EOF)
 		switch (c) {
 		case 'a':
-			arg_account = strdup(optarg);
+			arg_account = g_strdup(optarg);
 			cmd = COMMAND_ADD_USER;
 			break;
 		case 'd':
-			arg_account = strdup(optarg);
+			arg_account = g_strdup(optarg);
 			cmd = COMMAND_DEL_USER;
 			break;
 		case 'u':
-			arg_account = strdup(optarg);
+			arg_account = g_strdup(optarg);
 			cmd = COMMAND_UPDATE_USER;
 			break;
 		case 'p':
-			arg_password = strdup(optarg);
+			arg_password = g_strdup(optarg);
 			break;
 		case 'i':
-			pwddb = strdup(optarg);
+			pwddb = g_strdup(optarg);
 			break;
 		case 'v':
 			break;

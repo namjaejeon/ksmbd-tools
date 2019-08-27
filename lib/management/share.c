@@ -341,7 +341,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		struct cifsd_user *user;
 
 		if (usm_add_new_user(cp_get_group_kv_string(_v),
-				     strdup("NULL"))) {
+				     g_strdup("NULL"))) {
 			pr_err("Unable to add guest account\n");
 			set_share_flag(share, CIFSD_SHARE_FLAG_INVALID);
 			return;
@@ -539,7 +539,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 static void init_share_from_group(struct cifsd_share *share,
 				 struct smbconf_group *group)
 {
-	share->name = strdup(group->name);
+	share->name = g_strdup(group->name);
 	share->create_mask = CIFSD_SHARE_DEFAULT_CREATE_MASK;
 	share->directory_mask = CIFSD_SHARE_DEFAULT_DIRECTORY_MASK;
 	share->force_create_mode = 0;

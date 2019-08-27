@@ -442,10 +442,10 @@ int main(int argc, char *argv[])
 			pr_debug("TCP port option override\n");
 			break;
 		case 'c':
-			smbconf = strdup(optarg);
+			smbconf = g_strdup(optarg);
 			break;
 		case 'u':
-			pwddb = strdup(optarg);
+			pwddb = g_strdup(optarg);
 			break;
 		case 'n':
 			if (!optarg)

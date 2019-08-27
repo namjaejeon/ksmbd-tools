@@ -34,7 +34,7 @@ static char *new_group_name(char *name)
 	if (strchr(name, '['))
 		return name;
 
-	gn = malloc(strlen(name) + 3);
+	gn = g_malloc(strlen(name) + 3);
 	if (gn)
 		sprintf(gn, "[%s]", name);
 	return gn;
@@ -44,7 +44,7 @@ static char *aux_group_name(char *name)
 {
 	char *gn;
 
-	gn = malloc(strlen(name) + 3 + strlen(AUX_GROUP_PREFIX));
+	gn = g_malloc(strlen(name) + 3 + strlen(AUX_GROUP_PREFIX));
 	if (gn)
 		sprintf(gn, "[%s%s]", AUX_GROUP_PREFIX, name);
 	return gn;
@@ -140,8 +140,8 @@ static void update_share_cb(gpointer key,
 {
 	char *nk, *nv;
 
-	nk = strdup(key);
-	nv = strdup(value);
+	nk = g_strdup(key);
+	nv = g_strdup(value);
 	if (!nk || !nv)
 		exit(EXIT_FAILURE);
 
@@ -166,11 +166,11 @@ int command_add_share(char *smbconf, char *name, char *opts)
 		goto error;
 	g_hash_table_foreach(parser.groups, write_share_cb, NULL);
 	close(conf_fd);
-	free(new_name);
+	g_free(new_name);
 	return 0;
 
 error:
-	free(new_name);
+	g_free(new_name);
 	return -EINVAL;
 }
 
@@ -207,11 +207,11 @@ int command_update_share(char *smbconf, char *name, char *opts)
 
 	g_hash_table_foreach(parser.groups, write_share_cb, NULL);
 	close(conf_fd);
-	free(aux_name);
+	g_free(aux_name);
 	return 0;
 
 error:
-	free(aux_name);
+	g_free(aux_name);
 	return -EINVAL;
 }
 
