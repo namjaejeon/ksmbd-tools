@@ -157,4 +157,6 @@ enum charset_idx {
 
 extern char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1];
 
+void notify_cifsd_daemon(void);
+
 #endif /* __CIFSDTOOLS_H__ */

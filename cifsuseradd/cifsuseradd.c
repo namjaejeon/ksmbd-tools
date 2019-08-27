@@ -51,38 +51,6 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static void notify_cifsd_daemon(int command)
-{
-	char manager_pid[10] = {0, };
-	int pid = 0;
-	int lock_fd;
-
-	/*
-	 * We support only add/update user at this point.
-	 */
-	if (command == COMMAND_DEL_USER)
-		return;
-
-	lock_fd = open(CIFSD_LOCK_FILE, O_RDONLY);
-	if (lock_fd < 0)
-		return;
-
-	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
-		pr_debug("Unable to read main PID: %s\n", strerr(errno));
-		close(lock_fd);
-		return;
-	}
-
-	close(lock_fd);
-
-	pid = cp_get_group_kv_long_base(manager_pid, 10);
-
-	pr_debug("Send SIGHUP to pid %d\n", pid);
-	if (kill(pid, SIGHUP))
-		pr_debug("Unable to send signal to pid %d: %s\n",
-			 pid, strerr(errno));
-}
-
 static int test_access(char *conf)
 {
 	int fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
@@ -206,8 +174,11 @@ int main(int argc, char *argv[])
 	if (cmd == COMMAND_UPDATE_USER)
 		ret = command_update_user(pwddb, arg_account, arg_password);
 
-	if (ret == 0)
-		notify_cifsd_daemon(cmd);
+	/*
+	 * We support only ADD_USER command at this moment
+	 */
+	if (ret == 0 && cmd == COMMAND_ADD_USER)
+		notify_cifsd_daemon();
 out:
 	shm_destroy();
 	usm_destroy();

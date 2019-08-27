@@ -8,6 +8,10 @@
 #include <syslog.h>
 #include <glib/gi18n.h>
 
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include <stdio.h>
 #include <cifsdtools.h>
 
@@ -211,4 +215,30 @@ retry:
 	}
 
 	return converted;
+}
+
+void notify_cifsd_daemon(void)
+{
+	char manager_pid[10] = {0, };
+	int pid = 0;
+	int lock_fd;
+
+	lock_fd = open(CIFSD_LOCK_FILE, O_RDONLY);
+	if (lock_fd < 0)
+		return;
+
+	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
+		pr_debug("Unable to read main PID: %s\n", strerr(errno));
+		close(lock_fd);
+		return;
+	}
+
+	close(lock_fd);
+
+	pid = strtol(manager_pid, NULL, 10);
+
+	pr_debug("Send SIGHUP to pid %d\n", pid);
+	if (kill(pid, SIGHUP))
+		pr_debug("Unable to send signal to pid %d: %s\n",
+			 pid, strerr(errno));
 }
