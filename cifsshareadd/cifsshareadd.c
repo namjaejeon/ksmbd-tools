@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
 	/*
 	 * We support only ADD_SHARE command for the time being
 	 */
-	if (ret == 0 && COMMAND_ADD_SHARE)
+	if (ret == 0 && cmd == COMMAND_ADD_SHARE)
 		notify_cifsd_daemon();
 out:
 	cp_smbconfig_destroy();
