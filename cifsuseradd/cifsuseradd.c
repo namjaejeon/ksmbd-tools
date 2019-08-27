@@ -51,24 +51,11 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static int test_access(char *conf)
-{
-	int fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
-
-	if (fd != -1) {
-		close(fd);
-		return 0;
-	}
-
-	pr_err("%s %s\n", conf, strerr(errno));
-	return -EINVAL;
-}
-
 static int parse_configs(char *pwddb)
 {
 	int ret;
 
-	ret = test_access(pwddb);
+	ret = test_file_access(pwddb);
 	if (ret)
 		return ret;
 

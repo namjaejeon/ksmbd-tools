@@ -242,3 +242,16 @@ void notify_cifsd_daemon(void)
 		pr_debug("Unable to send signal to pid %d: %s\n",
 			 pid, strerr(errno));
 }
+
+int test_file_access(char *conf)
+{
+	int fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
+
+	if (fd != -1) {
+		close(fd);
+		return 0;
+	}
+
+	pr_err("%s %s\n", conf, strerr(errno));
+	return -EINVAL;
+}
