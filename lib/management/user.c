@@ -189,8 +189,8 @@ int usm_add_update_user_from_pwdentry(char *data)
 	}
 
 	*pos = 0x00;
-	name = strdup(data);
-	pwd = strdup(pos + 1);
+	name = g_strdup(data);
+	pwd = g_strdup(pos + 1);
 
 	if (!name || !pwd) {
 		free(name);
@@ -220,7 +220,7 @@ void for_each_cifsd_user(walk_users cb, gpointer user_data)
 int usm_update_user_password(struct cifsd_user *user, char *pswd)
 {
 	size_t pass_sz;
-	char *pass_b64 = strdup(pswd);
+	char *pass_b64 = g_strdup(pswd);
 	char *pass = base64_decode(pass_b64, &pass_sz);
 
 	if (!pass_b64 || !pass) {

@@ -38,7 +38,7 @@ enum {
 static void usage(void)
 {
 	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	fprintf(stderr, "Usage: cifsd_admin\n");
+	fprintf(stderr, "Usage: cifsuseradd\n");
 
 	fprintf(stderr, "\t-a | --add-user=login\n");
 	fprintf(stderr, "\t-d | --del-user=login\n");
@@ -51,56 +51,11 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static void notify_cifsd_daemon(int command)
-{
-	char manager_pid[10] = {0, };
-	int pid = 0;
-	int lock_fd;
-
-	/*
-	 * We support only add/update user at this point.
-	 */
-	if (command == COMMAND_DEL_USER)
-		return;
-
-	lock_fd = open(CIFSD_LOCK_FILE, O_RDONLY);
-	if (lock_fd < 0)
-		return;
-
-	if (read(lock_fd, &manager_pid, sizeof(manager_pid)) == -1) {
-		pr_debug("Unable to read main PID: %s\n", strerr(errno));
-		close(lock_fd);
-		return;
-	}
-
-	close(lock_fd);
-
-	pid = cp_get_group_kv_long_base(manager_pid, 10);
-
-	pr_debug("Send SIGHUP to pid %d\n", pid);
-	if (kill(pid, SIGHUP))
-		pr_debug("Unable to send signal to pid %d: %s\n",
-			 pid, strerr(errno));
-}
-
-static int test_access(char *conf)
-{
-	int fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
-
-	if (fd != -1) {
-		close(fd);
-		return 0;
-	}
-
-	pr_err("%s %s\n", conf, strerr(errno));
-	return -EINVAL;
-}
-
 static int parse_configs(char *pwddb)
 {
 	int ret;
 
-	ret = test_access(pwddb);
+	ret = test_file_access(pwddb);
 	if (ret)
 		return ret;
 
@@ -140,28 +95,28 @@ int main(int argc, char *argv[])
 	char *pwddb = PATH_PWDDB;
 	int c, cmd = 0;
 
-	set_logger_app_name("cifsdadmin");
+	set_logger_app_name("cifsuseradd");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:vh")) != EOF)
 		switch (c) {
 		case 'a':
-			arg_account = strdup(optarg);
+			arg_account = g_strdup(optarg);
 			cmd = COMMAND_ADD_USER;
 			break;
 		case 'd':
-			arg_account = strdup(optarg);
+			arg_account = g_strdup(optarg);
 			cmd = COMMAND_DEL_USER;
 			break;
 		case 'u':
-			arg_account = strdup(optarg);
+			arg_account = g_strdup(optarg);
 			cmd = COMMAND_UPDATE_USER;
 			break;
 		case 'p':
-			arg_password = strdup(optarg);
+			arg_password = g_strdup(optarg);
 			break;
 		case 'i':
-			pwddb = strdup(optarg);
+			pwddb = g_strdup(optarg);
 			break;
 		case 'v':
 			break;
@@ -206,8 +161,11 @@ int main(int argc, char *argv[])
 	if (cmd == COMMAND_UPDATE_USER)
 		ret = command_update_user(pwddb, arg_account, arg_password);
 
-	if (ret == 0)
-		notify_cifsd_daemon(cmd);
+	/*
+	 * We support only ADD_USER command at this moment
+	 */
+	if (ret == 0 && cmd == COMMAND_ADD_USER)
+		notify_cifsd_daemon();
 out:
 	shm_destroy();
 	usm_destroy();

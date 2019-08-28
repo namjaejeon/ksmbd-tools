@@ -240,7 +240,11 @@ static int parse_reload_configs(const char *pwddb, const char *smbconf)
 		pr_err("Unable to parse user database\n");
 		return ret;
 	}
-	return 0;
+
+	ret = cp_parse_reload_smbconf(smbconf);
+	if (ret)
+		pr_err("Unable to parse smb.conf\n");
+	return ret;
 }
 
 static int worker_process_init(void)
@@ -442,10 +446,10 @@ int main(int argc, char *argv[])
 			pr_debug("TCP port option override\n");
 			break;
 		case 'c':
-			smbconf = strdup(optarg);
+			smbconf = g_strdup(optarg);
 			break;
 		case 'u':
-			pwddb = strdup(optarg);
+			pwddb = g_strdup(optarg);
 			break;
 		case 'n':
 			if (!optarg)
