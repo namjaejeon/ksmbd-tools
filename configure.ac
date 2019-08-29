@@ -61,7 +61,8 @@ AC_CONFIG_FILES([
 	Makefile
 	lib/Makefile
 	cifsd/Makefile
-	cifsadmin/Makefile
+	cifsuseradd/Makefile
+	cifsshareadd/Makefile
 ])
 
 AC_OUTPUT

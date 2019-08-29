@@ -39,6 +39,7 @@ struct smbconf_global {
 	char			*netbios_name;
 	char			*server_min_protocol;
 	char			*server_max_protocol;
+	char			*root_dir;
 	int			server_signing;
 	int			sessions_cap;
 	int			restrict_anon;
@@ -156,5 +157,8 @@ enum charset_idx {
 #define CIFSD_CHARSET_DEFAULT		CIFSD_CHARSET_UTF8
 
 extern char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1];
+
+void notify_cifsd_daemon(void);
+int test_file_access(char *conf);
 
 #endif /* __CIFSDTOOLS_H__ */

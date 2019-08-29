@@ -20,9 +20,14 @@
 #include <management/share.h>
 
 struct smbconf_global global_conf;
-static struct smbconf_parser parser;
+struct smbconf_parser parser;
 
-static int is_ascii_spacei_tab(char c)
+static void kv_release_cb(gpointer p)
+{
+	g_free(p);
+}
+
+static int is_ascii_space_tab(char c)
 {
 	return c == ' ' || c == '\t';
 }
@@ -66,16 +71,19 @@ static int add_new_group(char *line)
 		parser.current = lookup;
 		pr_info("SMB conf: multiple group definitions `%s'\n",
 				name);
-		free(name);
+		g_free(name);
 		return 0;
 	}
 
-	group = malloc(sizeof(struct smbconf_group));
+	group = g_malloc(sizeof(struct smbconf_group));
 	if (!group)
 		goto out_free;
 
 	group->name = name;
-	group->kv = g_hash_table_new(g_str_hash, g_str_equal);
+	group->kv = g_hash_table_new_full(g_str_hash,
+					  g_str_equal,
+					  kv_release_cb,
+					  kv_release_cb);
 	if (!group->kv)
 		goto out_free;
 
@@ -84,10 +92,10 @@ static int add_new_group(char *line)
 	return 0;
 
 out_free:
-	free(name);
+	g_free(name);
 	if (group && group->kv)
 		g_hash_table_destroy(group->kv);
-	free(group);
+	g_free(group);
 	return -ENOMEM;
 }
 
@@ -104,8 +112,8 @@ static int add_group_key_value(char *line)
 	key--;
 	value++;
 
-	while (is_ascii_spacei_tab(*key)) key--;
-	while (is_ascii_spacei_tab(*value)) value++;
+	while (is_ascii_space_tab(*key)) key--;
+	while (is_ascii_space_tab(*value)) value++;
 
 	if (is_a_comment(value))
 		return 0;
@@ -116,12 +124,12 @@ static int add_group_key_value(char *line)
 		return 0;
 	}
 
-	key = strndup(line, key - line + 1);
-	value = strdup(value);
+	key = g_strndup(line, key - line + 1);
+	value = g_strdup(value);
 
 	if (!key || !value) {
-		free(key);
-		free(value);
+		g_free(key);
+		g_free(value);
 		return -ENOMEM;
 	}
 
@@ -131,7 +139,7 @@ static int add_group_key_value(char *line)
 
 static int process_smbconf_entry(char *data)
 {
-	while (is_ascii_spacei_tab(*data)) data++;
+	while (is_ascii_space_tab(*data)) data++;
 
 	if (is_a_comment(data))
 		return 0;
@@ -189,7 +197,7 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 			if (!sz)
 				break;
 
-			data = malloc(sz + 1);
+			data = g_malloc(sz + 1);
 			if (!data) {
 				ret = -ENOMEM;
 				goto out;
@@ -200,11 +208,11 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 
 			ret = callback(data);
 			if (ret) {
-				free(data);
+				g_free(data);
 				goto out;
 			}
 
-			free(data);
+			g_free(data);
 			contents = delim + 1;
 			len -= (sz + 1);
 		}
@@ -227,26 +235,22 @@ out:
 
 static int init_smbconf_parser(void)
 {
+	if (parser.groups)
+		return 0;
+
 	parser.groups = g_hash_table_new(g_str_hash, g_str_equal);
 	if (!parser.groups)
 		return -ENOMEM;
 	return 0;
 }
 
-static void release_group_key_value(gpointer k, gpointer v, gpointer user_data)
-{
-	free(k);
-	free(v);
-}
-
 static void release_smbconf_group(gpointer k, gpointer v, gpointer user_data)
 {
 	struct smbconf_group *g = v;
 
-	g_hash_table_foreach(g->kv, release_group_key_value, NULL);
 	g_hash_table_destroy(g->kv);
-	free(g->name);
-	free(g);
+	g_free(g->name);
+	g_free(g);
 }
 
 static void release_smbconf_parser(void)
@@ -279,7 +283,7 @@ int cp_key_cmp(char *k, char *v)
 
 char *cp_get_group_kv_string(char *v)
 {
-	return strdup(v);
+	return g_strdup(v);
 }
 
 int cp_get_group_kv_bool(char *v)
@@ -333,7 +337,7 @@ static int cp_add_global_guest_account(gpointer _v)
 	struct cifsd_user *user;
 
 	if (usm_add_new_user(cp_get_group_kv_string(_v),
-			     strdup("NULL"))) {
+			     g_strdup("NULL"))) {
 		pr_err("Unable to add guest account\n");
 		return -ENOMEM;
 	}
@@ -457,6 +461,11 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "root directory")) {
+		global_conf.root_dir = cp_get_group_kv_string(_v);
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
@@ -501,61 +510,138 @@ static void global_group(struct smbconf_group *group)
 	g_hash_table_foreach(group->kv, global_group_kv, NULL);
 }
 
-static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
+#define GROUPS_CALLBACK_STARTUP_INIT	0x1
+#define GROUPS_CALLBACK_REINIT		0x2
+
+static void groups_callback(gpointer _k, gpointer _v, gpointer flags)
 {
-	if (g_ascii_strncasecmp(_k, "global", 6))
+	if (g_ascii_strncasecmp(_k, "global", 6)) {
 		shm_add_new_share((struct smbconf_group *)_v);
-	else
+		return;
+	}
+
+	if (flags == (gpointer)GROUPS_CALLBACK_STARTUP_INIT)
 		global_group((struct smbconf_group *)_v);
 }
 
 static int cp_add_ipc_share(void)
 {
-	struct cifsd_share *share;
 	char *comment = NULL;
 	int ret = 0;
 
-	ret = init_smbconf_parser();
-	if (ret)
-		return ret;
+	if (g_hash_table_lookup(parser.groups, "ipc$"))
+		return 0;
 
-	share = shm_lookup_share("IPC$");
-	if (share) {
-		put_cifsd_share(share);
-		goto out;
-	}
-
-	comment = strdup("comment = IPC share");
+	comment = g_strdup("comment = IPC share");
 	ret = add_new_group("[IPC$]");
 	ret |= add_group_key_value(comment);
 	if (ret) {
 		pr_err("Unable to add IPC$ share\n");
+		ret = -EINVAL;
 		goto out;
 	}
-
-	g_hash_table_foreach(parser.groups, groups_callback, NULL);
-	fixup_missing_global_group();
-out:
-	free(comment);
-	release_smbconf_parser();
 	return ret;
+
+out:
+	g_free(comment);
+	return ret;
+}
+
+static int __cp_parse_smbconfig(const char *smbconf, GHFunc cb, long flags)
+{
+	int ret;
+
+	ret = cp_smbconfig_hash_create(smbconf);
+	if (ret)
+		return ret;
+
+	ret = cp_add_ipc_share();
+	if (!ret) {
+		g_hash_table_foreach(parser.groups,
+				     groups_callback,
+				     (gpointer)flags);
+		fixup_missing_global_group();
+	}
+	cp_smbconfig_destroy();
+	return ret;
+}
+
+int cp_parse_reload_smbconf(const char *smbconf)
+{
+	return __cp_parse_smbconfig(smbconf,
+				    groups_callback,
+				    GROUPS_CALLBACK_REINIT);
 }
 
 int cp_parse_smbconf(const char *smbconf)
 {
-	int ret = init_smbconf_parser();
-	if (ret)
-		return ret;
-
-	ret = __mmap_parse_file(smbconf, process_smbconf_entry);
-	if (!ret)
-		g_hash_table_foreach(parser.groups, groups_callback, NULL);
-	release_smbconf_parser();
-
-	return cp_add_ipc_share();
+	return __cp_parse_smbconfig(smbconf,
+				    groups_callback,
+				    GROUPS_CALLBACK_STARTUP_INIT);
 }
 
 int cp_parse_pwddb(const char *pwddb)
 {
 	return __mmap_parse_file(pwddb, usm_add_update_user_from_pwdentry);
+}
+
+int cp_smbconfig_hash_create(const char *smbconf)
+{
+	int ret = init_smbconf_parser();
+
+	if (ret)
+		return ret;
+	return __mmap_parse_file(smbconf, process_smbconf_entry);
+}
+
+void cp_smbconfig_destroy(void)
+{
+	release_smbconf_parser();
+}
+
+int cp_parse_external_smbconf_group(char *name, char *opts)
+{
+	char *delim = opts;
+	char *pos;
+	int i, len;
+
+	if (init_smbconf_parser())
+		return -EINVAL;
+
+	if (!opts || !name)
+		return -EINVAL;
+
+	len = strlen(opts);
+	/* fake smb.conf input */
+	for (i = 0; i < CIFSD_SHARE_CONF_MAX; i++) {
+		pos = strstr(opts, CIFSD_SHARE_CONF[i]);
+		if (!pos)
+			continue;
+		if (pos != opts)
+			*(pos - 1) = '\n';
+	}
+
+	if (add_new_group(name))
+		goto error;
+
+	/* split input and feed to normal process_smbconf_entry() */
+	while (len) {
+		char *delim = strchr(opts, '\n');
+
+		if (delim) {
+			*delim = 0x00;
+			len -= delim - opts;
+		} else {
+			len = 0;
+		}
+
+		process_smbconf_entry(opts);
+		if (delim)
+			opts = delim + 1;
+	}
+	return 0;
+
+error:
+	cp_smbconfig_destroy();
+	return -EINVAL;
 }
