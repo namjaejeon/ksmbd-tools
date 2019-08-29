@@ -39,6 +39,7 @@ struct smbconf_global {
 	char			*netbios_name;
 	char			*server_min_protocol;
 	char			*server_max_protocol;
+	char			*root_dir;
 	int			server_signing;
 	int			sessions_cap;
 	int			restrict_anon;
