@@ -461,6 +461,11 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "root directory")) {
+		global_conf.root_dir = cp_get_group_kv_string(_v);
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)

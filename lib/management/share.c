@@ -681,7 +681,10 @@ int shm_share_config_payload_size(struct cifsd_share *share)
 	int sz = 1;
 
 	if (share && !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE)) {
-		sz += strlen(share->path);
+		if (share->path)
+			sz += strlen(share->path);
+		if (global_conf.root_dir)
+			sz += strlen(global_conf.root_dir) + 1;
 		if (share->veto_list_sz)
 			sz += share->veto_list_sz + 1;
 	}
@@ -709,6 +712,9 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
 		return 0;
 
+	if (!share->path)
+		return 0;
+
 	config_payload = CIFSD_SHARE_CONFIG_VETO_LIST(resp);
 	if (resp->veto_list_sz) {
 		memcpy(config_payload,
@@ -716,6 +722,12 @@ int shm_handle_share_config_request(struct cifsd_share *share,
 		       resp->veto_list_sz);
 		config_payload += resp->veto_list_sz + 1;
 	}
-	memcpy(config_payload, share->path, strlen(share->path));
+	if (global_conf.root_dir)
+		sprintf(config_payload,
+			"%s%s",
+			global_conf.root_dir,
+			share->path);
+	else
+		sprintf(config_payload, "%s", share->path);
 	return 0;
 }
