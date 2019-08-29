@@ -24,11 +24,29 @@
 
 #include <linux/cifsd_server.h>
 
+#define MAX_NT_PWD_LEN 129
+
 static char *arg_account = NULL;
 static char *arg_password = NULL;
 static int conf_fd = -1;
+static char wbuf[2 * MAX_NT_PWD_LEN + 2 * CIFSD_REQ_MAX_ACCOUNT_NAME_SZ];
 
-#define MAX_NT_PWD_LEN 129
+static int __opendb_file(char *pwddb)
+{
+	conf_fd = open(pwddb, O_WRONLY);
+	if (conf_fd == -1) {
+		pr_err("%s %s\n", strerr(errno), pwddb);
+		return -EINVAL;
+	}
+
+	if (ftruncate(conf_fd, 0)) {
+		pr_err("%s %s\n", strerr(errno), pwddb);
+		close(conf_fd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static void term_toggle_echo(int on_off)
 {
@@ -190,7 +208,6 @@ static char *get_hashed_b64_password(void)
 
 static void write_user(struct cifsd_user *user)
 {
-	size_t sz = strlen(user->name) + strlen(user->pass_b64) + 4;
 	char *data;
 	int ret, nr = 0;
 	size_t wsz;
@@ -198,16 +215,15 @@ static void write_user(struct cifsd_user *user)
 	if (test_user_flag(user, CIFSD_USER_FLAG_GUEST_ACCOUNT))
 		return;
 
-	data = calloc(1, sz);
-	if (!data) {
-		pr_err("Out of memory allocating %zu bytes for user %s\n",
-				sz, user->name);
+	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name, user->pass_b64);
+	if (wsz > sizeof(wbuf)) {
+		pr_err("Entry size is above the limit: %d > %d\n",
+			wsz,
+			sizeof(wbuf));
 		exit(EXIT_FAILURE);
 	}
 
-	wsz = snprintf(data, sz, "%s:%s\n", user->name, user->pass_b64);
-
-	while (wsz && (ret = write(conf_fd, data + nr, wsz)) != 0) {
+	while (wsz && (ret = write(conf_fd, wbuf + nr, wsz)) != 0) {
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
@@ -218,8 +234,6 @@ static void write_user(struct cifsd_user *user)
 		nr += ret;
 		wsz -= ret;
 	}
-
-	free(data);
 }
 
 static void write_user_cb(gpointer key, gpointer value, gpointer user_data)
@@ -234,9 +248,7 @@ static void write_remove_user_cb(gpointer key,
 {
 	struct cifsd_user *user = (struct cifsd_user *)value;
 
-	if (!g_ascii_strncasecmp(user->name,
-				 arg_account,
-				 strlen(arg_account))) {
+	if (!g_ascii_strcasecmp(user->name, arg_account)) {
 		pr_info("User '%s' removed\n", user->name);
 		return;
 	}
@@ -303,7 +315,7 @@ int command_add_user(char *pwddb, char *account, char *password)
 		return -EINVAL;
 	}
 
-	/* pswd is already strdup-ed */
+	/* pswd is already g_strdup-ed */
 	if (usm_add_new_user(arg_account, pswd)) {
 		pr_err("Could not add new account\n");
 		return -EINVAL;
@@ -311,17 +323,8 @@ int command_add_user(char *pwddb, char *account, char *password)
 		pr_info("User '%s' added\n", arg_account);
 	}
 
-	conf_fd = open(pwddb, O_WRONLY);
-	if (conf_fd == -1) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
+	if (__opendb_file(pwddb))
 		return -EINVAL;
-	}
-
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
-		close(conf_fd);
-		return -EINVAL;
-	}
 
 	for_each_cifsd_user(write_user_cb, NULL);
 	close(conf_fd);
@@ -360,17 +363,8 @@ int command_update_user(char *pwddb, char *account, char *password)
 	put_cifsd_user(user);
 	free(pswd);
 
-	conf_fd = open(pwddb, O_WRONLY);
-	if (conf_fd == -1) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
+	if (__opendb_file(pwddb))
 		return -EINVAL;
-	}
-
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
-		close(conf_fd);
-		return -EINVAL;
-	}
 
 	for_each_cifsd_user(write_user_cb, NULL);
 	close(conf_fd);
@@ -395,18 +389,8 @@ int command_del_user(char *pwddb, char *account)
 		return -EINVAL;
 	}
 
-	conf_fd = open(pwddb, O_WRONLY);
-
-	if (conf_fd == -1) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
+	if (__opendb_file(pwddb))
 		return -EINVAL;
-	}
-
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%s %s\n", strerr(errno), pwddb);
-		close(conf_fd);
-		return -EINVAL;
-	}
 
 	for_each_cifsd_user(write_remove_user_cb, NULL);
 	close(conf_fd);
