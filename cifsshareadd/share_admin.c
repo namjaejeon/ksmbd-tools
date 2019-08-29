@@ -182,7 +182,7 @@ int command_update_share(char *smbconf, char *name, char *opts)
 
 	existing_group = g_hash_table_lookup(parser.groups, name);
 	if (!existing_group) {
-		pr_err("Unknown share: %s\n");
+		pr_err("Unknown share: %s\n", name);
 		goto error;
 	}
 
