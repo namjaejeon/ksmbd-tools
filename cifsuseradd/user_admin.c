@@ -217,7 +217,7 @@ static void write_user(struct cifsd_user *user)
 
 	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name, user->pass_b64);
 	if (wsz > sizeof(wbuf)) {
-		pr_err("Entry size is above the limit: %d > %d\n",
+		pr_err("Entry size is above the limit: %zu > %zu\n",
 			wsz,
 			sizeof(wbuf));
 		exit(EXIT_FAILURE);
