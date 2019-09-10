@@ -508,6 +508,11 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		global_conf.smb2_max_write = memparse(_v);
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "smb2 max trans")) {
+		global_conf.smb2_max_trans = memparse(_v);
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
