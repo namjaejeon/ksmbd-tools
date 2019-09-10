@@ -139,6 +139,8 @@ static int ipc_cifsd_starting_up(void)
 	ev->ipc_timeout = global_conf.ipc_timeout;
 	ev->deadtime = global_conf.deadtime;
 	ev->file_max = global_conf.file_max;
+	ev->smb2_max_read = global_conf.smb2_max_read;
+	ev->smb2_max_write = global_conf.smb2_max_write;
 
 	if (global_conf.server_min_protocol) {
 		strncpy(ev->min_prot,
