@@ -22,6 +22,38 @@
 struct smbconf_global global_conf;
 struct smbconf_parser parser;
 
+unsigned long long memparse(const char *v)
+{
+	char *eptr;
+
+	unsigned long long ret = strtoull(v, &eptr, 0);
+
+	switch (*eptr) {
+	case 'E':
+	case 'e':
+		ret <<= 10;
+	case 'P':
+	case 'p':
+		ret <<= 10;
+	case 'T':
+	case 't':
+		ret <<= 10;
+	case 'G':
+	case 'g':
+		ret <<= 10;
+	case 'M':
+	case 'm':
+		ret <<= 10;
+	case 'K':
+	case 'k':
+		ret <<= 10;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static void kv_release_cb(gpointer p)
 {
 	g_free(p);
@@ -464,6 +496,16 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 	if (!cp_key_cmp(_k, "root directory")) {
 		global_conf.root_dir = cp_get_group_kv_string(_v);
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "smb2 max read")) {
+		global_conf.smb2_max_read = memparse(_v);
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "smb2 max write")) {
+		global_conf.smb2_max_write = memparse(_v);
 		return;
 	}
 }
