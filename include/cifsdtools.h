@@ -49,6 +49,9 @@ struct smbconf_global {
 	int			bind_interfaces_only;
 	char			**interfaces;
 	unsigned long long	file_max;
+	unsigned int		smb2_max_read;
+	unsigned int		smb2_max_write;
+	unsigned int		smb2_max_trans;
 };
 
 #define CIFSD_LOCK_FILE		"/tmp/cifsd.lock"

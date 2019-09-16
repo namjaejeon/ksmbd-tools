@@ -23,7 +23,7 @@
 
 static int conf_fd = -1;
 static char wbuf[16384];
-static char wsz;
+static size_t wsz;
 
 #define AUX_GROUP_PREFIX	"_a_u_x_grp_"
 
@@ -92,7 +92,7 @@ static void __write_share(gpointer key, gpointer value, gpointer buf)
 
 	wsz = snprintf(wbuf, sizeof(wbuf), "\t%s = %s\n", k, v);
 	if (wsz > sizeof(wbuf)) {
-		pr_err("smb.conf entry size is above the limit: %d > %d\n",
+		pr_err("smb.conf entry size is above the limit: %zu > %zu\n",
 			wsz,
 			sizeof(wbuf));
 		exit(EXIT_FAILURE);
@@ -182,7 +182,7 @@ int command_update_share(char *smbconf, char *name, char *opts)
 
 	existing_group = g_hash_table_lookup(parser.groups, name);
 	if (!existing_group) {
-		pr_err("Unknown share: %s\n");
+		pr_err("Unknown share: %s\n", name);
 		goto error;
 	}
 
