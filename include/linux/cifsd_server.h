@@ -28,8 +28,8 @@ struct cifsd_heartbeat {
 /*
  * Global config flags.
  */
-#define CIFSD_GLOBAL_FLAG_INVALID		(0)
-#define CIFSD_GLOBAL_FLAG_SMB2_LEASES		(1 << 0)
+#define CIFSD_GLOBAL_FLAG_INVALID	(0)
+#define CIFSD_GLOBAL_FLAG_SMB2_LEASES	(1 << 0)
 
 struct cifsd_startup_request {
 	__u32	flags;
@@ -43,9 +43,12 @@ struct cifsd_startup_request {
 	__u16	ipc_timeout;
 	__u32	deadtime;
 	__u32	file_max;
+	__u32	smb2_max_write;
+	__u32	smb2_max_read;
+	__u32	smb2_max_trans;
 	__u32	ifc_list_sz;
 	__s8	____payload[0];
-};
+} ____cifsd_align;
 
 #define CIFSD_STARTUP_CONFIG_INTERFACES(s)	((s)->____payload)
 
@@ -84,7 +87,7 @@ struct cifsd_share_config_response {
 	__u16	force_gid;
 	__u32	veto_list_sz;
 	__s8	____payload[0];
-};
+} ____cifsd_align;
 
 #define CIFSD_SHARE_CONFIG_VETO_LIST(s)	((s)->____payload)
 #define CIFSD_SHARE_CONFIG_PATH(s)				\
@@ -126,7 +129,7 @@ struct cifsd_rpc_command {
 	__u32	flags;
 	__u32	payload_sz;
 	__u8	payload[0];
-};
+} ____cifsd_align;
 
 /*
  * This also used as NETLINK attribute type value.

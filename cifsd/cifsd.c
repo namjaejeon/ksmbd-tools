@@ -335,10 +335,15 @@ static pid_t start_worker_process(worker_fn fn)
 
 static int manager_process_init(void)
 {
+	/*
+	 * Do not chdir() daemon()'d process to '/'.
+	 */
+	int nochdir = 1;
+
 	setup_signals(manager_sig_handler);
 	if (no_detach == 0) {
 		pr_logger_init(PR_LOGGER_SYSLOG);
-		if (daemon(0, 0) != 0) {
+		if (daemon(nochdir, 0) != 0) {
 			pr_err("Daemonization failed\n");
 			goto out;
 		}
