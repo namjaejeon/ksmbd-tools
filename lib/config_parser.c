@@ -519,6 +519,12 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			global_conf.flags |= CIFSD_GLOBAL_FLAG_CACHE_TBUF;
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "cache read buffers")) {
+		if (cp_get_group_kv_bool(_v))
+			global_conf.flags |= CIFSD_GLOBAL_FLAG_CACHE_RBUF;
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
