@@ -538,6 +538,15 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "durable handle")) {
+		if (cp_get_group_kv_bool(_v))
+			global_conf.flags |= CIFSD_GLOBAL_FLAG_DURABLE_HANDLE;
+		else
+			global_conf.flags &= ~CIFSD_GLOBAL_FLAG_DURABLE_HANDLE;
+
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
