@@ -513,6 +513,40 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		global_conf.smb2_max_trans = memparse(_v);
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "cache trans buffers")) {
+		if (cp_get_group_kv_bool(_v))
+			global_conf.flags |= CIFSD_GLOBAL_FLAG_CACHE_TBUF;
+		else
+			global_conf.flags &= ~CIFSD_GLOBAL_FLAG_CACHE_TBUF;
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "cache read buffers")) {
+		if (cp_get_group_kv_bool(_v))
+			global_conf.flags |= CIFSD_GLOBAL_FLAG_CACHE_RBUF;
+		else
+			global_conf.flags &= ~CIFSD_GLOBAL_FLAG_CACHE_RBUF;
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "smb3 encryption")) {
+		if (cp_get_group_kv_bool(_v))
+			global_conf.flags |= CIFSD_GLOBAL_FLAG_SMB3_ENCRYPTION;
+		else
+			global_conf.flags &= ~CIFSD_GLOBAL_FLAG_SMB3_ENCRYPTION;
+
+		return;
+	}
+
+	if (!cp_key_cmp(_k, "durable handle")) {
+		if (cp_get_group_kv_bool(_v))
+			global_conf.flags |= CIFSD_GLOBAL_FLAG_DURABLE_HANDLE;
+		else
+			global_conf.flags &= ~CIFSD_GLOBAL_FLAG_DURABLE_HANDLE;
+
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
@@ -550,6 +584,12 @@ static void fixup_missing_global_group(void)
 	if (ret)
 		pr_err("Fatal error: Cannot set a global guest account %d\n",
 			ret);
+}
+
+static void default_global_group(void)
+{
+	global_conf.flags |= CIFSD_GLOBAL_FLAG_CACHE_TBUF;
+	global_conf.flags |= CIFSD_GLOBAL_FLAG_CACHE_RBUF;
 }
 
 static void global_group(struct smbconf_group *group)
@@ -597,6 +637,8 @@ out:
 static int __cp_parse_smbconfig(const char *smbconf, GHFunc cb, long flags)
 {
 	int ret;
+
+	default_global_group();
 
 	ret = cp_smbconfig_hash_create(smbconf);
 	if (ret)

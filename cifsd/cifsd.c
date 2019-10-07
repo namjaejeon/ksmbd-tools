@@ -52,15 +52,51 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static int handle_orphaned_lock_file(void)
+{
+	char proc_ent[64] = {0, };
+	char manager_pid[10] = {0, };
+	int pid = 0;
+	int fd;
+
+	fd = open(CIFSD_LOCK_FILE, O_RDONLY);
+	if (fd < 0)
+		return -EINVAL;
+
+	if (read(fd, &manager_pid, sizeof(manager_pid)) == -1) {
+		pr_debug("Unable to read main PID: %s\n", strerr(errno));
+		close(fd);
+		return -EINVAL;
+	}
+
+	close(fd);
+
+	pid = strtol(manager_pid, NULL, 10);
+	snprintf(proc_ent, sizeof(proc_ent), "/proc/%d", pid);
+	fd = open(proc_ent, O_RDONLY);
+	if (fd < 0) {
+		pr_info("Unlink orphaned '%s'\n", CIFSD_LOCK_FILE);
+		return unlink(CIFSD_LOCK_FILE);
+	}
+
+	close(fd);
+	pr_info("File '%s' belongs to pid %d\n", CIFSD_LOCK_FILE, pid);
+	return -EINVAL;
+}
+
 static int create_lock_file(void)
 {
 	char manager_pid[10];
 	size_t sz;
 
+retry:
 	lock_fd = open(CIFSD_LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	if (lock_fd < 0)
-		return -EINVAL;
+	if (lock_fd < 0) {
+		if (handle_orphaned_lock_file())
+			return -EINVAL;
+		goto retry;
+	}
 
 	if (flock(lock_fd, LOCK_EX | LOCK_NB) != 0)
 		return -EINVAL;
