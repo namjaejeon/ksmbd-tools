@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 	set_logger_app_name("cifsshareadd");
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "i:a:d:u:p:o:vh")) != EOF)
+	while ((c = getopt(argc, argv, "c:a:d:u:p:o:vh")) != EOF)
 		switch (c) {
 		case 'a':
 			arg_name = g_ascii_strdown(optarg, strlen(optarg));
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 			arg_name = g_ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_UPDATE_SHARE;
 			break;
-		case 'i':
+		case 'c':
 			smbconf = strdup(optarg);
 			break;
 		case 'o':
