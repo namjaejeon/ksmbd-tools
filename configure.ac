@@ -8,11 +8,11 @@ m4_define([cifsd_tools_version],
 	[cifsd_tools_major_ver.cifsd_tools_minor_ver.cifsd_tools_micro_ver])
 
 AC_INIT([CIFSD tools],
-	[m4_esyscmd_s([git describe --abbrev=7 --dirty --always --tags])],
+	[m4_esyscmd_s([git describe --tags --dirty --always --long])],
 	[linux-cifsd-devel@lists.sourceforge.net])
 
 AC_DEFINE([CIFSD_TOOLS_VERSION],
-	"cifsd_tools_version [m4_esyscmd_s([git describe --abbrev=7 --dirty --always --tags])]",
+	"cifsd_tools_version [m4_esyscmd_s([git describe --tags --dirty --always --long])]",
 	["cifsd-tools version"])
 
 AC_CONFIG_SRCDIR([config.h.in])
