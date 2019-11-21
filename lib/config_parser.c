@@ -341,12 +341,12 @@ int cp_get_group_kv_config_opt(char *v)
 	return CIFSD_CONFIG_OPT_DISABLED;
 }
 
-long cp_get_group_kv_long_base(char *v, int base)
+unsigned long cp_get_group_kv_long_base(char *v, int base)
 {
-	return strtol(v, NULL, base);
+	return strtoul(v, NULL, base);
 }
 
-long cp_get_group_kv_long(char *v)
+unsigned long cp_get_group_kv_long(char *v)
 {
 	return cp_get_group_kv_long_base(v, 10);
 }
