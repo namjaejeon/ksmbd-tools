@@ -48,7 +48,7 @@ struct smbconf_global {
 	unsigned int		deadtime;
 	int			bind_interfaces_only;
 	char			**interfaces;
-	unsigned long long	file_max;
+	unsigned long		file_max;
 	unsigned int		smb2_max_read;
 	unsigned int		smb2_max_write;
 	unsigned int		smb2_max_trans;
