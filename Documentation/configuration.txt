@@ -1,5 +1,5 @@
-File to define cifsd configuration parameters which are comparable with
-samba's ones
+
+Define cifsd configuration parameters list.
 
 * Supported [global] level parameters list:
 	- server string (default: CIFSD)
