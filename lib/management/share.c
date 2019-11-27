@@ -362,6 +362,9 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		if (cp_get_group_kv_bool(v)) {
 			set_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
 			clear_share_flag(share, CIFSD_SHARE_FLAG_WRITEABLE);
+		} else {
+			clear_share_flag(share, CIFSD_SHARE_FLAG_READONLY);
+			set_share_flag(share, CIFSD_SHARE_FLAG_WRITEABLE);
 		}
 		return;
 	}
