@@ -481,7 +481,7 @@ int main(int argc, char *argv[])
 
 	opterr = 0;
 	while (1) {
-		c = getopt_long(argc, argv, "n::p:c:u:sVhW;", opts, NULL);
+		c = getopt_long(argc, argv, "n::p:c:u:sVh", opts, NULL);
 
 		if (c < 0)
 			break;
