@@ -41,14 +41,22 @@ typedef int (*worker_fn)(void);
 
 static void usage(void)
 {
-	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	fprintf(stderr, "Usage: cifsd\n");
-	fprintf(stderr, "\t--p=NUM | --port=NUM              TCP port NUM\n");
-	fprintf(stderr, "\t--c=smb.conf | --config=smb.conf  config file\n");
-	fprintf(stderr, "\t--u=pwd.db | --users=pwd.db       Users DB\n");
-	fprintf(stderr, "\t--n | --nodetach                  Don't detach\n");
-	fprintf(stderr, "\t--s | --systemd                   Service mode\n");
+	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
+	printf("Usage: cifsd\n");
+	printf("\t--p=NUM | --port=NUM              TCP port NUM\n");
+	printf("\t--c=smb.conf | --config=smb.conf  config file\n");
+	printf("\t--u=pwd.db | --users=pwd.db       Users DB\n");
+	printf("\t--n | --nodetach                  Don't detach\n");
+	printf("\t--s | --systemd                   Service mode\n");
+	printf("\t-V | --version                    Show version\n");
+	printf("\t-h | --help                       Show help\n");
 
+	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	exit(EXIT_FAILURE);
 }
 
@@ -458,6 +466,7 @@ static struct option opts[] = {
 	{"nodetach",	optional_argument,	NULL,	'n' },
 	{"help",	no_argument,		NULL,	'h' },
 	{"?",		no_argument,		NULL,	'?' },
+	{"version",	no_argument,		NULL,	'V' },
 	{NULL,		0,			NULL,	 0  }
 };
 
@@ -472,7 +481,7 @@ int main(int argc, char *argv[])
 
 	opterr = 0;
 	while (1) {
-		c = getopt_long(argc, argv, ":n::p:c:u:shW;", opts, NULL);
+		c = getopt_long(argc, argv, "n::p:c:u:sVhW;", opts, NULL);
 
 		if (c < 0)
 			break;
@@ -500,6 +509,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			systemd_service = 1;
+			break;
+		case 'V':
+			show_version();
 			break;
 		case ':':
 			pr_err("Missing option argument\n");

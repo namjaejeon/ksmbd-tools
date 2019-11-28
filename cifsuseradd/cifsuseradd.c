@@ -37,17 +37,24 @@ enum {
 
 static void usage(void)
 {
-	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	fprintf(stderr, "Usage: cifsuseradd\n");
+	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
+	printf("Usage: cifsuseradd\n");
 
-	fprintf(stderr, "\t-a | --add-user=login\n");
-	fprintf(stderr, "\t-d | --del-user=login\n");
-	fprintf(stderr, "\t-u | --update-user=login\n");
-	fprintf(stderr, "\t-p | --password=pass\n");
+	printf("\t-a | --add-user=login\n");
+	printf("\t-d | --del-user=login\n");
+	printf("\t-u | --update-user=login\n");
+	printf("\t-p | --password=pass\n");
 
-	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
-	fprintf(stderr, "\t-v | --verbose\n");
+	printf("\t-i cifspwd.db | --import-users=cifspwd.db\n");
+	printf("\t-V | --version\n");
+	printf("\t-v | --verbose\n");
 
+	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	exit(EXIT_FAILURE);
 }
 
@@ -98,7 +105,7 @@ int main(int argc, char *argv[])
 	set_logger_app_name("cifsuseradd");
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:a:d:u:p:vh")) != EOF)
+	while ((c = getopt(argc, argv, "c:i:a:d:u:p:Vvh")) != EOF)
 		switch (c) {
 		case 'a':
 			arg_account = g_strdup(optarg);
@@ -117,6 +124,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			pwddb = g_strdup(optarg);
+			break;
+		case 'V':
+			show_version();
 			break;
 		case 'v':
 			break;
