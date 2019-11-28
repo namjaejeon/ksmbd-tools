@@ -37,17 +37,16 @@ static void usage(void)
 {
 	int i;
 
-	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	printf("Usage: cifsshareadd\n");
+	fprintf(stderr, "Usage: cifsshareadd\n");
 
-	printf("\t-a | --add-share=share\n");
-	printf("\t-d | --del-share=share\n");
-	printf("\t-u | --update-share=share\n");
-	printf("\t-o | --options=\"op1=val1 op2=val2...\"\n");
+	fprintf(stderr, "\t-a | --add-share=share\n");
+	fprintf(stderr, "\t-d | --del-share=share\n");
+	fprintf(stderr, "\t-u | --update-share=share\n");
+	fprintf(stderr, "\t-o | --options=\"op1=val1 op2=val2...\"\n");
 
-	printf("\t-c smb.conf\n");
-	printf("\t-V | --version\n");
-	printf("\t-v | --verbose\n");
+	fprintf(stderr, "\t-c smb.conf\n");
+	fprintf(stderr, "\t-V | --version\n");
+	fprintf(stderr, "\t-v | --verbose\n");
 
 	fprintf(stderr, "Supported share options:\n");
 	for (i = 0; i < CIFSD_SHARE_CONF_MAX; i++)

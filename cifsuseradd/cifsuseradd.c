@@ -37,17 +37,16 @@ enum {
 
 static void usage(void)
 {
-	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	printf("Usage: cifsuseradd\n");
+	fprintf(stderr, "Usage: cifsuseradd\n");
 
-	printf("\t-a | --add-user=login\n");
-	printf("\t-d | --del-user=login\n");
-	printf("\t-u | --update-user=login\n");
-	printf("\t-p | --password=pass\n");
+	fprintf(stderr, "\t-a | --add-user=login\n");
+	fprintf(stderr, "\t-d | --del-user=login\n");
+	fprintf(stderr, "\t-u | --update-user=login\n");
+	fprintf(stderr, "\t-p | --password=pass\n");
 
-	printf("\t-i cifspwd.db | --import-users=cifspwd.db\n");
-	printf("\t-V | --version\n");
-	printf("\t-v | --verbose\n");
+	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
+	fprintf(stderr, "\t-V | --version\n");
+	fprintf(stderr, "\t-v | --verbose\n");
 
 	exit(EXIT_FAILURE);
 }

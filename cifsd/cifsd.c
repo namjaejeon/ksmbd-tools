@@ -41,15 +41,14 @@ typedef int (*worker_fn)(void);
 
 static void usage(void)
 {
-	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
-	printf("Usage: cifsd\n");
-	printf("\t--p=NUM | --port=NUM              TCP port NUM\n");
-	printf("\t--c=smb.conf | --config=smb.conf  config file\n");
-	printf("\t--u=pwd.db | --users=pwd.db       Users DB\n");
-	printf("\t--n | --nodetach                  Don't detach\n");
-	printf("\t--s | --systemd                   Service mode\n");
-	printf("\t-V | --version                    Show version\n");
-	printf("\t-h | --help                       Show help\n");
+	fprintf(stderr, "Usage: cifsd\n");
+	fprintf(stderr, "\t--p=NUM | --port=NUM              TCP port NUM\n");
+	fprintf(stderr, "\t--c=smb.conf | --config=smb.conf  config file\n");
+	fprintf(stderr, "\t--u=pwd.db | --users=pwd.db       Users DB\n");
+	fprintf(stderr, "\t--n | --nodetach                  Don't detach\n");
+	fprintf(stderr, "\t--s | --systemd                   Service mode\n");
+	fprintf(stderr, "\t-V | --version                    Show version\n");
+	fprintf(stderr, "\t-h | --help                       Show help\n");
 
 	exit(EXIT_FAILURE);
 }
