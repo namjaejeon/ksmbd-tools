@@ -37,7 +37,6 @@ static void usage(void)
 {
 	int i;
 
-	fprintf(stderr, "cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	fprintf(stderr, "Usage: cifsshareadd\n");
 
 	fprintf(stderr, "\t-a | --add-share=share\n");
@@ -46,11 +45,18 @@ static void usage(void)
 	fprintf(stderr, "\t-o | --options=\"op1=val1 op2=val2...\"\n");
 
 	fprintf(stderr, "\t-c smb.conf\n");
+	fprintf(stderr, "\t-V | --version\n");
 	fprintf(stderr, "\t-v | --verbose\n");
 
 	fprintf(stderr, "Supported share options:\n");
 	for (i = 0; i < CIFSD_SHARE_CONF_MAX; i++)
 		fprintf(stderr,"\t%s\n", CIFSD_SHARE_CONF[i]);
+	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
 	exit(EXIT_FAILURE);
 }
 
@@ -100,7 +106,7 @@ int main(int argc, char *argv[])
 	set_logger_app_name("cifsshareadd");
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:a:d:u:p:o:vh")) != EOF)
+	while ((c = getopt(argc, argv, "c:a:d:u:p:o:Vvh")) != EOF)
 		switch (c) {
 		case 'a':
 			arg_name = g_ascii_strdown(optarg, strlen(optarg));
@@ -119,6 +125,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'o':
 			arg_opts = strdup(optarg);
+			break;
+		case 'V':
+			show_version();
 			break;
 		case 'v':
 			break;
