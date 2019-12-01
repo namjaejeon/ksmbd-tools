@@ -114,6 +114,14 @@ int tcm_handle_tree_connect(struct cifsd_tree_connect_request *req,
 		}
 	}
 
+	if (global_conf.map_to_guest == CIFSD_CONF_MAP_TO_GUEST_BAD_USER &&
+	    !test_share_flag(share, CIFSD_SHARE_FLAG_PIPE) &&
+	    !test_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK)) {
+		pr_debug("treecon: deny. Not allow guest\n");
+		resp->status = CIFSD_TREE_CONN_STATUS_ERROR;
+		goto out_error;
+	}
+
 	if (test_share_flag(share, CIFSD_SHARE_FLAG_GUEST_OK)) {
 		pr_debug("treecon: net share permits guest login\n");
 		user = usm_lookup_user(share->guest_account);
