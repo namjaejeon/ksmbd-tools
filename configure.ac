@@ -2,7 +2,7 @@ AC_PREREQ([2.68])
 
 m4_define([cifsd_tools_major_ver], [2])
 m4_define([cifsd_tools_minor_ver], [0])
-m4_define([cifsd_tools_micro_ver], [3])
+m4_define([cifsd_tools_micro_ver], [4])
 
 m4_define([cifsd_tools_version],
 	[cifsd_tools_major_ver.cifsd_tools_minor_ver.cifsd_tools_micro_ver])
