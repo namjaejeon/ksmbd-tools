@@ -30,7 +30,7 @@ struct cifsd_ipc_msg *ipc_msg_alloc(size_t sz)
 	size_t msg_sz = sz + sizeof(struct cifsd_ipc_msg) + 1;
 
 	if (msg_sz > CIFSD_IPC_MAX_MESSAGE_SIZE)
-		pr_err("IPC message is too large: %lu\n", msg_sz);
+		pr_err("IPC message is too large: %zu\n", msg_sz);
 
 	msg = calloc(1, msg_sz);
 	if (msg) {
