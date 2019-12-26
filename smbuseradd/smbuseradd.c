@@ -18,13 +18,13 @@
 #include <ctype.h>
 
 #include <config_parser.h>
-#include <cifsdtools.h>
+#include <smbdtools.h>
 
 #include <management/user.h>
 #include <management/share.h>
 #include <user_admin.h>
 
-#include <linux/cifsd_server.h>
+#include <linux/smbd_server.h>
 
 static char *arg_account = NULL;
 static char *arg_password = NULL;
@@ -37,14 +37,14 @@ enum {
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: cifsuseradd\n");
+	fprintf(stderr, "Usage: smbuseradd\n");
 
 	fprintf(stderr, "\t-a | --add-user=login\n");
 	fprintf(stderr, "\t-d | --del-user=login\n");
 	fprintf(stderr, "\t-u | --update-user=login\n");
 	fprintf(stderr, "\t-p | --password=pass\n");
 
-	fprintf(stderr, "\t-i cifspwd.db | --import-users=cifspwd.db\n");
+	fprintf(stderr, "\t-i smbpwd.db | --import-users=smbpwd.db\n");
 	fprintf(stderr, "\t-V | --version\n");
 	fprintf(stderr, "\t-v | --verbose\n");
 
@@ -53,7 +53,7 @@ static void usage(void)
 
 static void show_version(void)
 {
-	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
+	printf("smbd-tools version : %s\n", SMBD_TOOLS_VERSION);
 	exit(EXIT_FAILURE);
 }
 
@@ -81,7 +81,7 @@ static int sanity_check_user_name_simple(char *uname)
 	sz = strlen(uname);
 	if (sz < 1)
 		return -EINVAL;
-	if (sz >= CIFSD_REQ_MAX_ACCOUNT_NAME_SZ)
+	if (sz >= SMBD_REQ_MAX_ACCOUNT_NAME_SZ)
 		return -EINVAL;
 
 	/* 1'; Drop table users -- */
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	char *pwddb = PATH_PWDDB;
 	int c, cmd = 0;
 
-	set_logger_app_name("cifsuseradd");
+	set_logger_app_name("smbuseradd");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:Vvh")) != EOF)
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 	 * We support only ADD_USER command at this moment
 	 */
 	if (ret == 0 && cmd == COMMAND_ADD_USER)
-		notify_cifsd_daemon();
+		notify_smbd_daemon();
 out:
 	shm_destroy();
 	usm_destroy();

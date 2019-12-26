@@ -1,14 +1,14 @@
 
-Define cifsd configuration parameters list.
+Define smbd configuration parameters list.
 
 * Supported [global] level parameters list:
-	- server string (default: CIFSD)
+	- server string (default: SMBD)
 		This controls what string will show up in browse lists next
 		to the machine name
 	- workgroup (default : WORKGROUP)
 		This controls what workgroup your server will appear to be
 		in when queried by clients
-	- netbios name (default : CIFSD SERVER)
+	- netbios name (default : SMBD SERVER)
 		This sets the NetBIOS name by which a SMB server is known.
 		By default it is the same as the first component of the host's
 		DNS name. If a machine is a browse server or logon server this
@@ -39,15 +39,15 @@ Define cifsd configuration parameters list.
 		The setting of this parameter determines whether user and
 		group list information is returned for an anonymous connection.
 	- map to guest (default: never)
-		This parameter can take four different values, which tell cifsd
+		This parameter can take four different values, which tell smbd
 		what to do with user login requests.(never, bad user,
 		bad password, bad uid)
 	- bind interfaces only (default: no)
-		This global parameter allows the cifsd admin to limit what
+		This global parameter allows the smbd admin to limit what
 		interfaces on a machine will serve SMB requests.
 	- interfaces (default: none)
 		This option allows you to override the default network
-		interfaces list that cifsd will use for browsing. The option
+		interfaces list that smbd will use for browsing. The option
 		takes only list of interface name.
 	- deadtime (default: 0)
 		The value of the parameter (a decimal integer) represents
@@ -61,21 +61,21 @@ Define cifsd configuration parameters list.
 		lookup resolves '/root directory/share path/file path' path.
 	- max open files (default: 10000)
 		This parameter limits the maximum number of open files that
-		one kcifsd file serving process may have open for a client
+		one ksmbd file serving process may have open for a client
 		at any one time.
 	- tcp port (default: 445)
 		Specifies which ports the server should listen on for SMB
 		traffic.
 	- smb2 max read (default: 4MB)
-		This option specifies the protocol value that kcifsd will
+		This option specifies the protocol value that ksmbd will
 		return to a client, informing the client of the largest size
 		that may be returned by a single SMB2 read call.
 	- smb2 max write (default: 4MB)
-		This option specifies the protocol value that kcifsd will
+		This option specifies the protocol value that ksmbd will
 		return to a client, informing the client of the largest size
 		that may be sent to the server by a single SMB2 write call.
 	- smb2 max trans (default: 1MB)
-		This option specifies the protocol value that kcifsd will
+		This option specifies the protocol value that ksmbd will
 		return to a client, informing the client of the largest size
 		of buffer that may be used in querying file meta-data
 		via QUERY_INFO and related SMB2 calls.
@@ -83,13 +83,13 @@ Define cifsd configuration parameters list.
 		This parameter controls whether a remote client is allowed or
 		required to use SMB encryption.
 	- smb2 leases (default: no)
-		This boolean option tells kcifsd whether to globally negotiate
+		This boolean option tells ksmbd whether to globally negotiate
 		SMB2 leases on file open requests. Leasing is an SMB2-only
 		feature which allows clients to aggressively cache files
 		locally.
 	- cache read buffers (default: yes)
 	- cache trans buffers (default: yes)
-		This parameter allows kcifsd use buffer cache(pool) to avoid huge
+		This parameter allows ksmbd use buffer cache(pool) to avoid huge
 		alloc/dealloc pressure from read and trans response buffer.
 
 * Supported [share] level parameters list:
@@ -111,13 +111,13 @@ Define cifsd configuration parameters list.
 	- writeable (default: no)
 		Inverted synonym for read only.
 	- store dos attributes (default: no)
-		If this parameter is set cifsd attempts to first read DOS
+		If this parameter is set smbd attempts to first read DOS
 		attributes (SYSTEM, HIDDEN, ARCHIVE or READ-ONLY) from a
 		filesystem extended attribute, before mapping DOS attributes
 		to UNIX permission bits (such as occurs with map hidden and
 		map readonly).
 	- oplocks (default: no)
-		This boolean option tells cifsd whether to issue oplocks
+		This boolean option tells smbd whether to issue oplocks
 		(opportunistic locks) to file open requests on this share.
 	- create mask (default: 0744)
 		When a file is created, the necessary permissions are calculated
@@ -182,9 +182,9 @@ Define cifsd configuration parameters list.
 		Valid options are yes or no.
 	- force create mode (default: 0)
 		This parameter specifies a set of UNIX mode bit permissions
-		that will always be set on a file created by cifsd.
+		that will always be set on a file created by smbd.
 	- force directory mode (default: 0)
 		This parameter specifies a set of UNIX mode bit permissions
-		that will always be set on a directory created by cifsd.
+		that will always be set on a directory created by smbd.
 	- streams (default: no)
 		Alternate Data Streams support.

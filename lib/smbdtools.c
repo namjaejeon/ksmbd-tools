@@ -13,14 +13,14 @@
 #include <fcntl.h>
 
 #include <stdio.h>
-#include <cifsdtools.h>
+#include <smbdtools.h>
 
 static const char *app_name = "unknown";
 static int log_open;
 
 typedef void (*logger)(int level, const char *fmt, va_list list);
 
-char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1] = {
+char *smbd_conv_charsets[SMBD_CHARSET_MAX + 1] = {
 	"UTF-8",
 	"UTF-16LE",
 	"UCS-2LE",
@@ -91,7 +91,7 @@ void pr_logger_init(int flag)
 			closelog();
 			log_open = 0;
 		}
-		openlog("cifsd", LOG_NDELAY, LOG_LOCAL5);
+		openlog("smbd", LOG_NDELAY, LOG_LOCAL5);
 		__logger = __pr_log_syslog;
 		log_open = 1;
 	}
@@ -151,13 +151,13 @@ unsigned char *base64_decode(char const *src, size_t *dstlen)
 
 static int codeset_has_altname(int codeset)
 {
-	if (codeset == CIFSD_CHARSET_UTF16LE ||
-			codeset == CIFSD_CHARSET_UTF16BE)
+	if (codeset == SMBD_CHARSET_UTF16LE ||
+			codeset == SMBD_CHARSET_UTF16BE)
 		return 1;
 	return 0;
 }
 
-gchar *cifsd_gconvert(const gchar *str,
+gchar *smbd_gconvert(const gchar *str,
 		      gssize       str_len,
 		      int          to_codeset,
 		      int          from_codeset,
@@ -169,20 +169,20 @@ gchar *cifsd_gconvert(const gchar *str,
 
 retry:
 	err = NULL;
-	if (from_codeset >= CIFSD_CHARSET_MAX) {
+	if (from_codeset >= SMBD_CHARSET_MAX) {
 		pr_err("Unknown source codeset: %d\n", from_codeset);
 		return NULL;
 	}
 
-	if (to_codeset >= CIFSD_CHARSET_MAX) {
+	if (to_codeset >= SMBD_CHARSET_MAX) {
 		pr_err("Unknown target codeset: %d\n", to_codeset);
 		return NULL;
 	}
 
 	converted = g_convert(str,
 			      str_len,
-			      cifsd_conv_charsets[to_codeset],
-			      cifsd_conv_charsets[from_codeset],
+			      smbd_conv_charsets[to_codeset],
+			      smbd_conv_charsets[from_codeset],
 			      bytes_read,
 			      bytes_written,
 			      &err);
@@ -204,8 +204,8 @@ retry:
 
 		if (has_altname) {
 			pr_info("Will try '%s' and '%s'\n",
-				cifsd_conv_charsets[to_codeset],
-				cifsd_conv_charsets[from_codeset]);
+				smbd_conv_charsets[to_codeset],
+				smbd_conv_charsets[from_codeset]);
 			goto retry;
 		}
 
@@ -217,13 +217,13 @@ retry:
 	return converted;
 }
 
-void notify_cifsd_daemon(void)
+void notify_smbd_daemon(void)
 {
 	char manager_pid[10] = {0, };
 	int pid = 0;
 	int lock_fd;
 
-	lock_fd = open(CIFSD_LOCK_FILE, O_RDONLY);
+	lock_fd = open(SMBD_LOCK_FILE, O_RDONLY);
 	if (lock_fd < 0)
 		return;
 

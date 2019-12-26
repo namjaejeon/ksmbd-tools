@@ -10,7 +10,7 @@
 ;******************************************************************************
 
 [global]
-	netbios name = CIFSD
+	netbios name = SMBD
 
 [homes]
 	comment = content server share

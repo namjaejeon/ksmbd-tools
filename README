@@ -1,5 +1,5 @@
 ________________________
-BUILDING CIFSD TOOLS
+BUILDING SMBD TOOLS
 ________________________
 
 Install preprequisite packages:
@@ -14,43 +14,44 @@ Install preprequisite packages:
 	sudo yum install glib2-devel libnl3-devel
 
 Build steps:
-        - cd into the cifsd-tools directory
+        - cd into the smbd-tools directory
         - ./autogen.sh
         - ./configure
         - make
         - make install
 
 _____________________
-USING CIFSD TOOLS
+USING SMBD TOOLS
 _____________________
 
 Setup steps:
-	- install cifsd kernel driver
-		modprobe cifsd
+	- install smbd kernel driver
+		modprobe smbd
 	- create user/password for SMB share
-		cifsuseradd -a <Enter USERNAME for SMB share access>
+		mkdir /etc/smbd/
+		smbuseradd -a <Enter USERNAME for SMB share access>
 		Enter password for SMB share access
-	- create /etc/cifs/smb.conf file, add SMB share in smb.conf file
+	- create /etc/smbd/smb.conf file, add SMB share in smb.conf file
 		Refer smb.conf.example
-	- start cifsd user space daemon
-		cifsd
+	- start smbd user space daemon
+		smbd
 	- access share from Windows or Linux using CIFS
 
 --------------------
 ADMIN TOOLS
 --------------------
 
-- cifsuseradd
-	Adds, updates or removes (-a/-u/-d) a user from cifsd pwd file.
+- smbuseradd
+	Adds, updates or removes (-a/-u/-d) a user from smbd pwd file.
 
-- cifsshareadd
+- smbshareadd
 	Adds, updates or removes (-a/-u/-d) a net share from smb.conf file.
 
 Usage example:
 
 Creating a new share:
 
-cifsshareadd -a files -o "\
+smbshareadd -a files -o "\
 		     path=/home/users/files \
 		     comment=exported files \
 		     writeable=yes \
@@ -59,5 +60,5 @@ cifsshareadd -a files -o "\
 
 Note that share options (-o) must always be enquoted ("...").
 
-cifsshareadd tool does not modify [global] smb.conf section; only net
+smbshareadd tool does not modify [global] smb.conf section; only net
 share configs are supported at the moment.

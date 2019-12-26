@@ -5,11 +5,11 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#ifndef __CIFSD_SHARE_ADMIN_H__
-#define __CIFSD_SHARE_ADMIN_H__
+#ifndef __SMBD_SHARE_ADMIN_H__
+#define __SMBD_SHARE_ADMIN_H__
 
 int command_add_share(char *smbconf, char *name, char *opts);
 int command_update_share(char *smbconf, char *name, char *opts);
 int command_del_share(char *smbconf, char *name);
 
-#endif /* __CIFSD_SHARE_ADMIN_H__ */
+#endif /* __SMBD_SHARE_ADMIN_H__ */
