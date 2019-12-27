@@ -34,7 +34,7 @@ Setup steps:
 	- create /etc/smbd/smb.conf file, add SMB share in smb.conf file
 		Refer smb.conf.example
 	- start smbd user space daemon
-		smbd
+		usmbd
 	- access share from Windows or Linux using CIFS
 
 --------------------
