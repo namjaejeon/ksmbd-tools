@@ -5,8 +5,8 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#ifndef __CIFSDTOOLS_H__
-#define __CIFSDTOOLS_H__
+#ifndef __SMBDTOOLS_H__
+#define __SMBDTOOLS_H__
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -54,38 +54,38 @@ struct smbconf_global {
 	unsigned int		smb2_max_trans;
 };
 
-#define CIFSD_LOCK_FILE		"/tmp/cifsd.lock"
+#define SMBD_LOCK_FILE		"/tmp/smbd.lock"
 
-#define CIFSD_RESTRICT_ANON_TYPE_1	1
-#define CIFSD_RESTRICT_ANON_TYPE_2	2
+#define SMBD_RESTRICT_ANON_TYPE_1	1
+#define SMBD_RESTRICT_ANON_TYPE_2	2
 
 extern struct smbconf_global global_conf;
 
-#define CIFSD_CONF_MAP_TO_GUEST_NEVER		(0)
-#define CIFSD_CONF_MAP_TO_GUEST_BAD_USER	(1 << 0)
-#define CIFSD_CONF_MAP_TO_GUEST_BAD_PASSWORD	(1 << 1)
-#define CIFSD_CONF_MAP_TO_GUEST_BAD_UID		(1 << 2)
+#define SMBD_CONF_MAP_TO_GUEST_NEVER		(0)
+#define SMBD_CONF_MAP_TO_GUEST_BAD_USER	(1 << 0)
+#define SMBD_CONF_MAP_TO_GUEST_BAD_PASSWORD	(1 << 1)
+#define SMBD_CONF_MAP_TO_GUEST_BAD_UID		(1 << 2)
 
-#define CIFSD_CONF_DEFAULT_NETBIOS_NAME	"CIFSD SERVER"
-#define CIFSD_CONF_DEFAULT_SERVER_STRING	"CIFSD"
-#define CIFSD_CONF_DEFAULT_WORK_GROUP		"WORKGROUP"
+#define SMBD_CONF_DEFAULT_NETBIOS_NAME	"SMBD SERVER"
+#define SMBD_CONF_DEFAULT_SERVER_STRING	"SMBD"
+#define SMBD_CONF_DEFAULT_WORK_GROUP		"WORKGROUP"
 
-#define CIFSD_CONF_DEFAULT_GUEST_ACCOUNT	"nobody"
-#define CIFSD_CONF_FALLBACK_GUEST_ACCOUNT	"ftp"
+#define SMBD_CONF_DEFAULT_GUEST_ACCOUNT	"nobody"
+#define SMBD_CONF_FALLBACK_GUEST_ACCOUNT	"ftp"
 
-#define CIFSD_CONF_DEFAULT_SESS_CAP	1024
-#define CIFSD_CONF_DEFAULT_TPC_PORT	445
+#define SMBD_CONF_DEFAULT_SESS_CAP	1024
+#define SMBD_CONF_DEFAULT_TPC_PORT	445
 
-#define CIFSD_CONF_FILE_MAX		10000
+#define SMBD_CONF_FILE_MAX		10000
 
-#define PATH_PWDDB	"/etc/cifs/cifsdpwd.db"
-#define PATH_SMBCONF	"/etc/cifs/smb.conf"
+#define PATH_PWDDB	"/etc/smbd/smbdpwd.db"
+#define PATH_SMBCONF	"/etc/smbd/smb.conf"
 
-#define CIFSD_HEALTH_START		(0)
-#define CIFSD_HEALTH_RUNNING		(1 << 0)
-#define CIFSD_SHOULD_RELOAD_CONFIG	(1 << 1)
+#define SMBD_HEALTH_START		(0)
+#define SMBD_HEALTH_RUNNING		(1 << 0)
+#define SMBD_SHOULD_RELOAD_CONFIG	(1 << 1)
 
-extern int cifsd_health_status;
+extern int smbd_health_status;
 
 #define TRACING_DUMP_NL_MSG	0
 
@@ -141,7 +141,7 @@ void pr_hex_dump(const void *mem, size_t sz);
 char *base64_encode(unsigned char *src, size_t srclen);
 unsigned char *base64_decode(char const *src, size_t *dstlen);
 
-gchar *cifsd_gconvert(const gchar *str,
+gchar *smbd_gconvert(const gchar *str,
 		      gssize       str_len,
 		      int          to_codeset,
 		      int          from_codeset,
@@ -149,19 +149,19 @@ gchar *cifsd_gconvert(const gchar *str,
 		      gsize       *bytes_written);
 
 enum charset_idx {
-	CIFSD_CHARSET_UTF8		= 0,
-	CIFSD_CHARSET_UTF16LE,
-	CIFSD_CHARSET_UCS2LE,
-	CIFSD_CHARSET_UTF16BE,
-	CIFSD_CHARSET_UCS2BE,
-	CIFSD_CHARSET_MAX		= 5,
+	SMBD_CHARSET_UTF8		= 0,
+	SMBD_CHARSET_UTF16LE,
+	SMBD_CHARSET_UCS2LE,
+	SMBD_CHARSET_UTF16BE,
+	SMBD_CHARSET_UCS2BE,
+	SMBD_CHARSET_MAX		= 5,
 };
 
-#define CIFSD_CHARSET_DEFAULT		CIFSD_CHARSET_UTF8
+#define SMBD_CHARSET_DEFAULT		SMBD_CHARSET_UTF8
 
-extern char *cifsd_conv_charsets[CIFSD_CHARSET_MAX + 1];
+extern char *smbd_conv_charsets[SMBD_CHARSET_MAX + 1];
 
-void notify_cifsd_daemon(void);
+void notify_smbd_daemon(void);
 int test_file_access(char *conf);
 
-#endif /* __CIFSDTOOLS_H__ */
+#endif /* __SMBDTOOLS_H__ */
