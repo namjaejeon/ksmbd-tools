@@ -10,25 +10,25 @@
 
 #include <glib.h>
 
-struct cifsd_user;
+struct smbd_user;
 
-struct cifsd_session {
+struct smbd_session {
 	unsigned long long	id;
 
-	struct cifsd_user	*user;
+	struct smbd_user	*user;
 
 	GRWLock			update_lock;
 	GList			*tree_conns;
 	int			ref_counter;
 };
 
-struct cifsd_tree_conn;
+struct smbd_tree_conn;
 
 int sm_check_sessions_capacity(unsigned long long id);
 
 int sm_handle_tree_connect(unsigned long long id,
-			   struct cifsd_user *user,
-			   struct cifsd_tree_conn *tree_conn);
+			   struct smbd_user *user,
+			   struct smbd_tree_conn *tree_conn);
 int sm_handle_tree_disconnect(unsigned long long sess_id,
 			      unsigned long long tree_conn_id);
 

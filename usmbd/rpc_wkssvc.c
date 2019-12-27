@@ -9,13 +9,13 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/cifsd_server.h>
+#include <linux/smbd_server.h>
 
 #include <management/share.h>
 
 #include <rpc.h>
 #include <rpc_wkssvc.h>
-#include <cifsdtools.h>
+#include <smbdtools.h>
 
 #define WKSSVC_NETWKSTA_GET_INFO	(0)
 
@@ -28,14 +28,14 @@
 #define WKSSVC_VERSION_MAJOR		0x2
 #define WKSSVC_VERSION_MINOR		0x1
 
-static int wkssvc_clear_headers(struct cifsd_rpc_pipe *pipe,
+static int wkssvc_clear_headers(struct smbd_rpc_pipe *pipe,
 				int status)
 {
 	ndr_free_uniq_vsting_ptr(&pipe->dce->wi_req.server_name);
 	return 0;
 }
 
-static int __netwksta_entry_rep_ctr100(struct cifsd_dcerpc *dce,
+static int __netwksta_entry_rep_ctr100(struct smbd_dcerpc *dce,
 				       gpointer entry)
 {
 	int ret = 0;
@@ -57,7 +57,7 @@ static int __netwksta_entry_rep_ctr100(struct cifsd_dcerpc *dce,
 	return ret;
 }
 
-static int __netwksta_entry_data_ctr100(struct cifsd_dcerpc *dce,
+static int __netwksta_entry_data_ctr100(struct smbd_dcerpc *dce,
 					gpointer entry)
 {
 	int ret = 0;
@@ -70,9 +70,9 @@ static int __netwksta_entry_data_ctr100(struct cifsd_dcerpc *dce,
 	return ret;
 }
 
-static int wkssvc_netwksta_get_info_return(struct cifsd_rpc_pipe *pipe)
+static int wkssvc_netwksta_get_info_return(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
+	struct smbd_dcerpc *dce = pipe->dce;
 
 	ndr_write_union_int32(dce, dce->wi_req.level);
 
@@ -80,18 +80,18 @@ static int wkssvc_netwksta_get_info_return(struct cifsd_rpc_pipe *pipe)
 		pr_err("Unsupported wksta info level (read): %d\n",
 			dce->wi_req.level);
 		dce->entry_rep = NULL;
-		return CIFSD_RPC_EINVALID_LEVEL;
+		return SMBD_RPC_EINVALID_LEVEL;
 	}
 
 	dce->entry_rep(dce, NULL);
 	dce->entry_data(dce, NULL);
-	return CIFSD_RPC_OK;
+	return SMBD_RPC_OK;
 }
 
-static int wkssvc_netwksta_info_return(struct cifsd_rpc_pipe *pipe)
+static int wkssvc_netwksta_info_return(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret = CIFSD_RPC_OK, status = CIFSD_RPC_ENOTIMPLEMENTED;
+	struct smbd_dcerpc *dce = pipe->dce;
+	int ret = SMBD_RPC_OK, status = SMBD_RPC_ENOTIMPLEMENTED;
 
 	/*
 	 * Reserve space for response NDR header. We don't know yet if
@@ -116,14 +116,14 @@ static int wkssvc_netwksta_info_return(struct cifsd_rpc_pipe *pipe)
 		status = wkssvc_netwksta_get_info_return(pipe);
 
 	if (rpc_restricted_context(dce->rpc_req))
-		status = CIFSD_RPC_EACCESS_DENIED;
+		status = SMBD_RPC_EACCESS_DENIED;
 
 	wkssvc_clear_headers(pipe, status);
 
 	/*
 	 * [out] DWORD Return value/code
 	 */
-	if (ret != CIFSD_RPC_OK)
+	if (ret != SMBD_RPC_OK)
 		status = ret;
 
 	ndr_write_int32(dce, status);
@@ -134,14 +134,14 @@ static int wkssvc_netwksta_info_return(struct cifsd_rpc_pipe *pipe)
 }
 
 static int
-wkssvc_netwksta_get_info_invoke(struct cifsd_rpc_pipe *pipe,
+wkssvc_netwksta_get_info_invoke(struct smbd_rpc_pipe *pipe,
 				struct wkssvc_netwksta_info_request *hdr)
 {
-	return CIFSD_RPC_OK;
+	return SMBD_RPC_OK;
 }
 
 static int
-wkssvc_parse_netwksta_info_req(struct cifsd_dcerpc *dce,
+wkssvc_parse_netwksta_info_req(struct smbd_dcerpc *dce,
 			       struct wkssvc_netwksta_info_request *hdr)
 {
 	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
@@ -149,25 +149,25 @@ wkssvc_parse_netwksta_info_req(struct cifsd_dcerpc *dce,
 	return 0;
 }
 
-static int wkssvc_netwksta_info_invoke(struct cifsd_rpc_pipe *pipe)
+static int wkssvc_netwksta_info_invoke(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
+	struct smbd_dcerpc *dce = pipe->dce;
+	int ret = SMBD_RPC_ENOTIMPLEMENTED;
 
 	if (wkssvc_parse_netwksta_info_req(dce, &dce->wi_req))
-		return CIFSD_RPC_EBAD_DATA;
+		return SMBD_RPC_EBAD_DATA;
 
 	if (rpc_restricted_context(dce->rpc_req))
-		return CIFSD_RPC_OK;
+		return SMBD_RPC_OK;
 
 	if (dce->req_hdr.opnum == WKSSVC_NETWKSTA_GET_INFO)
 		ret = wkssvc_netwksta_get_info_invoke(pipe, &dce->wi_req);
 	return ret;
 }
 
-static int wkssvc_invoke(struct cifsd_rpc_pipe *pipe)
+static int wkssvc_invoke(struct smbd_rpc_pipe *pipe)
 {
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
+	int ret = SMBD_RPC_ENOTIMPLEMENTED;
 
 	switch (pipe->dce->req_hdr.opnum) {
 	case WKSSVC_NETWKSTA_GET_INFO:
@@ -182,11 +182,11 @@ static int wkssvc_invoke(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
-static int wkssvc_return(struct cifsd_rpc_pipe *pipe,
-			 struct cifsd_rpc_command *resp,
+static int wkssvc_return(struct smbd_rpc_pipe *pipe,
+			 struct smbd_rpc_command *resp,
 			 int max_resp_sz)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
+	struct smbd_dcerpc *dce = pipe->dce;
 	int ret;
 
 	switch (dce->req_hdr.opnum) {
@@ -198,20 +198,20 @@ static int wkssvc_return(struct cifsd_rpc_pipe *pipe,
 	default:
 		pr_err("WKSSVC: unsupported RETURN method %d\n",
 			dce->req_hdr.opnum);
-		ret = CIFSD_RPC_EBAD_FUNC;
+		ret = SMBD_RPC_EBAD_FUNC;
 		break;
 	}
 	return ret;
 }
 
-int rpc_wkssvc_read_request(struct cifsd_rpc_pipe *pipe,
-			    struct cifsd_rpc_command *resp,
+int rpc_wkssvc_read_request(struct smbd_rpc_pipe *pipe,
+			    struct smbd_rpc_command *resp,
 			    int max_resp_sz)
 {
 	return wkssvc_return(pipe, resp, max_resp_sz);;
 }
 
-int rpc_wkssvc_write_request(struct cifsd_rpc_pipe *pipe)
+int rpc_wkssvc_write_request(struct smbd_rpc_pipe *pipe)
 {
 	return wkssvc_invoke(pipe);
 }

@@ -18,10 +18,10 @@
 #include <ctype.h>
 
 #include <config_parser.h>
-#include <cifsdtools.h>
+#include <smbdtools.h>
 
 #include <management/share.h>
-#include <linux/cifsd_server.h>
+#include <linux/smbd_server.h>
 #include <share_admin.h>
 
 static char *arg_name;
@@ -37,7 +37,7 @@ static void usage(void)
 {
 	int i;
 
-	fprintf(stderr, "Usage: cifsshareadd\n");
+	fprintf(stderr, "Usage: smbshareadd\n");
 
 	fprintf(stderr, "\t-a | --add-share=share\n");
 	fprintf(stderr, "\t-d | --del-share=share\n");
@@ -49,14 +49,14 @@ static void usage(void)
 	fprintf(stderr, "\t-v | --verbose\n");
 
 	fprintf(stderr, "Supported share options:\n");
-	for (i = 0; i < CIFSD_SHARE_CONF_MAX; i++)
-		fprintf(stderr,"\t%s\n", CIFSD_SHARE_CONF[i]);
+	for (i = 0; i < SMBD_SHARE_CONF_MAX; i++)
+		fprintf(stderr,"\t%s\n", SMBD_SHARE_CONF[i]);
 	exit(EXIT_FAILURE);
 }
 
 static void show_version(void)
 {
-	printf("cifsd-tools version : %s\n", CIFSD_TOOLS_VERSION);
+	printf("smbd-tools version : %s\n", SMBD_TOOLS_VERSION);
 	exit(EXIT_FAILURE);
 }
 
@@ -84,7 +84,7 @@ static int sanity_check_share_name_simple(char *name)
 	sz = strlen(name);
 	if (sz < 1)
 		return -EINVAL;
-	if (sz >= CIFSD_REQ_MAX_SHARE_NAME)
+	if (sz >= SMBD_REQ_MAX_SHARE_NAME)
 		return -EINVAL;
 
 	if (!cp_key_cmp(name, "global"))
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	char *smbconf = PATH_SMBCONF;
 	int c, cmd = 0;
 
-	set_logger_app_name("cifsshareadd");
+	set_logger_app_name("smbshareadd");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:a:d:u:p:o:Vvh")) != EOF)
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 	 * We support only ADD_SHARE command for the time being
 	 */
 	if (ret == 0 && cmd == COMMAND_ADD_SHARE)
-		notify_cifsd_daemon();
+		notify_smbd_daemon();
 out:
 	cp_smbconfig_destroy();
 	return ret;
