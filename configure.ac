@@ -2,7 +2,7 @@ AC_PREREQ([2.68])
 
 m4_define([smbd_tools_major_ver], [3])
 m4_define([smbd_tools_minor_ver], [0])
-m4_define([smbd_tools_micro_ver], [0])
+m4_define([smbd_tools_micro_ver], [1])
 
 m4_define([smbd_tools_version],
 	[smbd_tools_major_ver.smbd_tools_minor_ver.smbd_tools_micro_ver])
