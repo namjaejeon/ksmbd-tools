@@ -9,13 +9,13 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/cifsd_server.h>
+#include <linux/smbd_server.h>
 
 #include <management/share.h>
 
 #include <rpc.h>
 #include <rpc_srvsvc.h>
-#include <cifsdtools.h>
+#include <smbdtools.h>
 
 #define SHARE_TYPE_TEMP			0x40000000
 #define SHARE_TYPE_HIDDEN		0x80000000
@@ -36,25 +36,25 @@
 #define SRVSVC_OPNUM_SHARE_ENUM_ALL	15
 #define SRVSVC_OPNUM_GET_SHARE_INFO 	16
 
-static int __share_type(struct cifsd_share *share)
+static int __share_type(struct smbd_share *share)
 {
-	if (test_share_flag(share, CIFSD_SHARE_FLAG_PIPE))
+	if (test_share_flag(share, SMBD_SHARE_FLAG_PIPE))
 		return SHARE_TYPE_IPC;
 	if (!g_ascii_strncasecmp(share->name, "IPC", strlen("IPC")))
 		return SHARE_TYPE_IPC;
 	return SHARE_TYPE_DISKTREE;
 }
 
-static int __share_entry_size_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
+static int __share_entry_size_ctr0(struct smbd_dcerpc *dce, gpointer entry)
 {
-	struct cifsd_share *share = entry;
+	struct smbd_share *share = entry;
 
 	return strlen(share->name) * 2 + 4 * sizeof(__u32);
 }
 
-static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
+static int __share_entry_size_ctr1(struct smbd_dcerpc *dce, gpointer entry)
 {
-	struct cifsd_share *share = entry;
+	struct smbd_share *share = entry;
 	int sz = 0;
 
 	sz = strlen(share->name) * 2;
@@ -71,15 +71,15 @@ static int __share_entry_size_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
  * An embedded reference pointer is represented in two parts, a 4 octet
  * value in place and a possibly deferred representation of the referent.
  */
-static int __share_entry_rep_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
+static int __share_entry_rep_ctr0(struct smbd_dcerpc *dce, gpointer entry)
 {
 	dce->num_pointers++;
 	return ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
 }
 
-static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
+static int __share_entry_rep_ctr1(struct smbd_dcerpc *dce, gpointer entry)
 {
-	struct cifsd_share *share = entry;
+	struct smbd_share *share = entry;
 	int ret;
 
 	dce->num_pointers++;
@@ -90,16 +90,16 @@ static int __share_entry_rep_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	return ret;
 }
 
-static int __share_entry_data_ctr0(struct cifsd_dcerpc *dce, gpointer entry)
+static int __share_entry_data_ctr0(struct smbd_dcerpc *dce, gpointer entry)
 {
-	struct cifsd_share *share = entry;
+	struct smbd_share *share = entry;
 
 	return ndr_write_vstring(dce, share->name);
 }
 
-static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
+static int __share_entry_data_ctr1(struct smbd_dcerpc *dce, gpointer entry)
 {
-	struct cifsd_share *share = entry;
+	struct smbd_share *share = entry;
 	int ret;
 
 	ret = ndr_write_vstring(dce, share->name);
@@ -107,13 +107,13 @@ static int __share_entry_data_ctr1(struct cifsd_dcerpc *dce, gpointer entry)
 	return ret;
 }
 
-static int __share_entry_null_rep_ctr0(struct cifsd_dcerpc *dce,
+static int __share_entry_null_rep_ctr0(struct smbd_dcerpc *dce,
 				       gpointer entry)
 {
 	return ndr_write_int32(dce, 0); /* ref pointer */
 }
 
-static int __share_entry_null_rep_ctr1(struct cifsd_dcerpc *dce,
+static int __share_entry_null_rep_ctr1(struct smbd_dcerpc *dce,
 				       gpointer entry)
 {
 	int ret;
@@ -124,34 +124,34 @@ static int __share_entry_null_rep_ctr1(struct cifsd_dcerpc *dce,
 	return ret;
 }
 
-static int __share_entry_processed(struct cifsd_rpc_pipe *pipe, int i)
+static int __share_entry_processed(struct smbd_rpc_pipe *pipe, int i)
 {
-	struct cifsd_share *share;
+	struct smbd_share *share;
 
 	share = g_array_index(pipe->entries,  gpointer, i);
 	pipe->entries = g_array_remove_index(pipe->entries, i);
 	pipe->num_entries--;
 	pipe->num_processed++;
-	put_cifsd_share(share);
+	put_smbd_share(share);
 
 	return 0;
 }
 
 static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
 {
-	struct cifsd_rpc_pipe *pipe = (struct cifsd_rpc_pipe *)user_data;
-	struct cifsd_share *share = (struct cifsd_share *)value;
+	struct smbd_rpc_pipe *pipe = (struct smbd_rpc_pipe *)user_data;
+	struct smbd_share *share = (struct smbd_share *)value;
 
-	if (!get_cifsd_share(share))
+	if (!get_smbd_share(share))
 		return;
 
-	if (!test_share_flag(share, CIFSD_SHARE_FLAG_BROWSEABLE)) {
-		put_cifsd_share(share);
+	if (!test_share_flag(share, SMBD_SHARE_FLAG_BROWSEABLE)) {
+		put_smbd_share(share);
 		return;
 	}
 
-	if (!test_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE)) {
-		put_cifsd_share(share);
+	if (!test_share_flag(share, SMBD_SHARE_FLAG_AVAILABLE)) {
+		put_smbd_share(share);
 		return;
 	}
 
@@ -159,42 +159,42 @@ static void __enum_all_shares(gpointer key, gpointer value, gpointer user_data)
 	pipe->num_entries++;
 }
 
-static int srvsvc_share_enum_all_invoke(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_share_enum_all_invoke(struct smbd_rpc_pipe *pipe)
 {
-	for_each_cifsd_share(__enum_all_shares, pipe);
+	for_each_smbd_share(__enum_all_shares, pipe);
 	pipe->entry_processed = __share_entry_processed;
 	return 0;
 }
 
-static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
+static int srvsvc_share_get_info_invoke(struct smbd_rpc_pipe *pipe,
 					struct srvsvc_share_info_request *hdr)
 {
-	struct cifsd_share *share;
+	struct smbd_share *share;
 	int ret;
 
 	share = shm_lookup_share(STR_VAL(hdr->share_name));
 	if (!share)
 		return 0;
 
-	if (!test_share_flag(share, CIFSD_SHARE_FLAG_AVAILABLE)) {
-		put_cifsd_share(share);
+	if (!test_share_flag(share, SMBD_SHARE_FLAG_AVAILABLE)) {
+		put_smbd_share(share);
 		return 0;
 	}
 
 	ret = shm_lookup_hosts_map(share,
-				   CIFSD_SHARE_HOSTS_ALLOW_MAP,
+				   SMBD_SHARE_HOSTS_ALLOW_MAP,
 				   STR_VAL(hdr->server_name));
 	if (ret == -ENOENT) {
-		put_cifsd_share(share);
+		put_smbd_share(share);
 		return 0;
 	}
 
 	if (ret != 0) {
 		ret = shm_lookup_hosts_map(share,
-					   CIFSD_SHARE_HOSTS_DENY_MAP,
+					   SMBD_SHARE_HOSTS_DENY_MAP,
 					   STR_VAL(hdr->server_name));
 		if (ret == 0) {
-			put_cifsd_share(share);
+			put_smbd_share(share);
 			return 0;
 		}
 	}
@@ -205,10 +205,10 @@ static int srvsvc_share_get_info_invoke(struct cifsd_rpc_pipe *pipe,
 	return 0;
 }
 
-static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_share_enum_all_return(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int status = CIFSD_RPC_OK;
+	struct smbd_dcerpc *dce = pipe->dce;
+	int status = SMBD_RPC_OK;
 
 	ndr_write_union_int32(dce, dce->si_req.level);
 
@@ -219,12 +219,12 @@ static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
 	 */
 	ndr_write_int32(dce, pipe->num_processed);
 
-	if (status == CIFSD_RPC_EMORE_DATA) {
+	if (status == SMBD_RPC_EMORE_DATA) {
 		dce->num_pointers++;
 		ndr_write_int32(dce, dce->num_pointers);
 		ndr_write_int32(dce, 0x01);
 		/* Have pending data, set RETURN_READY again */
-		dce->flags |= CIFSD_DCERPC_RETURN_READY;
+		dce->flags |= SMBD_DCERPC_RETURN_READY;
 	} else {
 		dce->num_pointers++;
 		ndr_write_int32(dce, dce->num_pointers);
@@ -233,9 +233,9 @@ static int srvsvc_share_enum_all_return(struct cifsd_rpc_pipe *pipe)
 	return status;
 }
 
-static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_share_get_info_return(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
+	struct smbd_dcerpc *dce = pipe->dce;
 
 	ndr_write_union_int32(dce, dce->si_req.level);
 	if (pipe->num_entries)
@@ -255,17 +255,17 @@ static int srvsvc_share_get_info_return(struct cifsd_rpc_pipe *pipe)
 		pr_err("Unsupported share info level (read): %d\n",
 			dce->si_req.level);
 		dce->entry_rep = NULL;
-		return CIFSD_RPC_EINVALID_LEVEL;
+		return SMBD_RPC_EINVALID_LEVEL;
 	}
 
 	dce->entry_rep(dce, NULL);
 
 	if (!rpc_restricted_context(dce->rpc_req))
-		return CIFSD_RPC_EINVALID_PARAMETER;
-	return CIFSD_RPC_EACCESS_DENIED;
+		return SMBD_RPC_EINVALID_PARAMETER;
+	return SMBD_RPC_EACCESS_DENIED;
 }
 
-static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
+static int srvsvc_parse_share_info_req(struct smbd_dcerpc *dce,
 				       struct srvsvc_share_info_request *hdr)
 {
 	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
@@ -300,13 +300,13 @@ static int srvsvc_parse_share_info_req(struct cifsd_dcerpc *dce,
 	return -ENOTSUP;
 }
 
-static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_share_info_invoke(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
+	struct smbd_dcerpc *dce = pipe->dce;
+	int ret = SMBD_RPC_ENOTIMPLEMENTED;
 
 	if (srvsvc_parse_share_info_req(dce, &dce->si_req))
-		return CIFSD_RPC_EBAD_DATA;
+		return SMBD_RPC_EBAD_DATA;
 
 	pipe->entry_processed = __share_entry_processed;
 
@@ -320,10 +320,10 @@ static int srvsvc_share_info_invoke(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
-static int srvsvc_clear_headers(struct cifsd_rpc_pipe *pipe,
+static int srvsvc_clear_headers(struct smbd_rpc_pipe *pipe,
 				int status)
 {
-	if (status == CIFSD_RPC_EMORE_DATA)
+	if (status == SMBD_RPC_EMORE_DATA)
 		return 0;
 
 	ndr_free_uniq_vsting_ptr(&pipe->dce->si_req.server_name);
@@ -333,10 +333,10 @@ static int srvsvc_clear_headers(struct cifsd_rpc_pipe *pipe,
 	return 0;
 }
 
-static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_share_info_return(struct smbd_rpc_pipe *pipe)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
-	int ret = CIFSD_RPC_OK, status;
+	struct smbd_dcerpc *dce = pipe->dce;
+	int ret = SMBD_RPC_OK, status;
 
 	/*
 	 * Reserve space for response NDR header. We don't know yet if
@@ -368,14 +368,14 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 		status = srvsvc_share_enum_all_return(pipe);
 
 	if (rpc_restricted_context(dce->rpc_req))
-		status = CIFSD_RPC_EACCESS_DENIED;
+		status = SMBD_RPC_EACCESS_DENIED;
 
 	srvsvc_clear_headers(pipe, status);
 
 	/*
 	 * [out] DWORD Return value/code
 	 */
-	if (ret != CIFSD_RPC_OK)
+	if (ret != SMBD_RPC_OK)
 		status = ret;
 
 	ndr_write_int32(dce, status);
@@ -385,9 +385,9 @@ static int srvsvc_share_info_return(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
-static int srvsvc_invoke(struct cifsd_rpc_pipe *pipe)
+static int srvsvc_invoke(struct smbd_rpc_pipe *pipe)
 {
-	int ret = CIFSD_RPC_ENOTIMPLEMENTED;
+	int ret = SMBD_RPC_ENOTIMPLEMENTED;
 
 	switch (pipe->dce->req_hdr.opnum) {
 	case SRVSVC_OPNUM_SHARE_ENUM_ALL:
@@ -403,11 +403,11 @@ static int srvsvc_invoke(struct cifsd_rpc_pipe *pipe)
 	return ret;
 }
 
-static int srvsvc_return(struct cifsd_rpc_pipe *pipe,
-			 struct cifsd_rpc_command *resp,
+static int srvsvc_return(struct smbd_rpc_pipe *pipe,
+			 struct smbd_rpc_command *resp,
 			 int max_resp_sz)
 {
-	struct cifsd_dcerpc *dce = pipe->dce;
+	struct smbd_dcerpc *dce = pipe->dce;
 	int ret;
 
 	switch (dce->req_hdr.opnum) {
@@ -423,20 +423,20 @@ static int srvsvc_return(struct cifsd_rpc_pipe *pipe,
 	default:
 		pr_err("SRVSVC: unsupported RETURN method %d\n",
 			dce->req_hdr.opnum);
-		ret = CIFSD_RPC_EBAD_FUNC;
+		ret = SMBD_RPC_EBAD_FUNC;
 		break;
 	}
 	return ret;
 }
 
-int rpc_srvsvc_read_request(struct cifsd_rpc_pipe *pipe,
-			    struct cifsd_rpc_command *resp,
+int rpc_srvsvc_read_request(struct smbd_rpc_pipe *pipe,
+			    struct smbd_rpc_command *resp,
 			    int max_resp_sz)
 {
 	return srvsvc_return(pipe, resp, max_resp_sz);
 }
 
-int rpc_srvsvc_write_request(struct cifsd_rpc_pipe *pipe)
+int rpc_srvsvc_write_request(struct smbd_rpc_pipe *pipe)
 {
 	return srvsvc_invoke(pipe);
 }

@@ -1,19 +1,19 @@
 AC_PREREQ([2.68])
 
-m4_define([cifsd_tools_major_ver], [2])
-m4_define([cifsd_tools_minor_ver], [0])
-m4_define([cifsd_tools_micro_ver], [4])
+m4_define([smbd_tools_major_ver], [3])
+m4_define([smbd_tools_minor_ver], [0])
+m4_define([smbd_tools_micro_ver], [0])
 
-m4_define([cifsd_tools_version],
-	[cifsd_tools_major_ver.cifsd_tools_minor_ver.cifsd_tools_micro_ver])
+m4_define([smbd_tools_version],
+	[smbd_tools_major_ver.smbd_tools_minor_ver.smbd_tools_micro_ver])
 
-AC_INIT([CIFSD tools],
+AC_INIT([SMBD tools],
 	[m4_esyscmd_s([git describe --tags --dirty --always --long || echo unknown])],
 	[linux-cifsd-devel@lists.sourceforge.net])
 
-AC_DEFINE([CIFSD_TOOLS_VERSION],
-	"cifsd_tools_version [m4_esyscmd_s([git describe --tags --dirty --always --long || echo unknown])]",
-	["cifsd-tools version"])
+AC_DEFINE([SMBD_TOOLS_VERSION],
+	"smbd_tools_version [m4_esyscmd_s([git describe --tags --dirty --always --long || echo unknown])]",
+	["smbd-tools version"])
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
@@ -63,9 +63,9 @@ AS_IF([test "$has_libnl_ver" -eq 0], [
 AC_CONFIG_FILES([
 	Makefile
 	lib/Makefile
-	cifsd/Makefile
-	cifsuseradd/Makefile
-	cifsshareadd/Makefile
+	usmbd/Makefile
+	smbuseradd/Makefile
+	smbshareadd/Makefile
 ])
 
 AC_OUTPUT

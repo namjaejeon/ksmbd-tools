@@ -9,8 +9,8 @@ Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
 Patch Contributors and Developers
 ---------------------------------
-Sergey Senozhatsky <sergey.senozhatsky@gmail.com> (Resolve overall architecture issues and make close to the mainline. and his work cause cifsd 2.0 to be reborn)
-Taeyang Mok <t.mok@samsung.com> (various cifsd works)
+Sergey Senozhatsky <sergey.senozhatsky@gmail.com> (Resolve overall architecture issues and make close to the mainline. and his work cause smbd 2.0 to be reborn)
+Taeyang Mok <t.mok@samsung.com> (various smbd works)
 Yunjae Lim <yunjae.lim@samsung.com> (compatibility works for several windows version and MS-SMB2 testsuite)
 Hyunchul Lee <hyc.lee@gmail.com> (SMBDirect works)
 Gibeom Kim <gibeomii.kim@samsung.com>

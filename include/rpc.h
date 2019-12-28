@@ -5,22 +5,22 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#ifndef __CIFSD_RPC_H__
-#define __CIFSD_RPC_H__
+#ifndef __SMBD_RPC_H__
+#define __SMBD_RPC_H__
 
 #include <linux/types.h>
 #include <glib.h>
 
-#define CIFSD_DCERPC_LITTLE_ENDIAN	(1 << 0)
-#define CIFSD_DCERPC_ALIGN2		(1 << 1)
-#define CIFSD_DCERPC_ALIGN4		(1 << 2)
-#define CIFSD_DCERPC_ALIGN8		(1 << 3)
-#define CIFSD_DCERPC_ASCII_STRING	(1 << 4)
-#define CIFSD_DCERPC_FIXED_PAYLOAD_SZ	(1 << 5)
-#define CIFSD_DCERPC_EXTERNAL_PAYLOAD	(1 << 6)
-#define CIFSD_DCERPC_RETURN_READY	(1 << 7)
+#define SMBD_DCERPC_LITTLE_ENDIAN	(1 << 0)
+#define SMBD_DCERPC_ALIGN2		(1 << 1)
+#define SMBD_DCERPC_ALIGN4		(1 << 2)
+#define SMBD_DCERPC_ALIGN8		(1 << 3)
+#define SMBD_DCERPC_ASCII_STRING	(1 << 4)
+#define SMBD_DCERPC_FIXED_PAYLOAD_SZ	(1 << 5)
+#define SMBD_DCERPC_EXTERNAL_PAYLOAD	(1 << 6)
+#define SMBD_DCERPC_RETURN_READY	(1 << 7)
 
-#define CIFSD_DCERPC_MAX_PREFERRED_SIZE -1
+#define SMBD_DCERPC_MAX_PREFERRED_SIZE -1
 
 #define DCERPC_PTYPE_RPC_REQUEST	0x00
 #define DCERPC_PTYPE_RPC_PING		0x01
@@ -215,15 +215,15 @@ enum DCERPC_BIND_TIME_OPTIONS {
 /*
  * So how this is expected to work. First, you need to obtain a snapshot
  * of the data that you want to push to the wire. The data snapshot goes
- * to cifsd_rpc_pipe. Then you perform a protocol specific transformation
+ * to smbd_rpc_pipe. Then you perform a protocol specific transformation
  * of the data snapshot. The transformed data goes to a specific protocol
- * dependent structure, e.g. cifsd_dcerpc for DCERPC (ndr/ndr64). Then you
+ * dependent structure, e.g. smbd_dcerpc for DCERPC (ndr/ndr64). Then you
  * write the transformed data snapshot to the wire.
  */
 
-struct cifsd_rpc_command;
+struct smbd_rpc_command;
 
-struct cifsd_dcerpc {
+struct smbd_dcerpc {
 	unsigned int		flags;
 	size_t			offset;
 	size_t			payload_sz;
@@ -243,96 +243,96 @@ struct cifsd_dcerpc {
 		struct wkssvc_netwksta_info_request	wi_req;
 	};
 
-	struct cifsd_rpc_command	*rpc_req;
-	struct cifsd_rpc_command	*rpc_resp;
+	struct smbd_rpc_command	*rpc_req;
+	struct smbd_rpc_command	*rpc_resp;
 
 	/*
 	 * Find out the estimated entry size under the given container level
 	 * restriction
 	 */
-	int			(*entry_size)(struct cifsd_dcerpc *,
+	int			(*entry_size)(struct smbd_dcerpc *,
 					      gpointer entry);
 	/*
 	 * Entry representation under the given container level
 	 * restriction for array representation
 	 */
-	int			(*entry_rep)(struct cifsd_dcerpc *,
+	int			(*entry_rep)(struct smbd_dcerpc *,
 					      gpointer entry);
 	/*
 	 * Entry data under the given container level restriction
 	 * for array representation
 	 */
-	int			(*entry_data)(struct cifsd_dcerpc *,
+	int			(*entry_data)(struct smbd_dcerpc *,
 					      gpointer entry);
 };
 
-struct cifsd_rpc_pipe {
+struct smbd_rpc_pipe {
 	unsigned int		id;
 
 	int 			num_entries;
 	int			num_processed;
 	GArray			*entries;
 
-	struct cifsd_dcerpc	*dce;
+	struct smbd_dcerpc	*dce;
 
 	/*
 	 * Tell pipe that we processed the entry and won't need it
 	 * anymore so it can remove/drop it.
 	 */
-	int			(*entry_processed)(struct cifsd_rpc_pipe *,
+	int			(*entry_processed)(struct smbd_rpc_pipe *,
 						   int i);
 };
 
-__u8 ndr_read_int8(struct cifsd_dcerpc *dce);
-__u16 ndr_read_int16(struct cifsd_dcerpc *dce);
-__u32 ndr_read_int32(struct cifsd_dcerpc *dce);
-__u64 ndr_read_int64(struct cifsd_dcerpc *dce);
+__u8 ndr_read_int8(struct smbd_dcerpc *dce);
+__u16 ndr_read_int16(struct smbd_dcerpc *dce);
+__u32 ndr_read_int32(struct smbd_dcerpc *dce);
+__u64 ndr_read_int64(struct smbd_dcerpc *dce);
 
-int ndr_write_int8(struct cifsd_dcerpc *dce, __u8 value);
-int ndr_write_int16(struct cifsd_dcerpc *dce, __u16 value);
-int ndr_write_int32(struct cifsd_dcerpc *dce, __u32 value);
-int ndr_write_int64(struct cifsd_dcerpc *dce, __u64 value);
+int ndr_write_int8(struct smbd_dcerpc *dce, __u8 value);
+int ndr_write_int16(struct smbd_dcerpc *dce, __u16 value);
+int ndr_write_int32(struct smbd_dcerpc *dce, __u32 value);
+int ndr_write_int64(struct smbd_dcerpc *dce, __u64 value);
 
-int ndr_write_union_int16(struct cifsd_dcerpc *dce, __u16 value);
-int ndr_write_union_int32(struct cifsd_dcerpc *dce, __u32 value);
-__u32 ndr_read_union_int32(struct cifsd_dcerpc *dce);
+int ndr_write_union_int16(struct smbd_dcerpc *dce, __u16 value);
+int ndr_write_union_int32(struct smbd_dcerpc *dce, __u32 value);
+__u32 ndr_read_union_int32(struct smbd_dcerpc *dce);
 
-int ndr_write_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz);
-int ndr_read_bytes(struct cifsd_dcerpc *dce, void *value, size_t sz);
-int ndr_write_vstring(struct cifsd_dcerpc *dce, char *value);
-char *ndr_read_vstring(struct cifsd_dcerpc *dce);
-void ndr_read_vstring_ptr(struct cifsd_dcerpc *dce, struct ndr_char_ptr *ctr);
-void ndr_read_uniq_vsting_ptr(struct cifsd_dcerpc *dce,
+int ndr_write_bytes(struct smbd_dcerpc *dce, void *value, size_t sz);
+int ndr_read_bytes(struct smbd_dcerpc *dce, void *value, size_t sz);
+int ndr_write_vstring(struct smbd_dcerpc *dce, char *value);
+char *ndr_read_vstring(struct smbd_dcerpc *dce);
+void ndr_read_vstring_ptr(struct smbd_dcerpc *dce, struct ndr_char_ptr *ctr);
+void ndr_read_uniq_vsting_ptr(struct smbd_dcerpc *dce,
 			      struct ndr_uniq_char_ptr *ctr);
 void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr);
 void ndr_free_uniq_vsting_ptr(struct ndr_uniq_char_ptr *ctr);
-void ndr_read_ptr(struct cifsd_dcerpc *dce, struct ndr_ptr *ctr);
-void ndr_read_uniq_ptr(struct cifsd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
-int __ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe, int max_entry_nr);
-int ndr_write_array_of_structs(struct cifsd_rpc_pipe *pipe);
+void ndr_read_ptr(struct smbd_dcerpc *dce, struct ndr_ptr *ctr);
+void ndr_read_uniq_ptr(struct smbd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
+int __ndr_write_array_of_structs(struct smbd_rpc_pipe *pipe, int max_entry_nr);
+int ndr_write_array_of_structs(struct smbd_rpc_pipe *pipe);
 
-int dcerpc_write_headers(struct cifsd_dcerpc *dce, int method_status);
+int dcerpc_write_headers(struct smbd_dcerpc *dce, int method_status);
 
-void dcerpc_set_ext_payload(struct cifsd_dcerpc *dce,
+void dcerpc_set_ext_payload(struct smbd_dcerpc *dce,
 			    void *payload,
 			    size_t sz);
-void rpc_pipe_reset(struct cifsd_rpc_pipe *pipe);
+void rpc_pipe_reset(struct smbd_rpc_pipe *pipe);
 
 int rpc_init(void);
 void rpc_destroy(void);
 
-int rpc_restricted_context(struct cifsd_rpc_command *req);
+int rpc_restricted_context(struct smbd_rpc_command *req);
 
-int rpc_ioctl_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp,
+int rpc_ioctl_request(struct smbd_rpc_command *req,
+		      struct smbd_rpc_command *resp,
 		      int max_resp_sz);
-int rpc_read_request(struct cifsd_rpc_command *req,
-		     struct cifsd_rpc_command *resp,
+int rpc_read_request(struct smbd_rpc_command *req,
+		     struct smbd_rpc_command *resp,
 		     int max_resp_sz);
-int rpc_write_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp);
-int rpc_open_request(struct cifsd_rpc_command *req,
-		     struct cifsd_rpc_command *resp);
-int rpc_close_request(struct cifsd_rpc_command *req,
-		      struct cifsd_rpc_command *resp);
-#endif /* __CIFSD_RPC_H__ */
+int rpc_write_request(struct smbd_rpc_command *req,
+		      struct smbd_rpc_command *resp);
+int rpc_open_request(struct smbd_rpc_command *req,
+		     struct smbd_rpc_command *resp);
+int rpc_close_request(struct smbd_rpc_command *req,
+		      struct smbd_rpc_command *resp);
+#endif /* __SMBD_RPC_H__ */

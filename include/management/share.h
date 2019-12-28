@@ -13,31 +13,31 @@
 
 enum share_users {
 	/* Admin users */
-	CIFSD_SHARE_ADMIN_USERS_MAP = 0,
+	SMBD_SHARE_ADMIN_USERS_MAP = 0,
 	/* Valid users */
-	CIFSD_SHARE_VALID_USERS_MAP,
+	SMBD_SHARE_VALID_USERS_MAP,
 	/* Invalid users */
-	CIFSD_SHARE_INVALID_USERS_MAP,
+	SMBD_SHARE_INVALID_USERS_MAP,
 	/* Read-only users */
-	CIFSD_SHARE_READ_LIST_MAP,
+	SMBD_SHARE_READ_LIST_MAP,
 	/* Read/Write access to a read-only share */
-	CIFSD_SHARE_WRITE_LIST_MAP,
-	CIFSD_SHARE_USERS_MAX,
+	SMBD_SHARE_WRITE_LIST_MAP,
+	SMBD_SHARE_USERS_MAX,
 };
 
 enum share_hosts {
-	CIFSD_SHARE_HOSTS_ALLOW_MAP = 0,
-	CIFSD_SHARE_HOSTS_DENY_MAP,
-	CIFSD_SHARE_HOSTS_MAX,
+	SMBD_SHARE_HOSTS_ALLOW_MAP = 0,
+	SMBD_SHARE_HOSTS_DENY_MAP,
+	SMBD_SHARE_HOSTS_MAX,
 };
 
-#define CIFSD_SHARE_DEFAULT_CREATE_MASK	0744
-#define CIFSD_SHARE_DEFAULT_DIRECTORY_MASK	0755
+#define SMBD_SHARE_DEFAULT_CREATE_MASK	0744
+#define SMBD_SHARE_DEFAULT_DIRECTORY_MASK	0755
 
-#define CIFSD_SHARE_DEFAULT_UID		0
-#define CIFSD_SHARE_DEFAULT_GID		0
+#define SMBD_SHARE_DEFAULT_UID		0
+#define SMBD_SHARE_DEFAULT_GID		0
 
-struct cifsd_share {
+struct smbd_share {
 	char		*name;
 	char		*path;
 
@@ -61,7 +61,7 @@ struct cifsd_share {
 
 	char		*guest_account;
 
-	GHashTable	*maps[CIFSD_SHARE_USERS_MAX];
+	GHashTable	*maps[SMBD_SHARE_USERS_MAX];
 	/*
 	 * FIXME
 	 * We need to support IP ranges, netmasks, etc.
@@ -82,64 +82,64 @@ struct cifsd_share {
  * WARNING:
  *
  * Add new entries only before to the bottom, right before
- * CIFSD_SHARE_CONF_MAX. See SHARE_CONF comment.
+ * SMBD_SHARE_CONF_MAX. See SHARE_CONF comment.
  *
  */
-enum CIFSD_SHARE_CONF {
-	CIFSD_SHARE_CONF_COMMENT			= 0,
-	CIFSD_SHARE_CONF_PATH,
-	CIFSD_SHARE_CONF_GUEST_OK,
-	CIFSD_SHARE_CONF_GUEST_ACCOUNT,
-	CIFSD_SHARE_CONF_READ_ONLY,
-	CIFSD_SHARE_CONF_BROWSEABLE			= 5,
-	CIFSD_SHARE_CONF_WRITE_OK,
-	CIFSD_SHARE_CONF_WRITEABLE,
-	CIFSD_SHARE_CONF_STORE_DOS_ATTRIBUTES,
-	CIFSD_SHARE_CONF_OPLOCKS,
-	CIFSD_SHARE_CONF_CREATE_MASK			= 10,
-	CIFSD_SHARE_CONF_DIRECTORY_MASK,
-	CIFSD_SHARE_CONF_FORCE_CREATE_MODE,
-	CIFSD_SHARE_CONF_FORCE_DIRECTORY_MODE,
-	CIFSD_SHARE_CONF_FORCE_GROUP,
-	CIFSD_SHARE_CONF_FORCE_USER			= 15,
-	CIFSD_SHARE_CONF_HIDE_DOT_FILES,
-	CIFSD_SHARE_CONF_VALID_USERS,
-	CIFSD_SHARE_CONF_INVALID_USERS,
-	CIFSD_SHARE_CONF_READ_LIST,
-	CIFSD_SHARE_CONF_WRITE_LIST			= 20,
-	CIFSD_SHARE_CONF_ADMIN_USERS,
-	CIFSD_SHARE_CONF_HOSTS_ALLOW,
-	CIFSD_SHARE_CONF_HOSTS_DENY,
-	CIFSD_SHARE_CONF_MAX_CONNECTIONS,
-	CIFSD_SHARE_CONF_VETO_FILES			= 25,
-	CIFSD_SHARE_CONF_INHERIT_SMACK,
-	CIFSD_SHARE_CONF_INHERIT_OWNER,
-	CIFSD_SHARE_CONF_STREAMS,
-	CIFSD_SHARE_CONF_MAX
+enum SMBD_SHARE_CONF {
+	SMBD_SHARE_CONF_COMMENT			= 0,
+	SMBD_SHARE_CONF_PATH,
+	SMBD_SHARE_CONF_GUEST_OK,
+	SMBD_SHARE_CONF_GUEST_ACCOUNT,
+	SMBD_SHARE_CONF_READ_ONLY,
+	SMBD_SHARE_CONF_BROWSEABLE			= 5,
+	SMBD_SHARE_CONF_WRITE_OK,
+	SMBD_SHARE_CONF_WRITEABLE,
+	SMBD_SHARE_CONF_STORE_DOS_ATTRIBUTES,
+	SMBD_SHARE_CONF_OPLOCKS,
+	SMBD_SHARE_CONF_CREATE_MASK			= 10,
+	SMBD_SHARE_CONF_DIRECTORY_MASK,
+	SMBD_SHARE_CONF_FORCE_CREATE_MODE,
+	SMBD_SHARE_CONF_FORCE_DIRECTORY_MODE,
+	SMBD_SHARE_CONF_FORCE_GROUP,
+	SMBD_SHARE_CONF_FORCE_USER			= 15,
+	SMBD_SHARE_CONF_HIDE_DOT_FILES,
+	SMBD_SHARE_CONF_VALID_USERS,
+	SMBD_SHARE_CONF_INVALID_USERS,
+	SMBD_SHARE_CONF_READ_LIST,
+	SMBD_SHARE_CONF_WRITE_LIST			= 20,
+	SMBD_SHARE_CONF_ADMIN_USERS,
+	SMBD_SHARE_CONF_HOSTS_ALLOW,
+	SMBD_SHARE_CONF_HOSTS_DENY,
+	SMBD_SHARE_CONF_MAX_CONNECTIONS,
+	SMBD_SHARE_CONF_VETO_FILES			= 25,
+	SMBD_SHARE_CONF_INHERIT_SMACK,
+	SMBD_SHARE_CONF_INHERIT_OWNER,
+	SMBD_SHARE_CONF_STREAMS,
+	SMBD_SHARE_CONF_MAX
 };
 
-extern char *CIFSD_SHARE_CONF[CIFSD_SHARE_CONF_MAX];
+extern char *SMBD_SHARE_CONF[SMBD_SHARE_CONF_MAX];
 
-int shm_share_config(char *k, enum CIFSD_SHARE_CONF c);
+int shm_share_config(char *k, enum SMBD_SHARE_CONF c);
 
-static inline void set_share_flag(struct cifsd_share *share, int flag)
+static inline void set_share_flag(struct smbd_share *share, int flag)
 {
 	share->flags |= flag;
 }
 
-static inline void clear_share_flag(struct cifsd_share *share, int flag)
+static inline void clear_share_flag(struct smbd_share *share, int flag)
 {
 	share->flags &= ~flag;
 }
 
-static inline int test_share_flag(struct cifsd_share *share, int flag)
+static inline int test_share_flag(struct smbd_share *share, int flag)
 {
 	return share->flags & flag;
 }
 
-struct cifsd_share *get_cifsd_share(struct cifsd_share *share);
-void put_cifsd_share(struct cifsd_share *share);
-struct cifsd_share *shm_lookup_share(char *name);
+struct smbd_share *get_smbd_share(struct smbd_share *share);
+void put_smbd_share(struct smbd_share *share);
+struct smbd_share *shm_lookup_share(char *name);
 
 struct smbconf_group;
 int shm_add_new_share(struct smbconf_group *group);
@@ -147,26 +147,26 @@ int shm_add_new_share(struct smbconf_group *group);
 void shm_destroy(void);
 int shm_init(void);
 
-int shm_lookup_users_map(struct cifsd_share *share,
+int shm_lookup_users_map(struct smbd_share *share,
 			  enum share_users map,
 			  char *name);
 
-int shm_lookup_hosts_map(struct cifsd_share *share,
+int shm_lookup_hosts_map(struct smbd_share *share,
 			  enum share_hosts map,
 			  char *host);
 
-int shm_open_connection(struct cifsd_share *share);
-int shm_close_connection(struct cifsd_share *share);
+int shm_open_connection(struct smbd_share *share);
+int shm_close_connection(struct smbd_share *share);
 
 typedef void (*walk_shares)(gpointer key,
 			    gpointer value,
 			    gpointer user_data);
-void for_each_cifsd_share(walk_shares cb, gpointer user_data);
+void for_each_smbd_share(walk_shares cb, gpointer user_data);
 
-struct cifsd_share_config_response;
+struct smbd_share_config_response;
 
-int shm_share_config_payload_size(struct cifsd_share *share);
-int shm_handle_share_config_request(struct cifsd_share *share,
-				    struct cifsd_share_config_response *resp);
+int shm_share_config_payload_size(struct smbd_share *share);
+int shm_handle_share_config_request(struct smbd_share *share,
+				    struct smbd_share_config_response *resp);
 
 #endif /* __MANAGEMENT_SHARE_H__ */
