@@ -47,8 +47,6 @@ unsigned long long memparse(const char *v)
 	case 'K':
 	case 'k':
 		ret <<= 10;
-	default:
-		break;
 	}
 
 	return ret;
@@ -134,7 +132,7 @@ out_free:
 static int add_group_key_value(char *line)
 {
 	char *key, *value;
-	
+
 	key = strchr(line, '=');
 	if (!key)
 		return -EINVAL;
@@ -144,8 +142,10 @@ static int add_group_key_value(char *line)
 	key--;
 	value++;
 
-	while (is_ascii_space_tab(*key)) key--;
-	while (is_ascii_space_tab(*value)) value++;
+	while (is_ascii_space_tab(*key))
+		key--;
+	while (is_ascii_space_tab(*value))
+		value++;
 
 	if (is_a_comment(value))
 		return 0;
@@ -171,7 +171,8 @@ static int add_group_key_value(char *line)
 
 static int process_smbconf_entry(char *data)
 {
-	while (is_ascii_space_tab(*data)) data++;
+	while (is_ascii_space_tab(*data))
+		data++;
 
 	if (is_a_comment(data))
 		return 0;
@@ -300,7 +301,8 @@ char *cp_ltrim(char *v)
 	if (!v)
 		return NULL;
 
-	while (*v && *v == ' ') v++;
+	while (*v && *v == ' ')
+		v++;
 	if (*v == 0x00)
 		return NULL;
 	return v;
@@ -561,7 +563,8 @@ static void fixup_missing_global_group(void)
 		global_conf.file_max = USMBD_CONF_FILE_MAX;
 	if (!global_conf.server_string)
 		global_conf.server_string =
-			cp_get_group_kv_string(USMBD_CONF_DEFAULT_SERVER_STRING);
+			cp_get_group_kv_string(
+					USMBD_CONF_DEFAULT_SERVER_STRING);
 	if (!global_conf.netbios_name)
 		global_conf.netbios_name =
 			cp_get_group_kv_string(USMBD_CONF_DEFAULT_NETBIOS_NAME);

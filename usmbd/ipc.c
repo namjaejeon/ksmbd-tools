@@ -33,9 +33,8 @@ struct usmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 		pr_err("IPC message is too large: %zu\n", msg_sz);
 
 	msg = calloc(1, msg_sz);
-	if (msg) {
+	if (msg)
 		msg->sz = sz;
-	}
 	return msg;
 }
 
@@ -109,7 +108,8 @@ static int ifc_list_size(void)
 		char *ifc = global_conf.interfaces[i];
 
 		ifc = cp_ltrim(ifc);
-		if (!ifc) continue;
+		if (!ifc)
+			continue;
 
 		len += strlen(ifc) + 1;
 	}
@@ -180,7 +180,8 @@ static int ipc_usmbd_starting_up(void)
 			char *ifc = global_conf.interfaces[i];
 
 			ifc = cp_ltrim(ifc);
-			if (!ifc) continue;
+			if (!ifc)
+				continue;
 
 			strcpy(config_payload + sz, ifc);
 			sz += strlen(ifc) + 1;

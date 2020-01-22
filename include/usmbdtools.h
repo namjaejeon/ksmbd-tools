@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  *
@@ -114,7 +114,7 @@ static int log_level = PR_INFO;
 char *strerr(int err);
 
 __attribute__ ((format (printf, 2, 3)))
-extern void __pr_log(int level, const char *fmt,...);
+extern void __pr_log(int level, const char *fmt, ...);
 extern void set_logger_app_name(const char *an);
 extern const char *get_logger_app_name(void);
 extern void pr_logger_init(int flags);
@@ -127,11 +127,11 @@ extern void pr_logger_init(int flags);
 					##__VA_ARGS__);			\
 	} while (0)
 
-#define pr_debug(f,...)	\
+#define pr_debug(f, ...)	\
 	pr_log(PR_DEBUG, PRDEBUG f, ##__VA_ARGS__)
-#define pr_info(f,...)	\
+#define pr_info(f, ...)	\
 	pr_log(PR_INFO, PRINF f, ##__VA_ARGS__)
-#define pr_err(f,...)	\
+#define pr_err(f, ...)	\
 	pr_log(PR_ERROR, PRERR f, ##__VA_ARGS__)
 
 //---------------------------------------------------------------//

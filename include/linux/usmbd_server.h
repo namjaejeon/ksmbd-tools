@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  *
@@ -227,18 +227,18 @@ enum USMBD_TREE_CONN_STATUS {
 /*
  * RPC over IPC.
  */
-#define USMBD_RPC_METHOD_RETURN		( 1 << 0)
-#define USMBD_RPC_SRVSVC_METHOD_INVOKE	( 1 << 1)
+#define USMBD_RPC_METHOD_RETURN		(1 << 0)
+#define USMBD_RPC_SRVSVC_METHOD_INVOKE	(1 << 1)
 #define USMBD_RPC_SRVSVC_METHOD_RETURN	((1 << 1) | USMBD_RPC_METHOD_RETURN)
-#define USMBD_RPC_WKSSVC_METHOD_INVOKE	( 1 << 2)
+#define USMBD_RPC_WKSSVC_METHOD_INVOKE	(1 << 2)
 #define USMBD_RPC_WKSSVC_METHOD_RETURN	((1 << 2) | USMBD_RPC_METHOD_RETURN)
 #define USMBD_RPC_IOCTL_METHOD		((1 << 3) | USMBD_RPC_METHOD_RETURN)
-#define USMBD_RPC_OPEN_METHOD		( 1 << 4)
-#define USMBD_RPC_WRITE_METHOD		( 1 << 5)
+#define USMBD_RPC_OPEN_METHOD		(1 << 4)
+#define USMBD_RPC_WRITE_METHOD		(1 << 5)
 #define USMBD_RPC_READ_METHOD		((1 << 6) | USMBD_RPC_METHOD_RETURN)
-#define USMBD_RPC_CLOSE_METHOD		( 1 << 7)
+#define USMBD_RPC_CLOSE_METHOD		(1 << 7)
 #define USMBD_RPC_RAP_METHOD		((1 << 8) | USMBD_RPC_METHOD_RETURN)
-#define USMBD_RPC_RESTRICTED_CONTEXT	( 1 << 9)
+#define USMBD_RPC_RESTRICTED_CONTEXT	(1 << 9)
 
 #define USMBD_RPC_OK			0
 #define USMBD_RPC_EBAD_FUNC		0x00000001

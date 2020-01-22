@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  *
@@ -23,7 +23,7 @@ struct usmbd_user {
 	gid_t		gid;
 
 	int		ref_count;
-	int 		flags;
+	int		flags;
 	GRWLock		update_lock;
 };
 

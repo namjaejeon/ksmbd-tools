@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  *
@@ -250,26 +250,26 @@ struct usmbd_dcerpc {
 	 * Find out the estimated entry size under the given container level
 	 * restriction
 	 */
-	int			(*entry_size)(struct usmbd_dcerpc *,
+	int			(*entry_size)(struct usmbd_dcerpc *dce,
 					      gpointer entry);
 	/*
 	 * Entry representation under the given container level
 	 * restriction for array representation
 	 */
-	int			(*entry_rep)(struct usmbd_dcerpc *,
+	int			(*entry_rep)(struct usmbd_dcerpc *dce,
 					      gpointer entry);
 	/*
 	 * Entry data under the given container level restriction
 	 * for array representation
 	 */
-	int			(*entry_data)(struct usmbd_dcerpc *,
+	int			(*entry_data)(struct usmbd_dcerpc *dce,
 					      gpointer entry);
 };
 
 struct usmbd_rpc_pipe {
 	unsigned int		id;
 
-	int 			num_entries;
+	int			num_entries;
 	int			num_processed;
 	GArray			*entries;
 
@@ -279,7 +279,7 @@ struct usmbd_rpc_pipe {
 	 * Tell pipe that we processed the entry and won't need it
 	 * anymore so it can remove/drop it.
 	 */
-	int			(*entry_processed)(struct usmbd_rpc_pipe *,
+	int			(*entry_processed)(struct usmbd_rpc_pipe *pipe,
 						   int i);
 };
 
