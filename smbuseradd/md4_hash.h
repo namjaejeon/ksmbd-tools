@@ -30,7 +30,8 @@ struct md4_ctx {
 };
 
 void md4_init(struct md4_ctx *mctx);
-void md4_update(struct md4_ctx *mctx, const unsigned char *data, unsigned int len);
+void md4_update(struct md4_ctx *mctx, const unsigned char *data,
+		unsigned int len);
 void md4_final(struct md4_ctx *mctx, unsigned char *out);
 
 #endif /* __MD4_HASH_H__ */
