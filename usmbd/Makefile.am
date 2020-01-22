@@ -1,6 +1,6 @@
 AM_CFLAGS = -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common
 LIBS = $(GLIB_LIBS) $(LIBNL_LIBS)
-usmbd_LDADD = $(top_builddir)/lib/libsmbdtools.la
+usmbd_LDADD = $(top_builddir)/lib/libusmbdtools.la
 
 sbin_PROGRAMS = usmbd
 
