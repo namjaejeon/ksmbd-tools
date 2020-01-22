@@ -75,7 +75,7 @@ char *strerr(int err)
 	return buf;
 }
 
-void __pr_log(int level, const char *fmt,...)
+void __pr_log(int level, const char *fmt, ...)
 {
 	va_list list;
 
