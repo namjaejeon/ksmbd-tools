@@ -134,7 +134,7 @@ out_free:
 static int add_group_key_value(char *line)
 {
 	char *key, *value;
-	
+
 	key = strchr(line, '=');
 	if (!key)
 		return -EINVAL;
