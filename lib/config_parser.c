@@ -565,7 +565,8 @@ static void fixup_missing_global_group(void)
 		global_conf.file_max = USMBD_CONF_FILE_MAX;
 	if (!global_conf.server_string)
 		global_conf.server_string =
-			cp_get_group_kv_string(USMBD_CONF_DEFAULT_SERVER_STRING);
+			cp_get_group_kv_string(
+					USMBD_CONF_DEFAULT_SERVER_STRING);
 	if (!global_conf.netbios_name)
 		global_conf.netbios_name =
 			cp_get_group_kv_string(USMBD_CONF_DEFAULT_NETBIOS_NAME);

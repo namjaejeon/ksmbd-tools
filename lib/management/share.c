@@ -390,7 +390,8 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, USMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 		else
-			clear_share_flag(share, USMBD_SHARE_FLAG_STORE_DOS_ATTRS);
+			clear_share_flag(share,
+					USMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 		return;
 	}
 

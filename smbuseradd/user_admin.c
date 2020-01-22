@@ -215,7 +215,8 @@ static void write_user(struct usmbd_user *user)
 	if (test_user_flag(user, USMBD_USER_FLAG_GUEST_ACCOUNT))
 		return;
 
-	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name, user->pass_b64);
+	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name,
+			user->pass_b64);
 	if (wsz > sizeof(wbuf)) {
 		pr_err("Entry size is above the limit: %zu > %zu\n",
 			wsz,
