@@ -215,7 +215,8 @@ static void write_user(struct usmbd_user *user)
 	if (test_user_flag(user, USMBD_USER_FLAG_GUEST_ACCOUNT))
 		return;
 
-	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name, user->pass_b64);
+	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name,
+			user->pass_b64);
 	if (wsz > sizeof(wbuf)) {
 		pr_err("Entry size is above the limit: %zu > %zu\n",
 			wsz,
@@ -239,6 +240,7 @@ static void write_user(struct usmbd_user *user)
 static void write_user_cb(gpointer key, gpointer value, gpointer user_data)
 {
 	struct usmbd_user *user = (struct usmbd_user *)value;
+
 	write_user(user);
 }
 
@@ -319,10 +321,9 @@ int command_add_user(char *pwddb, char *account, char *password)
 	if (usm_add_new_user(arg_account, pswd)) {
 		pr_err("Could not add new account\n");
 		return -EINVAL;
-	} else {
-		pr_info("User '%s' added\n", arg_account);
 	}
 
+	pr_info("User '%s' added\n", arg_account);
 	if (__opendb_file(pwddb))
 		return -EINVAL;
 
@@ -356,10 +357,9 @@ int command_update_user(char *pwddb, char *account, char *password)
 		pr_err("Out of memory\n");
 		put_usmbd_user(user);
 		return -ENOMEM;
-	} else {
-		pr_info("User '%s' updated\n", account);
 	}
 
+	pr_info("User '%s' updated\n", account);
 	put_usmbd_user(user);
 	free(pswd);
 

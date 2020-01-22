@@ -251,7 +251,8 @@ static GHashTable *parse_list(GHashTable *map, char **list)
 		char *p = list[i];
 
 		p = cp_ltrim(p);
-		if (!p) continue;
+		if (!p)
+			continue;
 
 		user = usm_lookup_user(p);
 		if (!user) {
@@ -286,11 +287,10 @@ static void force_group(struct usmbd_share *share, char *name)
 	struct group *grp;
 
 	grp = getgrnam(name);
-	if (grp) {
+	if (grp)
 		share->force_gid = grp->gr_gid;
-	} else {
+	else
 		pr_err("Unable to lookup up /etc/group entry: %s\n", name);
-	}
 }
 
 static void force_user(struct usmbd_share *share, char *name)
@@ -390,7 +390,8 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, USMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 		else
-			clear_share_flag(share, USMBD_SHARE_FLAG_STORE_DOS_ATTRS);
+			clear_share_flag(share,
+					USMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 		return;
 	}
 
@@ -443,7 +444,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (shm_share_config(k, USMBD_SHARE_CONF_VALID_USERS)) {
 		share->maps[USMBD_SHARE_VALID_USERS_MAP] =
 			parse_list(share->maps[USMBD_SHARE_VALID_USERS_MAP],
-			           cp_get_group_kv_list(v));
+				cp_get_group_kv_list(v));
 		if (share->maps[USMBD_SHARE_VALID_USERS_MAP] == NULL)
 			set_share_flag(share, USMBD_SHARE_FLAG_INVALID);
 		return;
@@ -452,7 +453,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (shm_share_config(k, USMBD_SHARE_CONF_INVALID_USERS)) {
 		share->maps[USMBD_SHARE_INVALID_USERS_MAP] =
 			parse_list(share->maps[USMBD_SHARE_INVALID_USERS_MAP],
-			           cp_get_group_kv_list(v));
+				cp_get_group_kv_list(v));
 		if (share->maps[USMBD_SHARE_INVALID_USERS_MAP] == NULL)
 			set_share_flag(share, USMBD_SHARE_FLAG_INVALID);
 		return;

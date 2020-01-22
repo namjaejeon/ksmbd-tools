@@ -34,7 +34,7 @@
 #define SHARE_TYPE_IPC_HIDDEN		(SHARE_TYPE_IPC|SHARE_TYPE_HIDDEN)
 
 #define SRVSVC_OPNUM_SHARE_ENUM_ALL	15
-#define SRVSVC_OPNUM_GET_SHARE_INFO 	16
+#define SRVSVC_OPNUM_GET_SHARE_INFO	16
 
 static int __share_type(struct usmbd_share *share)
 {

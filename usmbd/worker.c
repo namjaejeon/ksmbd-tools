@@ -21,7 +21,7 @@
 #define MAX_WORKER_THREADS	4
 static GThreadPool *pool;
 
-#define VALID_IPC_MSG(m,t) 					\
+#define VALID_IPC_MSG(m, t)					\
 	({							\
 		int ret = 1;					\
 		if (((m)->sz != sizeof(t))) {			\

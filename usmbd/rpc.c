@@ -251,11 +251,10 @@ static void align_offset(struct usmbd_dcerpc *dce, size_t n)
 
 static void auto_align_offset(struct usmbd_dcerpc *dce)
 {
-	if (dce->flags & USMBD_DCERPC_ALIGN8) {
+	if (dce->flags & USMBD_DCERPC_ALIGN8)
 		dce->offset = __ALIGN(dce->offset, 8);
-	} else if (dce->flags & USMBD_DCERPC_ALIGN4) {
+	else if (dce->flags & USMBD_DCERPC_ALIGN4)
 		dce->offset = __ALIGN(dce->offset, 4);
-	}
 }
 
 static int try_realloc_payload(struct usmbd_dcerpc *dce, size_t data_sz)
@@ -306,7 +305,7 @@ int ndr_write_##name(struct usmbd_dcerpc *dce, type value)		\
 	return 0;							\
 }
 
-NDR_WRITE_INT( int8,  __u8, htobe_n, htole_n);
+NDR_WRITE_INT(int8,  __u8, htobe_n, htole_n);
 NDR_WRITE_INT(int16, __u16, htobe16, htole16);
 NDR_WRITE_INT(int32, __u32, htobe32, htole32);
 NDR_WRITE_INT(int64, __u64, htobe64, htole64);
@@ -325,7 +324,7 @@ type ndr_read_##name(struct usmbd_dcerpc *dce)				\
 	return ret;							\
 }
 
-NDR_READ_INT( int8,  __u8, betoh_n, letoh_n);
+NDR_READ_INT(int8,  __u8, betoh_n, letoh_n);
 NDR_READ_INT(int16, __u16, be16toh, le16toh);
 NDR_READ_INT(int32, __u32, be32toh, le32toh);
 NDR_READ_INT(int64, __u64, be64toh, le64toh);
@@ -1111,8 +1110,8 @@ int rpc_close_request(struct usmbd_rpc_command *req,
 	if (pipe) {
 		rpc_pipe_free(pipe);
 		return 0;
-	} else {
-		pr_err("RPC: unknown pipe ID: %d\n", req->handle);
 	}
+
+	pr_err("RPC: unknown pipe ID: %d\n", req->handle);
 	return USMBD_RPC_OK;
 }

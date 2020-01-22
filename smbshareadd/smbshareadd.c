@@ -50,7 +50,7 @@ static void usage(void)
 
 	fprintf(stderr, "Supported share options:\n");
 	for (i = 0; i < USMBD_SHARE_CONF_MAX; i++)
-		fprintf(stderr,"\t%s\n", USMBD_SHARE_CONF[i]);
+		fprintf(stderr, "\t%s\n", USMBD_SHARE_CONF[i]);
 	exit(EXIT_FAILURE);
 }
 
