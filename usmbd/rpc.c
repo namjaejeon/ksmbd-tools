@@ -1110,8 +1110,8 @@ int rpc_close_request(struct usmbd_rpc_command *req,
 	if (pipe) {
 		rpc_pipe_free(pipe);
 		return 0;
-	} else {
-		pr_err("RPC: unknown pipe ID: %d\n", req->handle);
 	}
+
+	pr_err("RPC: unknown pipe ID: %d\n", req->handle);
 	return USMBD_RPC_OK;
 }

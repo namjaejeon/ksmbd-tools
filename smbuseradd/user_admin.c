@@ -320,10 +320,9 @@ int command_add_user(char *pwddb, char *account, char *password)
 	if (usm_add_new_user(arg_account, pswd)) {
 		pr_err("Could not add new account\n");
 		return -EINVAL;
-	} else {
-		pr_info("User '%s' added\n", arg_account);
 	}
 
+	pr_info("User '%s' added\n", arg_account);
 	if (__opendb_file(pwddb))
 		return -EINVAL;
 
@@ -357,10 +356,9 @@ int command_update_user(char *pwddb, char *account, char *password)
 		pr_err("Out of memory\n");
 		put_usmbd_user(user);
 		return -ENOMEM;
-	} else {
-		pr_info("User '%s' updated\n", account);
 	}
 
+	pr_info("User '%s' updated\n", account);
 	put_usmbd_user(user);
 	free(pswd);
 
