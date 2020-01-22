@@ -75,7 +75,7 @@ struct usmbd_share {
 	/* One lock to rule them all [as of now] */
 	GRWLock		maps_lock;
 
-	char*		comment;
+	char		*comment;
 };
 
 /*
