@@ -269,7 +269,7 @@ struct usmbd_dcerpc {
 struct usmbd_rpc_pipe {
 	unsigned int		id;
 
-	int 			num_entries;
+	int			num_entries;
 	int			num_processed;
 	GArray			*entries;
 

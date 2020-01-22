@@ -23,7 +23,7 @@ struct usmbd_user {
 	gid_t		gid;
 
 	int		ref_count;
-	int 		flags;
+	int		flags;
 	GRWLock		update_lock;
 };
 
