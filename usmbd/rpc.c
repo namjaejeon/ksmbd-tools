@@ -251,11 +251,10 @@ static void align_offset(struct usmbd_dcerpc *dce, size_t n)
 
 static void auto_align_offset(struct usmbd_dcerpc *dce)
 {
-	if (dce->flags & USMBD_DCERPC_ALIGN8) {
+	if (dce->flags & USMBD_DCERPC_ALIGN8)
 		dce->offset = __ALIGN(dce->offset, 8);
-	} else if (dce->flags & USMBD_DCERPC_ALIGN4) {
+	else if (dce->flags & USMBD_DCERPC_ALIGN4)
 		dce->offset = __ALIGN(dce->offset, 4);
-	}
 }
 
 static int try_realloc_payload(struct usmbd_dcerpc *dce, size_t data_sz)

@@ -33,9 +33,8 @@ struct usmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 		pr_err("IPC message is too large: %zu\n", msg_sz);
 
 	msg = calloc(1, msg_sz);
-	if (msg) {
+	if (msg)
 		msg->sz = sz;
-	}
 	return msg;
 }
 

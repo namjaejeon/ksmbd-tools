@@ -286,11 +286,10 @@ static void force_group(struct usmbd_share *share, char *name)
 	struct group *grp;
 
 	grp = getgrnam(name);
-	if (grp) {
+	if (grp)
 		share->force_gid = grp->gr_gid;
-	} else {
+	else
 		pr_err("Unable to lookup up /etc/group entry: %s\n", name);
-	}
 }
 
 static void force_user(struct usmbd_share *share, char *name)
