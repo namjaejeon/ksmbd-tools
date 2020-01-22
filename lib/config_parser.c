@@ -144,8 +144,10 @@ static int add_group_key_value(char *line)
 	key--;
 	value++;
 
-	while (is_ascii_space_tab(*key)) key--;
-	while (is_ascii_space_tab(*value)) value++;
+	while (is_ascii_space_tab(*key))
+		key--;
+	while (is_ascii_space_tab(*value))
+		value++;
 
 	if (is_a_comment(value))
 		return 0;
@@ -171,7 +173,8 @@ static int add_group_key_value(char *line)
 
 static int process_smbconf_entry(char *data)
 {
-	while (is_ascii_space_tab(*data)) data++;
+	while (is_ascii_space_tab(*data))
+		data++;
 
 	if (is_a_comment(data))
 		return 0;
@@ -300,7 +303,8 @@ char *cp_ltrim(char *v)
 	if (!v)
 		return NULL;
 
-	while (*v && *v == ' ') v++;
+	while (*v && *v == ' ')
+		v++;
 	if (*v == 0x00)
 		return NULL;
 	return v;

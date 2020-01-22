@@ -109,7 +109,8 @@ static int ifc_list_size(void)
 		char *ifc = global_conf.interfaces[i];
 
 		ifc = cp_ltrim(ifc);
-		if (!ifc) continue;
+		if (!ifc)
+			continue;
 
 		len += strlen(ifc) + 1;
 	}
@@ -180,7 +181,8 @@ static int ipc_usmbd_starting_up(void)
 			char *ifc = global_conf.interfaces[i];
 
 			ifc = cp_ltrim(ifc);
-			if (!ifc) continue;
+			if (!ifc)
+				continue;
 
 			strcpy(config_payload + sz, ifc);
 			sz += strlen(ifc) + 1;
