@@ -208,7 +208,7 @@ int rpc_wkssvc_read_request(struct usmbd_rpc_pipe *pipe,
 			    struct usmbd_rpc_command *resp,
 			    int max_resp_sz)
 {
-	return wkssvc_return(pipe, resp, max_resp_sz);;
+	return wkssvc_return(pipe, resp, max_resp_sz);
 }
 
 int rpc_wkssvc_write_request(struct usmbd_rpc_pipe *pipe)
