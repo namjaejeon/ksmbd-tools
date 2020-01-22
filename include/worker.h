@@ -5,13 +5,13 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#ifndef __SMBD_WORKER__H__
-#define __SMBD_WORKER__H__
+#ifndef __USMBD_WORKER__H__
+#define __USMBD_WORKER__H__
 
-struct smbd_ipc_msg;
+struct usmbd_ipc_msg;
 
-int wp_ipc_msg_push(struct smbd_ipc_msg *msg);
+int wp_ipc_msg_push(struct usmbd_ipc_msg *msg);
 void wp_destroy(void);
 int wp_init(void);
 
-#endif /* __SMBD_WORKER_H__ */
+#endif /* __USMBD_WORKER_H__ */
