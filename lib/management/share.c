@@ -251,7 +251,8 @@ static GHashTable *parse_list(GHashTable *map, char **list)
 		char *p = list[i];
 
 		p = cp_ltrim(p);
-		if (!p) continue;
+		if (!p)
+			continue;
 
 		user = usm_lookup_user(p);
 		if (!user) {
