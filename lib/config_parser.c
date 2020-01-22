@@ -48,7 +48,6 @@ unsigned long long memparse(const char *v)
 	case 'k':
 		ret <<= 10;
 	default:
-		break;
 	}
 
 	return ret;
