@@ -240,6 +240,7 @@ static void write_user(struct usmbd_user *user)
 static void write_user_cb(gpointer key, gpointer value, gpointer user_data)
 {
 	struct usmbd_user *user = (struct usmbd_user *)value;
+
 	write_user(user);
 }
 

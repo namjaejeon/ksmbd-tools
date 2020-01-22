@@ -123,6 +123,7 @@ void pr_hex_dump(const void *mem, size_t sz)
 
 	if (xi) {
 		int sz = PR_HEX_DUMP_WIDTH / 2 - xi + 1;
+
 		if (sz > 0) {
 			memset(xline + xi, ' ', sz);
 			xline[PR_HEX_DUMP_WIDTH / 2 + 1] = 0x00;
@@ -144,6 +145,7 @@ char *base64_encode(unsigned char *src, size_t srclen)
 unsigned char *base64_decode(char const *src, size_t *dstlen)
 {
 	unsigned char *ret = g_base64_decode(src, dstlen);
+
 	if (ret)
 		ret[*dstlen] = 0x00;
 	return ret;
