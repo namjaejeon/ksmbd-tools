@@ -9,13 +9,13 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
 #include <management/share.h>
 
 #include <rpc.h>
 #include <rpc_wkssvc.h>
-#include <smbdtools.h>
+#include <usmbdtools.h>
 
 #define WKSSVC_NETWKSTA_GET_INFO	(0)
 

@@ -15,9 +15,9 @@
 #include <linux/genetlink.h>
 #include <netlink/genl/mngt.h>
 
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
-#include <smbdtools.h>
+#include <usmbdtools.h>
 #include <ipc.h>
 #include <worker.h>
 #include <config_parser.h>

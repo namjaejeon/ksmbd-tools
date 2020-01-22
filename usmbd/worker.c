@@ -7,9 +7,9 @@
 #include <memory.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
-#include <smbdtools.h>
+#include <usmbdtools.h>
 #include <worker.h>
 #include <ipc.h>
 #include <rpc.h>

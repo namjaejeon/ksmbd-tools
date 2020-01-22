@@ -15,14 +15,14 @@
 #include <termios.h>
 
 #include <config_parser.h>
-#include <smbdtools.h>
+#include <usmbdtools.h>
 
 #include <md4_hash.h>
 #include <user_admin.h>
 #include <management/user.h>
 #include <management/share.h>
 
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
 #define MAX_NT_PWD_LEN 129
 

@@ -12,11 +12,11 @@
 #include <pwd.h>
 #include <grp.h>
 #include <config_parser.h>
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
 #include <management/share.h>
 #include <management/user.h>
-#include <smbdtools.h>
+#include <usmbdtools.h>
 
 /*
  * WARNING:

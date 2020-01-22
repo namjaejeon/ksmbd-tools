@@ -9,12 +9,12 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
 #include <rpc.h>
 #include <rpc_srvsvc.h>
 #include <rpc_wkssvc.h>
-#include <smbdtools.h>
+#include <usmbdtools.h>
 
 static GHashTable	*pipes_table;
 static GRWLock		pipes_table_lock;

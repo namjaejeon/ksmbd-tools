@@ -8,13 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
 #include <management/tree_conn.h>
 #include <management/session.h>
 #include <management/share.h>
 #include <management/user.h>
-#include <smbdtools.h>
+#include <usmbdtools.h>
 
 static struct smbd_tree_conn *new_smbd_tree_conn(void)
 {

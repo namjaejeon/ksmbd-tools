@@ -9,13 +9,13 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/smbd_server.h>
+#include <linux/usmbd_server.h>
 
 #include <management/share.h>
 
 #include <rpc.h>
 #include <rpc_srvsvc.h>
-#include <smbdtools.h>
+#include <usmbdtools.h>
 
 #define SHARE_TYPE_TEMP			0x40000000
 #define SHARE_TYPE_HIDDEN		0x80000000
