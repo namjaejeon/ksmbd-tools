@@ -443,7 +443,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (shm_share_config(k, USMBD_SHARE_CONF_VALID_USERS)) {
 		share->maps[USMBD_SHARE_VALID_USERS_MAP] =
 			parse_list(share->maps[USMBD_SHARE_VALID_USERS_MAP],
-			           cp_get_group_kv_list(v));
+				cp_get_group_kv_list(v));
 		if (share->maps[USMBD_SHARE_VALID_USERS_MAP] == NULL)
 			set_share_flag(share, USMBD_SHARE_FLAG_INVALID);
 		return;
@@ -452,7 +452,7 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	if (shm_share_config(k, USMBD_SHARE_CONF_INVALID_USERS)) {
 		share->maps[USMBD_SHARE_INVALID_USERS_MAP] =
 			parse_list(share->maps[USMBD_SHARE_INVALID_USERS_MAP],
-			           cp_get_group_kv_list(v));
+				cp_get_group_kv_list(v));
 		if (share->maps[USMBD_SHARE_INVALID_USERS_MAP] == NULL)
 			set_share_flag(share, USMBD_SHARE_FLAG_INVALID);
 		return;
