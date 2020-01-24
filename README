@@ -5,7 +5,7 @@ ________________________
 Install preprequisite packages:
 	For Ubuntu:
 	sudo apt-get install autoconf libtool pkg-config libnl-3-dev \
-	libnl-genl-3-dev
+	libnl-genl-3-dev libglib2.0-dev
 
 	For Fedora, RHEL:
 	sudo yum install autoconf automake libtool glib2-devl libnl3-devl
