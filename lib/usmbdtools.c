@@ -401,19 +401,14 @@ int base64_encode_blockend(char *code_out, base64_encodestate *state_in)
 	char *codechar = code_out;
 
 	switch (state_in->step) {
-	case step_B:
-		*codechar++ = base64_encode_value(state_in->result);
-		*codechar++ = '=';
-		*codechar++ = '=';
-		break;
-	case step_C:
-		*codechar++ = base64_encode_value(state_in->result);
-		*codechar++ = '=';
-		break;
 	case step_A:
 		break;
+	case step_B:
+	case step_C:
+		*codechar++ = base64_encode_value(state_in->result);
 	}
 
+	*codechar++ = 0;
 	return codechar - code_out;
 }
 
