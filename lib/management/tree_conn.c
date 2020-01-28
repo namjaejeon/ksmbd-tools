@@ -7,7 +7,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <glib.h>
 #include <linux/usmbd_server.h>
 
 #include <management/tree_conn.h>
