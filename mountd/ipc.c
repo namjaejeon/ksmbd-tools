@@ -6,7 +6,6 @@
  */
 
 #include <memory.h>
-#include <glib.h>
 #include <errno.h>
 #include <netlink/netlink.h>
 #include <netlink/msg.h>
@@ -15,9 +14,9 @@
 #include <linux/genetlink.h>
 #include <netlink/genl/mngt.h>
 
-#include <linux/usmbd_server.h>
+#include <linux/ksmbd_server.h>
 
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 #include <ipc.h>
 #include <worker.h>
 #include <config_parser.h>

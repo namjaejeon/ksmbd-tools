@@ -5,7 +5,7 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -30,7 +30,7 @@
 #include <management/session.h>
 #include <management/tree_conn.h>
 
-static int no_detach = 0;
+static int no_detach;
 int usmbd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
@@ -216,15 +216,15 @@ static void worker_process_free(void)
 	 */
 	ipc_destroy();
 	rpc_destroy();
-	wp_destroy();
 	sm_destroy();
+	wp_destroy();
 	shm_destroy();
 	usm_destroy();
 }
 
 static void child_sig_handler(int signo)
 {
-	static volatile int fatal_delivered = 0;
+	static volatile int fatal_delivered;
 
 	if (signo == SIGHUP) {
 		/*
@@ -240,7 +240,7 @@ static void child_sig_handler(int signo)
 	pr_err("Child received signal: %d (%s)\n",
 		signo, strsignal(signo));
 
-	if (!g_atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
+	if (!atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
 		return;
 
 	usmbd_health_status &= ~USMBD_HEALTH_RUNNING;
@@ -296,13 +296,16 @@ static int worker_process_init(void)
 
 	setup_signals(child_sig_handler);
 	set_logger_app_name("usmbd-worker");
-
 	ret = usm_init();
 	if (ret) {
 		pr_err("Failed to init user management\n");
 		goto out;
 	}
-
+	ret = wp_init();
+	if (ret) {
+		pr_err("Failed to init worker\n");
+		goto out;
+	}
 	ret = shm_init();
 	if (ret) {
 		pr_err("Failed to init net share management\n");
@@ -318,12 +321,6 @@ static int worker_process_init(void)
 	ret = sm_init();
 	if (ret) {
 		pr_err("Failed to init user session management\n");
-		goto out;
-	}
-
-	ret = wp_init();
-	if (ret) {
-		pr_err("Failed to init worker threads pool\n");
 		goto out;
 	}
 
@@ -495,10 +492,10 @@ int main(int argc, char *argv[])
 			pr_debug("TCP port option override\n");
 			break;
 		case 'c':
-			smbconf = g_strdup(optarg);
+			smbconf = strdup(optarg);
 			break;
 		case 'u':
-			pwddb = g_strdup(optarg);
+			pwddb = strdup(optarg);
 			break;
 		case 'n':
 			if (!optarg)

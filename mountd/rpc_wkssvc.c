@@ -7,15 +7,14 @@
 
 #include <memory.h>
 #include <endian.h>
-#include <glib.h>
 #include <errno.h>
-#include <linux/usmbd_server.h>
+#include <linux/ksmbd_server.h>
 
 #include <management/share.h>
 
 #include <rpc.h>
 #include <rpc_wkssvc.h>
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 
 #define WKSSVC_NETWKSTA_GET_INFO	(0)
 
@@ -36,7 +35,7 @@ static int wkssvc_clear_headers(struct usmbd_rpc_pipe *pipe,
 }
 
 static int __netwksta_entry_rep_ctr100(struct usmbd_dcerpc *dce,
-				       gpointer entry)
+				       void *entry)
 {
 	int ret = 0;
 
@@ -58,7 +57,7 @@ static int __netwksta_entry_rep_ctr100(struct usmbd_dcerpc *dce,
 }
 
 static int __netwksta_entry_data_ctr100(struct usmbd_dcerpc *dce,
-					gpointer entry)
+					void *entry)
 {
 	int ret = 0;
 
@@ -174,7 +173,7 @@ static int wkssvc_invoke(struct usmbd_rpc_pipe *pipe)
 		ret = wkssvc_netwksta_info_invoke(pipe);
 		break;
 	default:
-		pr_err("WKSSVC: unsupported INVOKE method %d\n",
+		pr_debug("WKSSVC: unsupported INVOKE method %d\n",
 		       pipe->dce->req_hdr.opnum);
 		break;
 	}

@@ -4,8 +4,6 @@
  *
  *   linux-cifsd-devel@lists.sourceforge.net
  */
-
-#include <glib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -18,10 +16,10 @@
 #include <ctype.h>
 
 #include <config_parser.h>
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 
 #include <management/share.h>
-#include <linux/usmbd_server.h>
+#include <linux/ksmbd_server.h>
 #include <share_admin.h>
 
 static char *arg_name;
@@ -109,15 +107,15 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "c:a:d:u:p:o:Vvh")) != EOF)
 		switch (c) {
 		case 'a':
-			arg_name = g_ascii_strdown(optarg, strlen(optarg));
+			arg_name = ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_ADD_SHARE;
 			break;
 		case 'd':
-			arg_name = g_ascii_strdown(optarg, strlen(optarg));
+			arg_name = ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_DEL_SHARE;
 			break;
 		case 'u':
-			arg_name = g_ascii_strdown(optarg, strlen(optarg));
+			arg_name = ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_UPDATE_SHARE;
 			break;
 		case 'c':
