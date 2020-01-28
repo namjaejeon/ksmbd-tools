@@ -214,7 +214,8 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *d))
 	buf = contents = malloc(len + 1);
 	if (!contents)
 		goto out;
-	fread(contents, 1, len, fd);
+	if (fread(contents, 1, len, fd) <= 0)
+		goto out;
 	contents[len] = 0;
 
 	while (len > 0) {
