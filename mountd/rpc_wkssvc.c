@@ -173,7 +173,7 @@ static int wkssvc_invoke(struct usmbd_rpc_pipe *pipe)
 		ret = wkssvc_netwksta_info_invoke(pipe);
 		break;
 	default:
-		pr_err("WKSSVC: unsupported INVOKE method %d\n",
+		pr_debug("WKSSVC: unsupported INVOKE method %d\n",
 		       pipe->dce->req_hdr.opnum);
 		break;
 	}
