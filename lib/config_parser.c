@@ -668,12 +668,6 @@ static void fixup_missing_global_group(void)
 		       ret);
 }
 
-static void default_global_group(void)
-{
-	global_conf.flags |= KSMBD_GLOBAL_FLAG_CACHE_TBUF;
-	global_conf.flags |= KSMBD_GLOBAL_FLAG_CACHE_RBUF;
-}
-
 static void global_group(struct smbconf_group *group)
 {
 	list_foreach(&group->kv, global_group_kv, NULL);
@@ -721,8 +715,6 @@ out:
 static int __cp_parse_smbconfig(const char *smbconf, long flags)
 {
 	int ret;
-
-	default_global_group();
 
 	ret = cp_smbconfig_hash_create(smbconf);
 	if (ret)
