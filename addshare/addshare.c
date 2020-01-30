@@ -4,8 +4,6 @@
  *
  *   linux-cifsd-devel@lists.sourceforge.net
  */
-
-#include <glib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -18,10 +16,10 @@
 #include <ctype.h>
 
 #include <config_parser.h>
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 
 #include <management/share.h>
-#include <linux/usmbd_server.h>
+#include <linux/ksmbd_server.h>
 #include <share_admin.h>
 
 static char *arg_name;
@@ -49,8 +47,8 @@ static void usage(void)
 	fprintf(stderr, "\t-v | --verbose\n");
 
 	fprintf(stderr, "Supported share options:\n");
-	for (i = 0; i < USMBD_SHARE_CONF_MAX; i++)
-		fprintf(stderr, "\t%s\n", USMBD_SHARE_CONF[i]);
+	for (i = 0; i < KSMBD_SHARE_CONF_MAX; i++)
+		fprintf(stderr, "\t%s\n", KSMBD_SHARE_CONF[i]);
 	exit(EXIT_FAILURE);
 }
 
@@ -84,7 +82,7 @@ static int sanity_check_share_name_simple(char *name)
 	sz = strlen(name);
 	if (sz < 1)
 		return -EINVAL;
-	if (sz >= USMBD_REQ_MAX_SHARE_NAME)
+	if (sz >= KSMBD_REQ_MAX_SHARE_NAME)
 		return -EINVAL;
 
 	if (!cp_key_cmp(name, "global"))
@@ -109,15 +107,15 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "c:a:d:u:p:o:Vvh")) != EOF)
 		switch (c) {
 		case 'a':
-			arg_name = g_ascii_strdown(optarg, strlen(optarg));
+			arg_name = ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_ADD_SHARE;
 			break;
 		case 'd':
-			arg_name = g_ascii_strdown(optarg, strlen(optarg));
+			arg_name = ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_DEL_SHARE;
 			break;
 		case 'u':
-			arg_name = g_ascii_strdown(optarg, strlen(optarg));
+			arg_name = ascii_strdown(optarg, strlen(optarg));
 			cmd = COMMAND_UPDATE_SHARE;
 			break;
 		case 'c':
@@ -169,7 +167,7 @@ int main(int argc, char *argv[])
 	 * We support only ADD_SHARE command for the time being
 	 */
 	if (ret == 0 && cmd == COMMAND_ADD_SHARE)
-		notify_usmbd_daemon();
+		notify_ksmbd_daemon();
 out:
 	cp_smbconfig_destroy();
 	return ret;

@@ -5,18 +5,18 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#ifndef __USMBD_CONFIG_H__
-#define __USMBD_CONFIG_H__
+#ifndef __KSMBD_CONFIG_H__
+#define __KSMBD_CONFIG_H__
 
-#include <glib.h>
+#include <ksmbdtools.h>
 
 struct smbconf_group {
 	char			*name;
-	GHashTable		*kv;
+	struct LIST		*kv;
 };
 
 struct smbconf_parser {
-	GHashTable		*groups;
+	struct LIST		*groups;
 	struct smbconf_group	*current;
 };
 
@@ -40,4 +40,4 @@ int cp_get_group_kv_config_opt(char *v);
 char **cp_get_group_kv_list(char *v);
 void cp_group_kv_list_free(char **list);
 
-#endif /* __USMBD_CONFIG_H__ */
+#endif /* __KSMBD_CONFIG_H__ */

@@ -10,9 +10,8 @@
 
 #include <sys/types.h>
 #include <pwd.h>
-#include <glib.h>
 
-struct usmbd_user {
+struct ksmbd_user {
 	char		*name;
 	char		*pass_b64;
 
@@ -24,25 +23,25 @@ struct usmbd_user {
 
 	int		ref_count;
 	int		flags;
-	GRWLock		update_lock;
+	pthread_rwlock_t	update_lock;
 };
 
-static inline void set_user_flag(struct usmbd_user *user, int bit)
+static inline void set_user_flag(struct ksmbd_user *user, int bit)
 {
 	user->flags |= bit;
 }
 
-static inline int test_user_flag(struct usmbd_user *user, int bit)
+static inline int test_user_flag(struct ksmbd_user *user, int bit)
 {
 	return user->flags & bit;
 }
 
-struct usmbd_user *get_usmbd_user(struct usmbd_user *user);
-void put_usmbd_user(struct usmbd_user *user);
+struct ksmbd_user *get_ksmbd_user(struct ksmbd_user *user);
+void put_ksmbd_user(struct ksmbd_user *user);
 
-struct usmbd_user *usm_lookup_user(char *name);
+struct ksmbd_user *usm_lookup_user(char *name);
 
-int usm_update_user_password(struct usmbd_user *user, char *pass);
+int usm_update_user_password(struct ksmbd_user *user, char *pass);
 
 int usm_add_new_user(char *name, char *pwd);
 int usm_add_update_user_from_pwdentry(char *data);
@@ -50,15 +49,15 @@ int usm_add_update_user_from_pwdentry(char *data);
 void usm_destroy(void);
 int usm_init(void);
 
-typedef void (*walk_users)(gpointer key,
-			   gpointer value,
-			   gpointer user_data);
-void for_each_usmbd_user(walk_users cb, gpointer user_data);
+typedef void (*walk_users)(void *value,
+			   unsigned long long key,
+			   void *user_data);
+void foreach_ksmbd_user(walk_users cb, void *user_data);
 
-struct usmbd_login_request;
-struct usmbd_login_response;
+struct ksmbd_login_request;
+struct ksmbd_login_response;
 
-int usm_handle_login_request(struct usmbd_login_request *req,
-			     struct usmbd_login_response *resp);
+int usm_handle_login_request(struct ksmbd_login_request *req,
+			     struct ksmbd_login_response *resp);
 
 #endif /* __MANAGEMENT_USER_H__ */

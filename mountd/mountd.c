@@ -5,7 +5,7 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -30,8 +30,8 @@
 #include <management/session.h>
 #include <management/tree_conn.h>
 
-static int no_detach = 0;
-int usmbd_health_status;
+static int no_detach;
+int ksmbd_health_status;
 static pid_t worker_pid;
 static int lock_fd = -1;
 static char *pwddb = PATH_PWDDB;
@@ -41,7 +41,7 @@ typedef int (*worker_fn)(void);
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: usmbd\n");
+	fprintf(stderr, "Usage: ksmbd\n");
 	fprintf(stderr, "\t--p=NUM | --port=NUM              TCP port NUM\n");
 	fprintf(stderr, "\t--c=smb.conf | --config=smb.conf  config file\n");
 	fprintf(stderr, "\t--u=pwd.db | --users=pwd.db       Users DB\n");
@@ -66,7 +66,7 @@ static int handle_orphaned_lock_file(void)
 	int pid = 0;
 	int fd;
 
-	fd = open(USMBD_LOCK_FILE, O_RDONLY);
+	fd = open(KSMBD_LOCK_FILE, O_RDONLY);
 	if (fd < 0)
 		return -EINVAL;
 
@@ -82,12 +82,12 @@ static int handle_orphaned_lock_file(void)
 	snprintf(proc_ent, sizeof(proc_ent), "/proc/%d", pid);
 	fd = open(proc_ent, O_RDONLY);
 	if (fd < 0) {
-		pr_info("Unlink orphaned '%s'\n", USMBD_LOCK_FILE);
-		return unlink(USMBD_LOCK_FILE);
+		pr_info("Unlink orphaned '%s'\n", KSMBD_LOCK_FILE);
+		return unlink(KSMBD_LOCK_FILE);
 	}
 
 	close(fd);
-	pr_info("File '%s' belongs to pid %d\n", USMBD_LOCK_FILE, pid);
+	pr_info("File '%s' belongs to pid %d\n", KSMBD_LOCK_FILE, pid);
 	return -EINVAL;
 }
 
@@ -97,7 +97,7 @@ static int create_lock_file(void)
 	size_t sz;
 
 retry:
-	lock_fd = open(USMBD_LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
+	lock_fd = open(KSMBD_LOCK_FILE, O_CREAT | O_EXCL | O_WRONLY,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if (lock_fd < 0) {
 		if (handle_orphaned_lock_file())
@@ -122,7 +122,7 @@ static void delete_lock_file(void)
 	flock(lock_fd, LOCK_UN);
 	close(lock_fd);
 	lock_fd = -1;
-	remove(USMBD_LOCK_FILE);
+	remove(KSMBD_LOCK_FILE);
 }
 
 static int wait_group_kill(int signo)
@@ -216,15 +216,15 @@ static void worker_process_free(void)
 	 */
 	ipc_destroy();
 	rpc_destroy();
-	wp_destroy();
 	sm_destroy();
+	wp_destroy();
 	shm_destroy();
 	usm_destroy();
 }
 
 static void child_sig_handler(int signo)
 {
-	static volatile int fatal_delivered = 0;
+	static volatile int fatal_delivered;
 
 	if (signo == SIGHUP) {
 		/*
@@ -232,7 +232,7 @@ static void child_sig_handler(int signo)
 		 * a flag and wait for normal execution context to re-read
 		 * the configs.
 		 */
-		usmbd_health_status |= USMBD_SHOULD_RELOAD_CONFIG;
+		ksmbd_health_status |= KSMBD_SHOULD_RELOAD_CONFIG;
 		pr_debug("Scheduled a config reload action.\n");
 		return;
 	}
@@ -240,10 +240,10 @@ static void child_sig_handler(int signo)
 	pr_err("Child received signal: %d (%s)\n",
 		signo, strsignal(signo));
 
-	if (!g_atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
+	if (!atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
 		return;
 
-	usmbd_health_status &= ~USMBD_HEALTH_RUNNING;
+	ksmbd_health_status &= ~KSMBD_HEALTH_RUNNING;
 	worker_process_free();
 	exit(EXIT_SUCCESS);
 }
@@ -257,7 +257,7 @@ static void manager_sig_handler(int signo)
 		if (!worker_pid)
 			return;
 
-		usmbd_health_status |= USMBD_SHOULD_RELOAD_CONFIG;
+		ksmbd_health_status |= KSMBD_SHOULD_RELOAD_CONFIG;
 		if (kill(worker_pid, signo))
 			pr_err("Unable to send SIGHUP to %d: %s\n",
 				worker_pid, strerr(errno));
@@ -295,14 +295,17 @@ static int worker_process_init(void)
 	int ret;
 
 	setup_signals(child_sig_handler);
-	set_logger_app_name("usmbd-worker");
-
+	set_logger_app_name("ksmbd-worker");
 	ret = usm_init();
 	if (ret) {
 		pr_err("Failed to init user management\n");
 		goto out;
 	}
-
+	ret = wp_init();
+	if (ret) {
+		pr_err("Failed to init worker\n");
+		goto out;
+	}
 	ret = shm_init();
 	if (ret) {
 		pr_err("Failed to init net share management\n");
@@ -321,12 +324,6 @@ static int worker_process_init(void)
 		goto out;
 	}
 
-	ret = wp_init();
-	if (ret) {
-		pr_err("Failed to init worker threads pool\n");
-		goto out;
-	}
-
 	ret = rpc_init();
 	if (ret) {
 		pr_err("Failed to init RPC subsystem\n");
@@ -339,18 +336,18 @@ static int worker_process_init(void)
 		goto out;
 	}
 
-	while (usmbd_health_status & USMBD_HEALTH_RUNNING) {
-		if (usmbd_health_status & USMBD_SHOULD_RELOAD_CONFIG) {
+	while (ksmbd_health_status & KSMBD_HEALTH_RUNNING) {
+		if (ksmbd_health_status & KSMBD_SHOULD_RELOAD_CONFIG) {
 			ret = parse_reload_configs(pwddb, smbconf);
 			if (ret)
 				pr_err("Failed to reload configs. "
 					"Continue with the old one.\n");
-			usmbd_health_status &= ~USMBD_SHOULD_RELOAD_CONFIG;
+			ksmbd_health_status &= ~KSMBD_SHOULD_RELOAD_CONFIG;
 		}
 
 		ret = ipc_process_event();
-		if (ret == -USMBD_STATUS_IPC_FATAL_ERROR) {
-			ret = USMBD_STATUS_IPC_FATAL_ERROR;
+		if (ret == -KSMBD_STATUS_IPC_FATAL_ERROR) {
+			ret = KSMBD_STATUS_IPC_FATAL_ERROR;
 			break;
 		}
 	}
@@ -414,9 +411,9 @@ static int manager_process_init(void)
 		pid_t child;
 
 		child = waitpid(-1, &status, 0);
-		if (usmbd_health_status & USMBD_SHOULD_RELOAD_CONFIG &&
+		if (ksmbd_health_status & KSMBD_SHOULD_RELOAD_CONFIG &&
 				errno == EINTR) {
-			usmbd_health_status &= ~USMBD_SHOULD_RELOAD_CONFIG;
+			ksmbd_health_status &= ~KSMBD_SHOULD_RELOAD_CONFIG;
 			continue;
 		}
 
@@ -429,7 +426,7 @@ static int manager_process_init(void)
 		}
 
 		if (WIFEXITED(status) &&
-			WEXITSTATUS(status) == USMBD_STATUS_IPC_FATAL_ERROR) {
+			WEXITSTATUS(status) == KSMBD_STATUS_IPC_FATAL_ERROR) {
 			pr_err("Fatal IPC error. Terminating. Check dmesg.\n");
 			goto out;
 		}
@@ -474,7 +471,7 @@ int main(int argc, char *argv[])
 	int systemd_service = 0;
 	int c;
 
-	set_logger_app_name("usmbd-manager");
+	set_logger_app_name("ksmbd-manager");
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
 	pr_logger_init(PR_LOGGER_STDIO);
 
@@ -495,10 +492,10 @@ int main(int argc, char *argv[])
 			pr_debug("TCP port option override\n");
 			break;
 		case 'c':
-			smbconf = g_strdup(optarg);
+			smbconf = strdup(optarg);
 			break;
 		case 'u':
-			pwddb = g_strdup(optarg);
+			pwddb = strdup(optarg);
 			break;
 		case 'n':
 			if (!optarg)

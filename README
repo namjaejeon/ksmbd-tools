@@ -29,29 +29,29 @@ Setup steps:
 		modprobe ksmbd
 	- create user/password for SMB share
 		mkdir /etc/ksmbd/
-		smbuseradd -a <Enter USERNAME for SMB share access>
+		ksmbd.adduser -a <Enter USERNAME for SMB share access>
 		Enter password for SMB share access
 	- create /etc/ksmbd/smb.conf file, add SMB share in smb.conf file
 		Refer smb.conf.example
 	- start smbd user space daemon
-		usmbd
+		ksmbd.mountd
 	- access share from Windows or Linux using CIFS
 
 --------------------
 ADMIN TOOLS
 --------------------
 
-- smbuseradd
+- ksmbd.adduser
 	Adds, updates or removes (-a/-u/-d) a user from ksmbd pwd file.
 
-- smbshareadd
+- ksmbd.addshare
 	Adds, updates or removes (-a/-u/-d) a net share from smb.conf file.
 
 Usage example:
 
 Creating a new share:
 
-smbshareadd -a files -o "\
+ksmbd.addshare -a files -o "\
 		     path=/home/users/files \
 		     comment=exported files \
 		     writeable=yes \
@@ -60,5 +60,5 @@ smbshareadd -a files -o "\
 
 Note that share options (-o) must always be enquoted ("...").
 
-smbshareadd tool does not modify [global] smb.conf section; only net
+ksmbd.addshare tool does not modify [global] smb.conf section; only net
 share configs are supported at the moment.

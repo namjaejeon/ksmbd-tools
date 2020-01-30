@@ -5,7 +5,6 @@
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#include <glib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -18,16 +17,16 @@
 #include <ctype.h>
 
 #include <config_parser.h>
-#include <usmbdtools.h>
+#include <ksmbdtools.h>
 
 #include <management/user.h>
 #include <management/share.h>
 #include <user_admin.h>
 
-#include <linux/usmbd_server.h>
+#include <linux/ksmbd_server.h>
 
-static char *arg_account = NULL;
-static char *arg_password = NULL;
+static char *arg_account;
+static char *arg_password;
 
 enum {
 	COMMAND_ADD_USER = 1,
@@ -81,7 +80,7 @@ static int sanity_check_user_name_simple(char *uname)
 	sz = strlen(uname);
 	if (sz < 1)
 		return -EINVAL;
-	if (sz >= USMBD_REQ_MAX_ACCOUNT_NAME_SZ)
+	if (sz >= KSMBD_REQ_MAX_ACCOUNT_NAME_SZ)
 		return -EINVAL;
 
 	/* 1'; Drop table users -- */
@@ -107,22 +106,22 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:Vvh")) != EOF)
 		switch (c) {
 		case 'a':
-			arg_account = g_strdup(optarg);
+			arg_account = strdup(optarg);
 			cmd = COMMAND_ADD_USER;
 			break;
 		case 'd':
-			arg_account = g_strdup(optarg);
+			arg_account = strdup(optarg);
 			cmd = COMMAND_DEL_USER;
 			break;
 		case 'u':
-			arg_account = g_strdup(optarg);
+			arg_account = strdup(optarg);
 			cmd = COMMAND_UPDATE_USER;
 			break;
 		case 'p':
-			arg_password = g_strdup(optarg);
+			arg_password = strdup(optarg);
 			break;
 		case 'i':
-			pwddb = g_strdup(optarg);
+			pwddb = strdup(optarg);
 			break;
 		case 'V':
 			show_version();
@@ -133,7 +132,7 @@ int main(int argc, char *argv[])
 		case 'h':
 		default:
 			usage();
-	}
+		}
 
 	if (sanity_check_user_name_simple(arg_account)) {
 		pr_err("User name sanity check failure\n");
@@ -174,7 +173,7 @@ int main(int argc, char *argv[])
 	 * We support only ADD_USER command at this moment
 	 */
 	if (ret == 0 && cmd == COMMAND_ADD_USER)
-		notify_usmbd_daemon();
+		notify_ksmbd_daemon();
 out:
 	shm_destroy();
 	usm_destroy();
