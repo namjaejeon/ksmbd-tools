@@ -37,6 +37,19 @@ Setup steps:
 		ksmbd.mountd
 	- access share from Windows or Linux using CIFS
 
+_____________________
+RESTART KSMBD
+_____________________
+
+steps:
+	- kill user space daemon
+		killall ksmbd.mountd
+	- kill kernel space daemon
+		echo hard > /sys/class/ksmbd-control/kill_server
+	- restart user space daemon
+		ksmbd.mountd
+
+
 --------------------
 ADMIN TOOLS
 --------------------
