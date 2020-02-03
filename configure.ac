@@ -2,7 +2,7 @@ AC_PREREQ([2.68])
 
 m4_define([ksmbd_tools_major_ver], [3])
 m4_define([ksmbd_tools_minor_ver], [2])
-m4_define([ksmbd_tools_micro_ver], [0])
+m4_define([ksmbd_tools_micro_ver], [1])
 
 m4_define([ksmbd_tools_version],
 	[ksmbd_tools_major_ver.ksmbd_tools_minor_ver.ksmbd_tools_micro_ver])
@@ -46,6 +46,11 @@ AC_CHECK_FUNCS_ONCE([
 	getpwnam
 	sendmsg
 	recvmsg
+])
+
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.40], [has_glib2=1], [has_glib2=0])
+AS_IF([test "$has_glib2" -eq 0],
+      AC_MSG_ERROR([No glib2 (libglib2.0-dev or glib2-devel) was found])
 ])
 
 has_libnl_ver=0
