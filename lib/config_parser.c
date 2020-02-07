@@ -549,6 +549,11 @@ static void global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 		return;
 	}
+
+	if (!cp_key_cmp(_k, "share:fake_fscaps")) {
+		global_conf.share_fake_fscaps = cp_get_group_kv_long(_v);
+		return;
+	}
 }
 
 static void fixup_missing_global_group(void)
@@ -593,6 +598,8 @@ static void default_global_group(void)
 {
 	global_conf.flags |= KSMBD_GLOBAL_FLAG_CACHE_TBUF;
 	global_conf.flags |= KSMBD_GLOBAL_FLAG_CACHE_RBUF;
+	/* The SPARSE_FILES file system capability flag is set by default */
+	global_conf.share_fake_fscaps = 64;
 }
 
 static void global_group(struct smbconf_group *group)

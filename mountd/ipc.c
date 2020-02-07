@@ -142,6 +142,7 @@ static int ipc_ksmbd_starting_up(void)
 	ev->smb2_max_read = global_conf.smb2_max_read;
 	ev->smb2_max_write = global_conf.smb2_max_write;
 	ev->smb2_max_trans = global_conf.smb2_max_trans;
+	ev->share_fake_fscaps = global_conf.share_fake_fscaps;
 
 	if (global_conf.server_min_protocol) {
 		strncpy(ev->min_prot,
