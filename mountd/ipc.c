@@ -228,7 +228,7 @@ static struct nla_policy ksmbd_nl_policy[KSMBD_EVENT_MAX] = {
 	},
 
 	[KSMBD_EVENT_SHUTTING_DOWN] = {
-		.minlen = sizeof(struct ksmbd_startup_request),
+		.minlen = sizeof(struct ksmbd_shutdown_request),
 	},
 
 	[KSMBD_EVENT_LOGIN_REQUEST] = {
