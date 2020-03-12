@@ -13,6 +13,8 @@
 #include <management/user.h>
 #include <ksmbdtools.h>
 
+#define KSMBD_USER_STATE_FREEING	1
+
 static GHashTable	*users_table;
 static GRWLock		users_table_lock;
 
@@ -29,13 +31,14 @@ static void kill_ksmbd_user(struct ksmbd_user *user)
 
 static int __usm_remove_user(struct ksmbd_user *user)
 {
-	int ret = -EINVAL;
+	int ret = 0;
 
-	g_rw_lock_writer_lock(&users_table_lock);
-	if (g_hash_table_remove(users_table, user->name))
-		ret = 0;
-	g_rw_lock_writer_unlock(&users_table_lock);
-
+	if (user->state != KSMBD_USER_STATE_FREEING) {
+		g_rw_lock_writer_lock(&users_table_lock);
+		if (!g_hash_table_remove(users_table, user->name))
+			ret = -EINVAL;
+		g_rw_lock_writer_unlock(&users_table_lock);
+	}
 	if (!ret)
 		kill_ksmbd_user(user);
 	return ret;
@@ -68,6 +71,22 @@ void put_ksmbd_user(struct ksmbd_user *user)
 		return;
 
 	__usm_remove_user(user);
+}
+
+static gboolean put_user_callback(gpointer _k, gpointer _v, gpointer data)
+{
+	struct ksmbd_user *user = (struct ksmbd_user *)_v;
+
+	user->state = KSMBD_USER_STATE_FREEING;
+	put_ksmbd_user(user);
+	return TRUE;
+}
+
+void usm_remove_all_users(void)
+{
+	g_rw_lock_writer_lock(&users_table_lock);
+	g_hash_table_foreach_remove(users_table, put_user_callback, NULL);
+	g_rw_lock_writer_unlock(&users_table_lock);
 }
 
 static struct ksmbd_user *new_ksmbd_user(char *name, char *pwd)

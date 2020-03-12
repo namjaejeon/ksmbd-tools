@@ -18,6 +18,8 @@
 #include <management/user.h>
 #include <ksmbdtools.h>
 
+#define KSMBD_SHARE_STATE_FREEING	1
+
 /*
  * WARNING:
  *
@@ -119,13 +121,14 @@ static void kill_ksmbd_share(struct ksmbd_share *share)
 
 static int __shm_remove_share(struct ksmbd_share *share)
 {
-	int ret = -EINVAL;
+	int ret = 0;
 
-	g_rw_lock_writer_lock(&shares_table_lock);
-	if (g_hash_table_remove(shares_table, share->name))
-		ret = 0;
-	g_rw_lock_writer_unlock(&shares_table_lock);
-
+	if (share->state != KSMBD_SHARE_STATE_FREEING) {
+		g_rw_lock_writer_lock(&shares_table_lock);
+		if (!g_hash_table_remove(shares_table, share->name))
+			ret = -EINVAL;
+		g_rw_lock_writer_unlock(&shares_table_lock);
+	}
 	if (!ret)
 		kill_ksmbd_share(share);
 	return ret;
@@ -159,6 +162,22 @@ void put_ksmbd_share(struct ksmbd_share *share)
 		return;
 
 	__shm_remove_share(share);
+}
+
+static gboolean put_share_callback(gpointer _k, gpointer _v, gpointer data)
+{
+	struct ksmbd_share *share = (struct ksmbd_share *)_v;
+
+	share->state = KSMBD_SHARE_STATE_FREEING;
+	put_ksmbd_share(share);
+	return TRUE;
+}
+
+void shm_remove_all_shares(void)
+{
+	g_rw_lock_writer_lock(&shares_table_lock);
+	g_hash_table_foreach_remove(shares_table, put_share_callback, NULL);
+	g_rw_lock_writer_unlock(&shares_table_lock);
 }
 
 static struct ksmbd_share *new_ksmbd_share(void)
