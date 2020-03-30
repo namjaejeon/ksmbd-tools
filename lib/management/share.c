@@ -56,6 +56,7 @@ char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"inherit smack",
 	"inherit owner",
 	"streams",
+	"follow symlinks",
 };
 
 static GHashTable	*shares_table;
@@ -557,6 +558,14 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		else
 			clear_share_flag(share,	KSMBD_SHARE_FLAG_STREAMS);
 	}
+
+	if (shm_share_config(k, KSMBD_SHARE_CONF_FOLLOW_SYMLINKS)) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS);
+		else
+			clear_share_flag(share,
+				KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS);
+	}
 }
 
 static void init_share_from_group(struct ksmbd_share *share,
@@ -576,6 +585,7 @@ static void init_share_from_group(struct ksmbd_share *share,
 	set_share_flag(share, KSMBD_SHARE_FLAG_READONLY);
 	set_share_flag(share, KSMBD_SHARE_FLAG_HIDE_DOT_FILES);
 	set_share_flag(share, KSMBD_SHARE_FLAG_OPLOCKS);
+	set_share_flag(share, KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS);
 
 	if (!cp_key_cmp(share->name, "IPC$"))
 		set_share_flag(share, KSMBD_SHARE_FLAG_PIPE);
