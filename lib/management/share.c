@@ -138,10 +138,15 @@ struct ksmbd_share *get_ksmbd_share(struct ksmbd_share *share)
 {
 	g_rw_lock_writer_lock(&share->update_lock);
 	if (share->ref_count != 0)
+	{
 		share->ref_count++;
+		g_rw_lock_writer_unlock(&share->update_lock);
+	}
 	else
+	{
+		g_rw_lock_writer_unlock(&share->update_lock);
 		share = NULL;
-	g_rw_lock_writer_unlock(&share->update_lock);
+	}
 
 	return share;
 }
