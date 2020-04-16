@@ -336,7 +336,7 @@ static int srvsvc_clear_headers(struct ksmbd_rpc_pipe *pipe,
 static int srvsvc_share_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	int ret = KSMBD_RPC_OK, status;
+	int ret = KSMBD_RPC_OK, status = KSMBD_RPC_ENOTIMPLEMENTED;
 
 	/*
 	 * Reserve space for response NDR header. We don't know yet if
