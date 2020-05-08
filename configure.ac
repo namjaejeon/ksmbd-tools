@@ -22,16 +22,6 @@ AC_PROG_CC_STDC
 AM_SILENT_RULES([yes])
 AC_PROG_LIBTOOL
 
-# Checks for header files.
-AC_CHECK_HEADERS([linux/netlink.h fcntl.h stdlib.h string.h \
-		  unistd.h sys/socket.h])
-
-# Checks for typedefs, structures, and compiler characteristics.
-AC_C_INLINE
-AC_TYPE_INT32_T
-AC_TYPE_INT8_T
-AC_TYPE_SIZE_T
-
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.40], [has_glib2=1], [has_glib2=0])
 AS_IF([test "$has_glib2" -eq 0],
       AC_MSG_ERROR([No glib2 (libglib2.0-dev or glib2-devel) was found])
