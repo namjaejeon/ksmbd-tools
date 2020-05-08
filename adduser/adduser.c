@@ -17,14 +17,13 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include <config_parser.h>
-#include <ksmbdtools.h>
-
-#include <management/user.h>
-#include <management/share.h>
-#include <user_admin.h>
-
-#include <linux/ksmbd_server.h>
+#include "config_parser.h"
+#include "ksmbdtools.h"
+#include "management/user.h"
+#include "management/share.h"
+#include "user_admin.h"
+#include "linux/ksmbd_server.h"
+#include "version.h"
 
 static char *arg_account = NULL;
 static char *arg_password = NULL;

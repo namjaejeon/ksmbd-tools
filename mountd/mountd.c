@@ -21,14 +21,15 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#include <ipc.h>
-#include <rpc.h>
-#include <worker.h>
-#include <config_parser.h>
-#include <management/user.h>
-#include <management/share.h>
-#include <management/session.h>
-#include <management/tree_conn.h>
+#include "ipc.h"
+#include "rpc.h"
+#include "worker.h"
+#include "config_parser.h"
+#include "management/user.h"
+#include "management/share.h"
+#include "management/session.h"
+#include "management/tree_conn.h"
+#include "version.h"
 
 static int no_detach = 0;
 int ksmbd_health_status;
