@@ -8,12 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-#include <linux/ksmbd_server.h>
 
-#include <management/session.h>
-#include <management/tree_conn.h>
-#include <management/user.h>
-#include <ksmbdtools.h>
+#include "linux/ksmbd_server.h"
+#include "management/session.h"
+#include "management/tree_conn.h"
+#include "management/user.h"
+#include "ksmbdtools.h"
 
 static GHashTable	*sessions_table;
 static GRWLock		sessions_table_lock;
