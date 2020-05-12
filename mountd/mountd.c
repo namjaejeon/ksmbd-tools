@@ -179,9 +179,6 @@ static int setup_signals(sighandler_t handler)
 	if (setup_signal_handler(SIGHUP, handler) != 0)
 		return -EINVAL;
 
-	if (setup_signal_handler(SIGSEGV, handler) != 0)
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -235,7 +232,7 @@ static void child_sig_handler(int signo)
 		return;
 	}
 
-	pr_err("Child received signal: %d (%s)\n",
+	pr_info("Child received signal: %d (%s)\n",
 		signo, strsignal(signo));
 
 	if (!g_atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
