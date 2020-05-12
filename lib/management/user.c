@@ -8,10 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-#include <linux/ksmbd_server.h>
 
-#include <management/user.h>
-#include <ksmbdtools.h>
+#include "linux/ksmbd_server.h"
+#include "management/user.h"
+#include "ksmbdtools.h"
 
 #define KSMBD_USER_STATE_FREEING	1
 

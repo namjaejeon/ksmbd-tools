@@ -1,19 +1,14 @@
 AC_PREREQ([2.68])
 
-m4_define([ksmbd_tools_major_ver], [3])
-m4_define([ksmbd_tools_minor_ver], [2])
-m4_define([ksmbd_tools_micro_ver], [5])
+m4_define([ksmbd_tools_version], m4_esyscmd_s(
+	 grep "define KSMBD_TOOLS_VERSION " include/version.h | \
+		 awk '{print $3}' | sed 's/\"//g'))
 
-m4_define([ksmbd_tools_version],
-	[ksmbd_tools_major_ver.ksmbd_tools_minor_ver.ksmbd_tools_micro_ver])
-
-AC_INIT([KSMBD tools],
-	[m4_esyscmd_s([git describe --tags --dirty --always --long || echo unknown])],
-	[linux-cifsd-devel@lists.sourceforge.net])
-
-AC_DEFINE([KSMBD_TOOLS_VERSION],
-	"ksmbd_tools_version [m4_esyscmd_s([git describe --tags --dirty --always --long || echo unknown])]",
-	["ksmbd-tools version"])
+AC_INIT([ksmbd-tools],
+	ksmbd_tools_version,
+	[linkinjeon@kernel.org],
+	[ksmbd-tools],
+	[https://github.com/cifsd-team/cifsd-tools])
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])

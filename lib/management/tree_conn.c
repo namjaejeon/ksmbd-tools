@@ -8,13 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-#include <linux/ksmbd_server.h>
 
-#include <management/tree_conn.h>
-#include <management/session.h>
-#include <management/share.h>
-#include <management/user.h>
-#include <ksmbdtools.h>
+#include "linux/ksmbd_server.h"
+#include "management/tree_conn.h"
+#include "management/session.h"
+#include "management/share.h"
+#include "management/user.h"
+#include "ksmbdtools.h"
 
 static struct ksmbd_tree_conn *new_ksmbd_tree_conn(void)
 {
