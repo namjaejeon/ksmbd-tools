@@ -232,7 +232,7 @@ static void child_sig_handler(int signo)
 		return;
 	}
 
-	pr_err("Child received signal: %d (%s)\n",
+	pr_info("Child received signal: %d (%s)\n",
 		signo, strsignal(signo));
 
 	if (!g_atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
