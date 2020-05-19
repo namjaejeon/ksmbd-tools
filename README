@@ -49,6 +49,18 @@ steps:
 	- restart user space daemon
 		ksmbd.mountd
 
+_____________________
+Shutdown CIFSD
+_____________________
+
+steps:
+	- kill user space daemon
+		killall ksmbd.mountd
+	- kill kernel space daemon
+		echo hard > /sys/class/ksmbd-control/kill_server
+	- unload ksmbd module
+		rmmod ksmbd
+
 
 --------------------
 ADMIN TOOLS
