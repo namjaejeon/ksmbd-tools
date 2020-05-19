@@ -11,12 +11,12 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
-#include <config_parser.h>
-#include <linux/ksmbd_server.h>
 
-#include <management/share.h>
-#include <management/user.h>
-#include <ksmbdtools.h>
+#include "config_parser.h"
+#include "linux/ksmbd_server.h"
+#include "management/share.h"
+#include "management/user.h"
+#include "ksmbdtools.h"
 
 #define KSMBD_SHARE_STATE_FREEING	1
 

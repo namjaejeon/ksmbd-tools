@@ -17,12 +17,12 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include <config_parser.h>
-#include <ksmbdtools.h>
-
-#include <management/share.h>
-#include <linux/ksmbd_server.h>
-#include <share_admin.h>
+#include "config_parser.h"
+#include "ksmbdtools.h"
+#include "management/share.h"
+#include "linux/ksmbd_server.h"
+#include "share_admin.h"
+#include "version.h"
 
 static char *arg_name;
 static char *arg_opts;
