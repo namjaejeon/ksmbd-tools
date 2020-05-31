@@ -4,4 +4,4 @@ ksmbd_addshare_LDADD = $(top_builddir)/lib/libksmbdtools.a
 
 sbin_PROGRAMS = ksmbd.addshare
 
-ksmbd_addshare_SOURCES = share_admin.c addshare.c
+ksmbd_addshare_SOURCES = share_admin.c addshare.c share_admin.h
