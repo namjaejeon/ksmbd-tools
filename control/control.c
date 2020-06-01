@@ -17,12 +17,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include "config_parser.h"
 #include "ksmbdtools.h"
-#include "management/user.h"
-#include "management/share.h"
-#include "user_admin.h"
-#include "linux/ksmbd_server.h"
 #include "version.h"
 
 static void usage(void)
@@ -43,10 +38,70 @@ static void show_version(void)
 	exit(EXIT_FAILURE);
 }
 
+static int ksmbd_control_shutdown(void)
+{
+	int fd, ret;
+
+	fd = open("/sys/class/ksmbd-control/kill_server", O_WRONLY);
+	if (fd < 0) {
+		pr_err("open failed: %d\n", errno);
+		return fd;
+	}
+
+	ret = write(fd, "hard", 4);
+	if (ret < 0)
+		return ret;
+
+	close(fd);
+}
+
+static int ksmbd_control_show_version(void)
+{
+	int fd, ret;
+	char ver[255];
+
+	fd = open("/sys/class/ksmbd-control/version", O_RDONLY);
+	if (fd < 0) {
+		pr_err("open failed: %d\n", errno);
+		return fd;
+	}
+
+	ret = read(fd, ver, 255);
+	if (ret < 0)
+		return ret;
+
+	close(fd);
+	pr_info("cifsd version : %s\n", ver);
+}
+
+static int ksmbd_control_debug(char *cmd)
+{
+	int fd, ret;
+	char buf[255];
+
+	fd = open("/sys/class/ksmbd-control/debug", O_WRONLY);
+	if (fd < 0) {
+		pr_err("open failed: %d\n", errno);
+		return fd;
+	}
+
+	ret = write(fd, cmd, strlen(cmd));
+	if (ret < 0)
+		return ret;
+	ret = read(fd, buf, 255);
+	if (ret < 0)
+		return ret;
+
+	close(fd);
+
+	printf("%s\n", buf);
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
 	int c, cmd = 0;
+	char *section;
 
 	set_logger_app_name("ksmbd.control");
 
@@ -54,16 +109,14 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "sd:cV")) != EOF)
 		switch (c) {
 		case 's':
-			arg_account = g_strdup(optarg);
-			cmd = COMMAND_ADD_USER;
+			ksmbd_control_shutdown();
 			break;
 		case 'd':
-			arg_account = g_strdup(optarg);
-			cmd = COMMAND_DEL_USER;
+			section = g_strdup(optarg);
+			ret = ksmbd_control_debug(section);
 			break;
 		case 'c':
-			arg_account = g_strdup(optarg);
-			cmd = COMMAND_UPDATE_USER;
+			ret = ksmbd_control_show_version();
 			break;
 		case 'V':
 			show_version();
