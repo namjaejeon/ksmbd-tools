@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
+ *   Copyright (C) 2020 Samsung Electronics Co., Ltd.
  *
  *   linux-cifsd-devel@lists.sourceforge.net
  */
 
-#include <glib.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <getopt.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <signal.h>
 #include <errno.h>
-#include <ctype.h>
 
 #include "ksmbdtools.h"
 #include "version.h"
