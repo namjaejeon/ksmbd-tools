@@ -23,7 +23,6 @@
 static void usage(void)
 {
 	fprintf(stderr, "Usage: ksmbd.control\n");
-
 	fprintf(stderr, "\t-s | --shutdown\n");
 	fprintf(stderr, "\t-d | --debug=all or [smb, auth, etc...]\n");
 	fprintf(stderr, "\t-c | --cifsd-version\n");
@@ -58,9 +57,9 @@ static int ksmbd_control_shutdown(void)
 static int ksmbd_control_show_version(void)
 {
 	int fd, ret;
-	char ver[255];
+	char ver[255] = {0};
 
-	fd = open("/sys/class/ksmbd-control/version", O_RDONLY);
+	fd = open("/sys/module/ksmbd/version", O_RDONLY);
 	if (fd < 0) {
 		pr_err("open failed: %d\n", errno);
 		return fd;
@@ -74,27 +73,27 @@ static int ksmbd_control_show_version(void)
 	pr_info("cifsd version : %s\n", ver);
 }
 
-static int ksmbd_control_debug(char *cmd)
+static int ksmbd_control_debug(char *comp)
 {
 	int fd, ret;
-	char buf[255];
+	char buf[255] = {0};
 
-	fd = open("/sys/class/ksmbd-control/debug", O_WRONLY);
+	fd = open("/sys/class/ksmbd-control/debug", O_RDWR);
 	if (fd < 0) {
 		pr_err("open failed: %d\n", errno);
 		return fd;
 	}
 
-	ret = write(fd, cmd, strlen(cmd));
+	ret = write(fd, comp, strlen(comp));
 	if (ret < 0)
 		return ret;
 	ret = read(fd, buf, 255);
 	if (ret < 0)
 		return ret;
 
-	close(fd);
+	pr_info("%s\n", buf);
 
-	printf("%s\n", buf);
+	close(fd);
 }
 
 int main(int argc, char *argv[])
@@ -105,15 +104,19 @@ int main(int argc, char *argv[])
 
 	set_logger_app_name("ksmbd.control");
 
+	if (getuid() != 0) {
+		pr_err("Please try it as root.\n");
+		return ret;
+	}
+
 	opterr = 0;
-	while ((c = getopt(argc, argv, "sd:cV")) != EOF)
+	while ((c = getopt(argc, argv, "sd:cVh")) != EOF)
 		switch (c) {
 		case 's':
 			ksmbd_control_shutdown();
 			break;
 		case 'd':
-			section = g_strdup(optarg);
-			ret = ksmbd_control_debug(section);
+			ret = ksmbd_control_debug(optarg);
 			break;
 		case 'c':
 			ret = ksmbd_control_show_version();
@@ -126,6 +129,9 @@ int main(int argc, char *argv[])
 		default:
 			usage();
 	}
+
+	if (argc < 2)
+		usage();
 
 	return ret;
 }
