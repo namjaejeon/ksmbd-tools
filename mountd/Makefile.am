@@ -1,4 +1,4 @@
-AM_CFLAGS = -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common
+AM_CFLAGS = -Wall -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common
 LIBS = $(GLIB_LIBS) $(LIBNL_LIBS)
 ksmbd_mountd_LDADD = $(top_builddir)/lib/libksmbdtools.a
 
