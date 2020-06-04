@@ -2,7 +2,7 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = lib mountd adduser addshare
+SUBDIRS = lib mountd adduser addshare control
 
 # other stuff
 EXTRA_DIST =			\

@@ -40,6 +40,7 @@ AC_CONFIG_FILES([
 	mountd/Makefile
 	adduser/Makefile
 	addshare/Makefile
+	control/Makefile
 ])
 
 AC_OUTPUT
