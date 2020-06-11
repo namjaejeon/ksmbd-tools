@@ -45,7 +45,7 @@ steps:
 	- kill user space daemon
 		killall ksmbd.mountd
 	- kill kernel space daemon
-		echo hard > /sys/class/ksmbd-control/kill_server
+		sudo ksmbd.control -s
 	- restart user space daemon
 		ksmbd.mountd
 
@@ -57,9 +57,22 @@ steps:
 	- kill user space daemon
 		killall ksmbd.mountd
 	- kill kernel space daemon
-		echo hard > /sys/class/ksmbd-control/kill_server
+		sudo ksmbd.control -s
 	- unload ksmbd module
 		rmmod ksmbd
+
+
+_____________________
+Enable debug prints
+_____________________
+
+steps:
+	- Enable all component prints
+		sudo ksmbd.control -d "all"
+	- Enable one of components(smb, auth, vfs, oplock, ipc, conn, rdma)
+		sudo ksmbd.control -d "smb"
+	- Disable prints:
+		If you try the selected component once more, It is disabled without brackets.
 
 
 --------------------
