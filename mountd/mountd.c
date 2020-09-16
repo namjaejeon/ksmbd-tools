@@ -116,7 +116,7 @@ retry:
 static int create_subauth_file(void)
 {
 	int fd;
-	char *subauth_buf;
+	char subauth_buf[35];
 	GRand *rnd;
 
 	rnd = g_rand_new();
@@ -135,6 +135,8 @@ static int create_subauth_file(void)
 		return -1;
 	}
 	close(fd);
+
+	return 0;
 }
 
 static int generate_sub_auth(void)
