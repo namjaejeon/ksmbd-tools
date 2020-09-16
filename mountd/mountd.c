@@ -113,6 +113,47 @@ retry:
 	return 0;
 }
 
+static int create_subauth_file(void)
+{
+	int fd;
+	char *subauth_buf;
+	GRand *rnd;
+
+	rnd = g_rand_new();
+	sprintf(subauth_buf, "%d:%d:%d\n", g_rand_int_range(rnd, 0, INT_MAX),
+		g_rand_int_range(rnd, 0, INT_MAX),
+		g_rand_int_range(rnd, 0, INT_MAX));
+
+	fd = open("/etc/ksmbd/subauth", O_CREAT | O_WRONLY,
+			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if (fd < 0)
+		return -1;
+
+	if (write(fd, subauth_buf, strlen(subauth_buf)) == -1) {
+		pr_err("Unable to write subauth: %s\n", strerr(errno));
+		close(fd);
+		return -1;
+	}
+	close(fd);
+}
+
+static int generate_sub_auth(void)
+{
+	int rc;
+
+	pr_err("generate_sub_auth\n");
+retry:
+	rc = cp_parse_subauth("/etc/ksmbd/subauth");
+	if (rc < 0) {
+		rc = create_subauth_file();
+		if (rc)
+			return -1;
+		goto retry;
+	}
+
+	return 0;
+}
+
 static void delete_lock_file(void)
 {
 	if (lock_fd == -1)
@@ -371,6 +412,12 @@ static int manager_process_init(void)
 
 	if (create_lock_file()) {
 		pr_err("Failed to create lock file: %s\n", strerr(errno));
+		goto out;
+	}
+
+	if (generate_sub_auth()) {
+		pr_err("Faild to generate subauth for domain sid: %s\n",
+				strerr(errno));
 		goto out;
 	}
 
