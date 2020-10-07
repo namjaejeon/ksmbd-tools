@@ -154,6 +154,14 @@ struct wkssvc_netwksta_info_request {
 	int				level;
 };
 
+struct samr_info_request {
+	struct ndr_uniq_char_ptr	server_name;
+	int				level;
+	int				client_version;
+	int				id;
+	struct ndr_uniq_char_ptr	lookup_name;
+};
+
 struct dcerpc_guid {
 	__u32		time_low;
 	__u16		time_mid;
@@ -241,6 +249,7 @@ struct ksmbd_dcerpc {
 		struct srvsvc_share_info_request	si_req;
 		struct dcerpc_bind_request		bi_req;
 		struct wkssvc_netwksta_info_request	wi_req;
+		struct samr_info_request		sm_req;
 	};
 
 	struct ksmbd_rpc_command	*rpc_req;
