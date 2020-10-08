@@ -12,8 +12,8 @@
 #include <linux/ksmbd_server.h>
 
 #include <rpc.h>
-#include <rpc_srvsvc.h>
-#include <rpc_wkssvc.h>
+//#include <rpc_srvsvc.h>
+//#include <rpc_wkssvc.h>
 #include <rpc_samr.h>
 #include <ksmbdtools.h>
 

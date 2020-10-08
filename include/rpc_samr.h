@@ -11,6 +11,12 @@
 struct ksmbd_rpc_command;
 struct ksmbd_rpc_pipe;
 
+struct connect_handle {
+	int handle;
+	int rid;
+	char *domain_name;
+};
+
 int rpc_samr_read_request(struct ksmbd_rpc_pipe *pipe,
 			  struct ksmbd_rpc_command *resp,
 			  int max_resp_sz);

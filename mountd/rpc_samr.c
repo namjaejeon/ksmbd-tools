@@ -14,7 +14,7 @@
 #include <management/share.h>
 
 #include <rpc.h>
-#include <rpc_srvsvc.h>
+#include <rpc_samr.h>
 #include <ksmbdtools.h>
 
 #define SAMR_OPNUM_CONNECT5		64
@@ -24,6 +24,7 @@
 #define SAMR_OPNUM_LOOKUP_NAMES		17
 #define SAMR_OPNUM_OPEN_USER		34
 #define SAMR_OPNUM_QUERY_USER_INFO	36
+#define SAMR_OPNUM_QUERY_SECURITY	3
 #define SAMR_OPNUM_CLOSE		1
 
 static GHashTable	*ch_table;
@@ -257,9 +258,6 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
-
-
-
 	return KSMBD_RPC_OK;
 }
 
@@ -290,6 +288,9 @@ static int samr_lookup_name_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct passwd *passwd;
 
+	ch = samr_ch_lookup(dce->sm_req->id);
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
 
 	passwd = getpwnam(STR_VAL(dce->sm_req->lookup_name));
 	if (!passwd)
@@ -309,10 +310,12 @@ static int samr_lookup_name_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, 1);
 	ndr_write_int32(dce, 1);
 
+	ch->rid = passwd->pw_uid;
+
 	return KSMBD_RPC_OK;
 }
 
-static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
+static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
@@ -326,6 +329,181 @@ static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
 
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
+	return KSMBD_RPC_OK;
+}
+
+static int samr_query_user_info_invoke(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	char *home_dir;
+	
+	ch = samr_ch_lookup(dce->sm_req->id);
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
+
+	/* Ref ID */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Info */
+	ndr_write_int16(dce, 15);
+
+	/* Last Logon time */
+	ndr_write_int64(dce, 0);
+	/* Last Logoff time */
+	ndr_write_int64(dce, 0);
+	/* Last Password Change */
+	ndr_write_int64(dce, 0);
+	/* Acct Expiry */
+	ndr_write_int64(dce, 0);
+	/* Allow Password Change */
+	ndr_write_int64(dce, 0);
+	/* Force Password Change */
+	ndr_write_int64(dce, 0);
+
+	/* Account Name */
+	ndr_write_int16(dce, strlen(name)*2);
+	ndr_write_int16(dce, strlen(name)*2);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Full Name */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Home Directory */
+	ndr_write_int16(dce, strlen(home_dir)*2);
+	ndr_write_int16(dce, strlen(home_dir)*2);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Home Drive */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Logon Script */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* profile path */
+	ndr_write_int16(dce, strlen(profile_path)*2);
+	ndr_write_int16(dce, strlen(profile_path)*2);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Description */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Workstations */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Comment */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Parameters */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Lm, Nt, Password and Private*/
+	for (i = 0; i < 3; i++) {
+		ndr_write_int16(dce, 0);
+		ndr_write_int16(dce, 0);
+		ndr_write_int32(dce, 0);
+	}
+
+	/* Buf Count */
+	ndr_write_int32(dce, 0);
+	/* Pointer to Buffer */
+	ndr_write_int32(dce, 0);
+	/* RID */
+	ndr_write_int32(dce, ch->rid);
+	/* Primary Gid */
+	ndr_write_int32(dce, 513);
+
+	/* Acct Flags : Acb Normal */
+	ndr_write_int32(dce, 0x00000010);
+
+	/* Fields Present */
+	ndr_write_int32(dce, 0x00FFFFFF);
+
+	/* Logon Hours */
+	ndr_write_int16(dce, 168);
+	ndr_write_int16(dce, 0);
+
+	/* Pointers to Bits */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Bad Password/Logon Count/Country Code/Code Page */
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, 0);
+
+	/* Lm/Nt Password Set, Password Expired/etc */
+	ndr_write_int8(dce, 0);
+	ndr_write_int8(dce, 0);
+	ndr_write_int8(dce, 0);
+	ndr_write_int8(dce, 0);
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_query_security_invoke(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_query_security_return(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	int sec_desc_len, offset;
+
+	ch = samr_ch_lookup(dce->sm_req->id);
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
+	
+	build_sec_desc(dce, &sec_desc_len, rid);
+	offset = dce->offset;
+
+	dce->offset = 0;
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	ndr_write_int32(dce, sec_desc_len);
+	
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	ndr_write_int32(dce, sec_desc_len);
+
+	dce->offset = offset;
+
 	return KSMBD_RPC_OK;
 }
 
@@ -445,6 +623,9 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 	case SAMR_OPNUM_QUERY_USER_INFO:
 		status = samr_query_user_info_return(pipe);
 		break;
+	case SAMR_OPNUM_QUERY_SECURITY:
+		status = samr_query_user_info_return(pipe);
+		break;
 	case SAMR_OPNUM_CLOSE:
 		status = samr_close_return(pipe);
 		break;
@@ -454,7 +635,6 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 		ret = KSMBD_RPC_EBAD_FUNC;
 		break;
 	}
-
 
 	if (rpc_restricted_context(dce->rpc_req))
 		status = KSMBD_RPC_EACCESS_DENIED;
