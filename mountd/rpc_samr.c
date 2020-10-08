@@ -88,10 +88,11 @@ static int __domain_entry_processed(struct ksmbd_rpc_pipe *pipe, int i)
 	return 0;
 }
 
-static int samr_connect5_invoke(struct ksmbd_rpc_pipe *pipe,
-					struct samr_info_request *hdr)
+static int samr_connect5_invoke(struct ksmbd_rpc_pipe *pipe)
 {
-	hdr->client_version = ndr_read_int32(dce);
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	dce->sm_req->client_version = ndr_read_int32(dce);
 	return 0;
 }
 
@@ -117,7 +118,8 @@ static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	char *hostname, *builtin;
+//	char *hostname, *builtin;
+	char *hostname;
 
 	ch = samr_ch_lookup(dce->sm_req->id);
 	if (!ch)
@@ -131,9 +133,9 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	hostname = kmalloc(256, GFP_KERNEL);
 	if (!hostname)
 		return KSMBD_RPC_ENOMEM; 
-	builtin = kmalloc(8, GFP_KERNEL);
-	if (!builtin)
-		return KSMBD_RPC_ENOMEM; 
+//	builtin = kmalloc(8, GFP_KERNEL);
+//	if (!builtin)
+//		return KSMBD_RPC_ENOMEM; 
 
 	gethostname(hostname, 256);
 //	strcpy(builtin, "Builtin");
@@ -263,6 +265,12 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 
 static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe)
 {
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	ch = samr_ch_lookup(dce->sm_req->id);
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
+
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
 
