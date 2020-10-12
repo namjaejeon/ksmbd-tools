@@ -158,8 +158,8 @@ struct samr_info_request {
 	struct ndr_uniq_char_ptr	server_name;
 	int				level;
 	int				client_version;
-	int				id;
 	struct ndr_uniq_char_ptr	lookup_name;
+	struct connect_handle		*ch;
 };
 
 struct dcerpc_guid {
