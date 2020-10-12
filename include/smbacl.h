@@ -8,6 +8,10 @@
 #ifndef __KSMBD_SMBACL_H__
 #define __KSMBD_SMBACL_H__
 
+#include <linux/types.h>
+#include <glib.h>
+#include <rpc.h>
+
 #define NUM_AUTHS (6)	/* number of authority fields */
 #define SID_MAX_SUB_AUTHORITIES (15) /* max number of sub authority fields */
 
@@ -33,40 +37,40 @@
 #define SELF_RELATIVE		0x8000
 
 struct smb_ntsd {
-	__le16 revision; /* revision level */
-	__le16 type;
-	__le32 osidoffset;
-	__le32 gsidoffset;
-	__le32 sacloffset;
-	__le32 dacloffset;
-} ____ksmbd_align;
+	__u16 revision; /* revision level */
+	__u16 type;
+	__u32 osidoffset;
+	__u32 gsidoffset;
+	__u32 sacloffset;
+	__u32 dacloffset;
+};
 
 struct smb_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[NUM_AUTHS];
-	__le32 sub_auth[SID_MAX_SUB_AUTHORITIES]; /* sub_auth[num_subauth] */
-} ____ksmbd_align;
+	__u32 sub_auth[SID_MAX_SUB_AUTHORITIES]; /* sub_auth[num_subauth] */
+};
 
 struct smb_acl {
-	__le16 revision; /* revision level */
-	__le16 size;
-	__le32 num_aces;
-} ____ksmbd_align;
+	__u16 revision; /* revision level */
+	__u16 size;
+	__u32 num_aces;
+};
 
 struct smb_ace {
 	__u8 type;
 	__u8 flags;
-	__le16 size;
-	__le32 access_req;
+	__u16 size;
+	__u32 access_req;
 	struct smb_sid sid; /* ie UUID of user or group who gets these perms */
-} ____ksmbd_align;
+};
 
 void smb_init_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid);
-void smb_read_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *sid);
+void smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid);
 void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src);
 void smb_copy_sid(struct smb_sid *dst, const struct smb_sid *src);
 int smb_compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid);
-int build_sec_desc(struct smb_ntsd *pntsd, int addition_info, __u32 *secdesclen, int rid);
+int build_sec_desc(struct ksmbd_dcerpc *dce, __u32 *secdesclen, int rid);
 
 #endif /* __KSMBD_SMBACL_H__ */

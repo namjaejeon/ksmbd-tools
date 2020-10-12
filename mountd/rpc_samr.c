@@ -12,11 +12,11 @@
 #include <errno.h>
 #include <linux/ksmbd_server.h>
 
-#include <management/share.h>
+#include <management/user.h>
 
 #include <rpc.h>
-#include <smbacl.h>
 #include <rpc_samr.h>
+#include <smbacl.h>
 #include <ksmbdtools.h>
 
 #define SAMR_OPNUM_CONNECT5		64
@@ -258,7 +258,7 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 			smb_write_sid(dce, &sid);
 			smb_copy_sid(&ch->sid, &sid);
 			ch->domain_name =
-				malloc(strlen(STR_VAL(dce->sm_req.lookup_name));
+				malloc(strlen(STR_VAL(dce->sm_req.lookup_name)));
 			if (!ch->domain_name)
 				return KSMBD_RPC_ENOMEM;
 
@@ -292,7 +292,7 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	smb_read_sid(dce, &sid);
 
-	if (smb_compare_sids(sid, ch->sid))
+	if (smb_compare_sids(&sid, &ch->sid))
 		return KSMBD_RPC_EBAD_FID;
 
 	return KSMBD_RPC_OK;
@@ -309,12 +309,14 @@ static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe)
 	return KSMBD_RPC_OK;
 }
 
-static int samr_lookup_name_invoke(struct ksmbd_rpc_pipe *pipe)
+static int samr_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
-	unsigned long long id;
 	struct ndr_uniq_char_ptr username;
+	struct ksmbd_user *user;
+	struct passwd *passwd;
+	unsigned long long id;
 	int user_num;
 
 	id = ndr_read_int64(dce);
@@ -354,7 +356,7 @@ static int samr_lookup_name_invoke(struct ksmbd_rpc_pipe *pipe)
 	return KSMBD_RPC_OK;
 }
 
-static int samr_lookup_name_return(struct ksmbd_rpc_pipe *pipe)
+static int samr_lookup_names_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch = dce->sm_req.ch;
@@ -428,9 +430,10 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch = dce->sm_req.ch;
-	char *home_dir;
+	char *home_dir, *profile_path;
 	int home_dir_len = 2 + strlen(ch->domain_name) + 1 + strlen(ch->user->name);
 	int profile_path_len = home_dir_len + strlen("profile");
+	int i;
 
 	home_dir = calloc(1, home_dir_len);
 	if (!home_dir)
@@ -628,7 +631,6 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 
 static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
 {
-	struct connect_handle *ch;
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch = dce->sm_req.ch;
 	int i;
@@ -640,7 +642,7 @@ static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
 
 		entry = g_array_index(pipe->entries, gpointer, i);
 		pipe->entries = g_array_remove_index(pipe->entries, i);
-		kfree(name);
+		free(entry);
 	}
 
 	return KSMBD_RPC_OK;
@@ -652,7 +654,7 @@ static int samr_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	switch (pipe->dce->req_hdr.opnum) {
 	case SAMR_OPNUM_CONNECT5:
-		ret = samr_connect5_invoke(pipe, &dce->s);
+		ret = samr_connect5_invoke(pipe);
 		break;
 	case SAMR_OPNUM_ENUM_DOMAIN:
 		ret = samr_enum_domain_invoke(pipe);
