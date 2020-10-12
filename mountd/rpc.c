@@ -12,8 +12,8 @@
 #include <linux/ksmbd_server.h>
 
 #include <rpc.h>
-//#include <rpc_srvsvc.h>
-//#include <rpc_wkssvc.h>
+#include <rpc_srvsvc.h>
+#include <rpc_wkssvc.h>
 #include <rpc_samr.h>
 #include <ksmbdtools.h>
 
@@ -1149,8 +1149,4 @@ int rpc_close_request(struct ksmbd_rpc_command *req,
 
 	pr_err("RPC: unknown pipe ID: %d\n", req->handle);
 	return KSMBD_RPC_OK;
-}
-
-	pr_err("%s KSMBD_RPC_ENOTIMPLEMENTED\n", __func__);
-	return KSMBD_RPC_ENOTIMPLEMENTED;
 }

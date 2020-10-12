@@ -8,6 +8,8 @@
 #ifndef __KSMBD_RPC_SAMR_H__
 #define __KSMBD_RPC_SAMR_H__
 
+#include <smbacl.h>
+
 struct ksmbd_rpc_command;
 struct ksmbd_rpc_pipe;
 
@@ -15,6 +17,8 @@ struct connect_handle {
 	int handle;
 	int rid;
 	char *domain_name;
+	struct ksmbd_user *user;
+	struct smb_sid sid;
 };
 
 int rpc_samr_read_request(struct ksmbd_rpc_pipe *pipe,

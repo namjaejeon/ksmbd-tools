@@ -8,12 +8,14 @@
 #include <memory.h>
 #include <endian.h>
 #include <glib.h>
+#include <pwd.h>
 #include <errno.h>
 #include <linux/ksmbd_server.h>
 
 #include <management/share.h>
 
 #include <rpc.h>
+#include <smbacl.h>
 #include <rpc_samr.h>
 #include <ksmbdtools.h>
 
@@ -91,19 +93,20 @@ static int __domain_entry_processed(struct ksmbd_rpc_pipe *pipe, int i)
 static int samr_connect5_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	char server_name[256];
+	struct ndr_uniq_char_ptr server_name;
 
-	ndr_read_uniq_vsting_ptr(dce, server_name);
+	ndr_read_uniq_vsting_ptr(dce, &server_name);
 	ndr_read_int32(dce); // Read Access mask
-	dce->smb_req->level = ndr_read_int32(dce); // Read level in
+	dce->sm_req.level = ndr_read_int32(dce); // Read level in
 	ndr_read_int32(dce); // Read Info in
-	dce->sm_req->client_version = ndr_read_int32(dce);
+	dce->sm_req.client_version = ndr_read_int32(dce);
 	return 0;
 }
 
 static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct connect_handle *ch;
 
 	ndr_write_union_int32(dce, dce->sm_req.level); //level out
 	ndr_write_int32(dce, dce->sm_req.client_version); //client version
@@ -125,10 +128,10 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 //	char *hostname, *builtin;
 	char *hostname;
+	struct connect_handle *ch;
 	unsigned long long id;
 
 	id = ndr_read_int64(dce);
-
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
@@ -138,7 +141,7 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	 * uses the hostname as the domain name.
 	 */
 
-	hostname = kmalloc(256, GFP_KERNEL);
+	hostname = malloc(256);
 	if (!hostname)
 		return KSMBD_RPC_ENOMEM; 
 //	builtin = kmalloc(8, GFP_KERNEL);
@@ -158,7 +161,7 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		gpointer entry;
@@ -182,9 +185,11 @@ int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
 	}
 
 	if (pipe->entry_processed) {
-		for (i = 0; i < max_entry_nr; i++)
+		for (i = 0; i < pipe->num_entries; i++)
 			pipe->entry_processed(pipe, 0);
 	}
+
+	return ret;
 }
 
 static int samr_enum_domain_return(struct ksmbd_rpc_pipe *pipe)
@@ -196,11 +201,11 @@ static int samr_enum_domain_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, 0);
 
 	dce->num_pointers++;
-	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	ret |= ndr_write_int32(dce, dce->num_entries); /* Sam entry count */
+	ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	ndr_write_int32(dce, pipe->num_entries); /* Sam entry count */
 	dce->num_pointers++;
-	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	ret |= ndr_write_int32(dce, dce->num_entries); /* Sam max entry count */
+	ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	ndr_write_int32(dce, pipe->num_entries); /* Sam max entry count */
 
 	status = samr_ndr_write_domain_array(pipe);
 
@@ -221,14 +226,14 @@ static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	ch = samr_ch_lookup(id);
 	if (!ch)
-		return NULL;
+		return KSMBD_RPC_EBAD_FID;
 
 	// name len
 	ndr_read_int16(dce);
 	// name size
 	ndr_read_int16(dce);
 	// read domain name
-	ndr_read_uniq_vsting_ptr(dce, &dce->sm_req->lookup_name);
+	ndr_read_uniq_vsting_ptr(dce, &dce->sm_req.lookup_name);
 
 	return KSMBD_RPC_OK;
 }
@@ -236,7 +241,7 @@ static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req->ch;
+	struct connect_handle *ch = dce->sm_req.ch;
 	struct smb_sid sid = {0};
 	int i, j;
 
@@ -248,10 +253,17 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 		gpointer entry;
 
 		entry = g_array_index(pipe->entries, gpointer, i);
-		if (!strcmp(STR_VAL(dce->sm_req->lookup_name), (char *)entry)) {
+		if (!strcmp(STR_VAL(dce->sm_req.lookup_name), (char *)entry)) {
 			smb_init_sid(dce, &sid);
 			smb_write_sid(dce, &sid);
 			smb_copy_sid(&ch->sid, &sid);
+			ch->domain_name =
+				malloc(strlen(STR_VAL(dce->sm_req.lookup_name));
+			if (!ch->domain_name)
+				return KSMBD_RPC_ENOMEM;
+
+			strcpy(ch->domain_name,
+				STR_VAL(dce->sm_req.lookup_name));
 		}
 	}
 
@@ -264,22 +276,32 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct connect_handle *ch;
 	int i, j;
 	unsigned long long id;
+	struct smb_sid sid;
 
 	id = ndr_read_int64(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
-	dce->sm_req->ch = ch;
+	dce->sm_req.ch = ch;
+
+	/* Acccess Mask */
+	ndr_read_int32(dce);
+	/* Count */
+	ndr_read_int32(dce);
+
+	smb_read_sid(dce, &sid);
+
+	if (smb_compare_sids(sid, ch->sid))
+		return KSMBD_RPC_EBAD_FID;
 
 	return KSMBD_RPC_OK;
 }
 
-static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe,
-		struct connect_handle *ch)
+static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req->ch;
+	struct connect_handle *ch = dce->sm_req.ch;
 
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
@@ -292,20 +314,42 @@ static int samr_lookup_name_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
 	unsigned long long id;
+	struct ndr_uniq_char_ptr username;
+	int user_num;
 
 	id = ndr_read_int64(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
-	dce->sm_req->ch = ch;
+	dce->sm_req.ch = ch;
 
-	// name len
+	user_num = ndr_read_int32(dce);
+	/* Max Count */
+	ndr_read_int32(dce);
+	/* Offset */
+	ndr_read_int32(dce);
+	/* Actual Count */
+	ndr_read_int32(dce);
+
+	/* Name Len */
 	ndr_read_int16(dce);
-	// name size
+	/* Name Size */
 	ndr_read_int16(dce);
-	// read domain name
-	ndr_read_uniq_vsting_ptr(dce, &dce->sm_req->lookup_name);
+
+	/* Names */
+	ndr_read_uniq_vsting_ptr(dce, &username);
+
+	passwd = getpwnam(STR_VAL(username));
+	if (!passwd)
+		return KSMBD_RPC_EACCESS_DENIED;
+	ch->rid = passwd->pw_uid;
+
+	user = usm_lookup_user(STR_VAL(username));
+	if (!user)
+		return KSMBD_RPC_EACCESS_DENIED;
+
+	ch->user = user;
 
 	return KSMBD_RPC_OK;
 }
@@ -313,18 +357,15 @@ static int samr_lookup_name_invoke(struct ksmbd_rpc_pipe *pipe)
 static int samr_lookup_name_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct connect_handle *ch = dce->sm_req.ch;
 	struct passwd *passwd;
-
-	passwd = getpwnam(STR_VAL(dce->sm_req->lookup_name));
-	if (!passwd)
-		return KSMBD_RPC_EACCESS_DENIED;
 
 	//samr IDs
 	ndr_write_int32(dce, 1);
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 	ndr_write_int32(dce, 1);
-	ndr_write_int32(dce, passwd->pw_uid);
+	ndr_write_int32(dce, ch->rid);
 
 	// Need to check if it is needed
 	ndr_write_int32(dce, 1);
@@ -332,8 +373,6 @@ static int samr_lookup_name_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, dce->num_pointers);
 	ndr_write_int32(dce, 1);
 	ndr_write_int32(dce, 1);
-
-	ch->rid = passwd->pw_uid;
 
 	return KSMBD_RPC_OK;
 }
@@ -343,12 +382,13 @@ static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
 	unsigned long long id;
+	unsigned int req_rid;
 
 	id = ndr_read_int64(dce);
-	ch = samr_ch_lookup(dce->sm_req->id);
+	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
-	dce->sm_req->ch = ch;
+	dce->sm_req.ch = ch;
 
 	ndr_read_int32(dce);
 	req_rid = ndr_read_int32(dce);
@@ -362,7 +402,7 @@ static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req->ch;
+	struct connect_handle *ch = dce->sm_req.ch;
 
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
@@ -376,10 +416,10 @@ static int samr_query_user_info_invoke(struct ksmbd_rpc_pipe *pipe)
 	unsigned long long id;
 
 	id = ndr_read_int64(dce);
-	ch = samr_ch_lookup(dce->sm_req->id);
+	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
-	dce->sm_req->ch = ch;
+	dce->sm_req.ch = ch;
 
 	return KSMBD_RPC_OK;
 }
@@ -387,9 +427,27 @@ static int samr_query_user_info_invoke(struct ksmbd_rpc_pipe *pipe)
 static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req->ch;
+	struct connect_handle *ch = dce->sm_req.ch;
 	char *home_dir;
-	
+	int home_dir_len = 2 + strlen(ch->domain_name) + 1 + strlen(ch->user->name);
+	int profile_path_len = home_dir_len + strlen("profile");
+
+	home_dir = calloc(1, home_dir_len);
+	if (!home_dir)
+		return KSMBD_RPC_EBAD_FID;
+
+	strcpy(home_dir, "\\\\");
+	strcat(home_dir, ch->domain_name);
+	strcat(home_dir, "\\");
+	strcat(home_dir, ch->user->name);
+
+	profile_path = calloc(1, profile_path_len);
+	if (!profile_path)
+		return KSMBD_RPC_EBAD_FID;
+
+	strcat(profile_path, "\\");
+	strcat(profile_path, "profile");
+
 	/* Ref ID */
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
@@ -411,8 +469,8 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int64(dce, 0);
 
 	/* Account Name */
-	ndr_write_int16(dce, strlen(name)*2);
-	ndr_write_int16(dce, strlen(name)*2);
+	ndr_write_int16(dce, strlen(ch->user->name)*2);
+	ndr_write_int16(dce, strlen(ch->user->name)*2);
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 
@@ -522,10 +580,10 @@ static int samr_query_security_invoke(struct ksmbd_rpc_pipe *pipe)
 	unsigned long long id;
 
 	id = ndr_read_int64(dce);
-	ch = samr_ch_lookup(dce->sm_req->id);
+	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
-	dce->sm_req->ch = ch;
+	dce->sm_req.ch = ch;
 
 	return KSMBD_RPC_OK;
 }
@@ -533,7 +591,7 @@ static int samr_query_security_invoke(struct ksmbd_rpc_pipe *pipe)
 static int samr_query_security_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req->ch;
+	struct connect_handle *ch = dce->sm_req.ch;
 	int sec_desc_len, offset;
 
 	build_sec_desc(dce, &sec_desc_len, ch->rid);
@@ -560,10 +618,10 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 	unsigned long long id;
 
 	id = ndr_read_int64(dce);
-	ch = samr_ch_lookup(dce->sm_req->id);
+	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
-	dce->sm_req->ch = ch;
+	dce->sm_req.ch = ch;
 
 	return KSMBD_RPC_OK;
 }
@@ -572,7 +630,7 @@ static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct connect_handle *ch;
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req->ch;
+	struct connect_handle *ch = dce->sm_req.ch;
 	int i;
 
 	samr_ch_free(ch);

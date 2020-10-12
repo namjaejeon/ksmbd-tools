@@ -9,6 +9,7 @@
 #define __KSMBD_SMBACL_H__
 
 #define NUM_AUTHS (6)	/* number of authority fields */
+#define SID_MAX_SUB_AUTHORITIES (15) /* max number of sub authority fields */
 
 #define ACCESS_ALLOWED	0
 #define ACCESS_DENIED	1
@@ -38,20 +39,20 @@ struct smb_ntsd {
 	__le32 gsidoffset;
 	__le32 sacloffset;
 	__le32 dacloffset;
-} __packed;
+} ____ksmbd_align;
 
 struct smb_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[NUM_AUTHS];
 	__le32 sub_auth[SID_MAX_SUB_AUTHORITIES]; /* sub_auth[num_subauth] */
-} __packed;
+} ____ksmbd_align;
 
 struct smb_acl {
 	__le16 revision; /* revision level */
 	__le16 size;
 	__le32 num_aces;
-} __packed;
+} ____ksmbd_align;
 
 struct smb_ace {
 	__u8 type;
@@ -59,8 +60,13 @@ struct smb_ace {
 	__le16 size;
 	__le32 access_req;
 	struct smb_sid sid; /* ie UUID of user or group who gets these perms */
-} __packed;
+} ____ksmbd_align;
 
+void smb_init_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid);
+void smb_read_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *sid);
+void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src);
+void smb_copy_sid(struct smb_sid *dst, const struct smb_sid *src);
+int smb_compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid);
 int build_sec_desc(struct smb_ntsd *pntsd, int addition_info, __u32 *secdesclen, int rid);
 
 #endif /* __KSMBD_SMBACL_H__ */
