@@ -907,6 +907,8 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 		addr = "\\PIPE\\wkssvc";
 	else if (dce->bi_req.flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
 		addr = "\\PIPE\\samr";
+	else if (dce->bi_req.flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
+		addr = "\\PIPE\\lsarpc";
 	else {
 	pr_err("%s KSMBD_RPC_EBAD_FUNC\n", __func__);
 		return KSMBD_RPC_EBAD_FUNC;
@@ -1043,8 +1045,12 @@ int rpc_read_request(struct ksmbd_rpc_command *req,
 		return rpc_wkssvc_read_request(pipe, resp, max_resp_sz);
 	}
 	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE) {
-	pr_err("%s KSMBD_RPC_WKSSVC_METHOD_INVOKE\n", __func__);
+	pr_err("%s KSMBD_RPC_SAMR_METHOD_INVOKE\n", __func__);
 		return rpc_samr_read_request(pipe, resp, max_resp_sz);
+	}
+	if (req->flags & KSMBD_RPC_LSARPC_METHOD_INVOKE) {
+	pr_err("%s KSMBD_RPC_LSARPC_METHOD_INVOKE\n", __func__);
+		return rpc_lsarpc_read_request(pipe, resp, max_resp_sz);
 	}
 	return ret;
 }
@@ -1104,6 +1110,11 @@ int rpc_write_request(struct ksmbd_rpc_command *req,
 	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE) {
 	pr_err("%s KSMBD_RPC_SAMR_METHOD_INVOKE\n", __func__);
 		return rpc_samr_write_request(pipe);
+	}
+
+	if (req->flags & KSMBD_RPC_LSARPC_METHOD_INVOKE) {
+	pr_err("%s KSMBD_RPC_LSARPC_METHOD_INVOKE\n", __func__);
+		return rpc_lsarpc_write_request(pipe);
 	}
 
 	pr_err("%s KSMBD_RPC_ENOTIMPLEMENTED\n", __func__);
