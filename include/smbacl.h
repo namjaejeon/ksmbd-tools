@@ -72,5 +72,6 @@ void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src);
 void smb_copy_sid(struct smb_sid *dst, const struct smb_sid *src);
 int smb_compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid);
 int build_sec_desc(struct ksmbd_dcerpc *dce, __u32 *secdesclen, int rid);
+int get_sid_info(struct smb_sid *sid, int *sid_type, char *domain_name);
 
 #endif /* __KSMBD_SMBACL_H__ */

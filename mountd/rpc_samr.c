@@ -8,7 +8,7 @@
 #include <memory.h>
 #include <endian.h>
 #include <glib.h>
-#include <pwd.h>
+//#include <pwd.h>
 #include <errno.h>
 #include <linux/ksmbd_server.h>
 
@@ -361,10 +361,10 @@ static int samr_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 	/* Names */
 	ndr_read_uniq_vsting_ptr(dce, &username);
 
-	passwd = getpwnam(STR_VAL(username));
-	if (!passwd)
-		return KSMBD_RPC_EACCESS_DENIED;
-	ch->rid = passwd->pw_uid;
+//	passwd = getpwnam(STR_VAL(username));
+//	if (!passwd)
+//		return KSMBD_RPC_EACCESS_DENIED;
+//	ch->rid = passwd->pw_uid;
 
 	user = usm_lookup_user(STR_VAL(username));
 	if (!user)
@@ -388,7 +388,7 @@ static int samr_lookup_names_return(struct ksmbd_rpc_pipe *pipe)
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 	ndr_write_int32(dce, 1);
-	ndr_write_int32(dce, ch->rid);
+	ndr_write_int32(dce, ch->user->uid);
 
 	// Need to check if it is needed
 	ndr_write_int32(dce, 1);
@@ -806,4 +806,20 @@ int rpc_samr_write_request(struct ksmbd_rpc_pipe *pipe)
 {
 	pr_err("%s : %d\n", __func__, __LINE__);
 	return samr_invoke(pipe);
+}
+
+int rpc_samr_init(void)
+{
+	ch_table = g_hash_table_new(g_int_hash, g_int_equal);
+	if (!ch_table)
+		return -ENOMEM;
+	g_rw_lock_init(&ch_table_lock);
+	return 0;
+}
+
+void rpc_samr_destroy(void)
+{
+	if (ch_table)
+		g_hash_table_destroy(ch_table);
+	g_rw_lock_clear(&ch_table_lock);
 }
