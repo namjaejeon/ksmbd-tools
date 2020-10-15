@@ -344,4 +344,5 @@ int rpc_open_request(struct ksmbd_rpc_command *req,
 		     struct ksmbd_rpc_command *resp);
 int rpc_close_request(struct ksmbd_rpc_command *req,
 		      struct ksmbd_rpc_command *resp);
+void auto_align_offset(struct ksmbd_dcerpc *dce);
 #endif /* __KSMBD_RPC_H__ */

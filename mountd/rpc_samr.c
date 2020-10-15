@@ -43,29 +43,6 @@ static void samr_ch_free(struct connect_handle *ch)
 	free(ch);
 }
 
-static struct connect_handle *samr_ch_alloc(void)
-{
-	struct connect_handle *ch;
-	int ret;
-
-	ch = calloc(1, sizeof(struct connect_handle));
-	if (!ch)
-		return NULL;
-
-	ch->handle = 1;
-	g_rw_lock_writer_lock(&ch_table_lock);
-	ret = g_hash_table_insert(ch_table, &(ch->handle), ch);
-	g_rw_lock_writer_unlock(&ch_table_lock);
-
-	if (!ret) {
-		ch->handle = (unsigned int)-1;
-		samr_ch_free(ch);
-		ch = NULL;
-	}
-
-	return ch;
-}
-
 static struct connect_handle *samr_ch_lookup(unsigned int handle)
 {
 	struct connect_handle *ch;
@@ -73,6 +50,34 @@ static struct connect_handle *samr_ch_lookup(unsigned int handle)
 	g_rw_lock_reader_lock(&ch_table_lock);
 	ch = g_hash_table_lookup(ch_table, &handle);
 	g_rw_lock_reader_unlock(&ch_table_lock);
+
+	return ch;
+}
+
+static struct connect_handle *samr_ch_alloc(unsigned int id)
+{
+	struct connect_handle *ch;
+	int ret;
+
+	ch = samr_ch_lookup(id);
+	if (ch)
+		return ch;
+
+	ch = calloc(1, sizeof(struct connect_handle));
+	if (!ch)
+		return NULL;
+
+	ch->handle = id;
+	g_rw_lock_writer_lock(&ch_table_lock);
+	ret = g_hash_table_insert(ch_table, &(ch->handle), ch);
+	g_rw_lock_writer_unlock(&ch_table_lock);
+
+	if (!ret) {
+		pr_err("samr_ch_alloc error ret : %d\n", ret);
+		ch->handle = (unsigned int)-1;
+		samr_ch_free(ch);
+		ch = NULL;
+	}
 
 	return ch;
 }
@@ -110,18 +115,19 @@ static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
 
-	pr_err("%s : %d\n", __func__, __LINE__);
+	pr_err("%s : %d, pipe id : %d\n", __func__, __LINE__, pipe->id);
 	ndr_write_union_int32(dce, dce->sm_req.level); //level out
 	ndr_write_int32(dce, dce->sm_req.client_version); //client version
 	ndr_write_int32(dce, 0); //reserved
 
-	ch = samr_ch_alloc();
+	ch = samr_ch_alloc(pipe->id + 1);
 	if (!ch)
 		return KSMBD_RPC_ENOMEM;
 
 	/* write connect handle */
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
+	ndr_write_int32(dce, 0);
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	return KSMBD_RPC_OK;
@@ -138,9 +144,10 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
 	ch = samr_ch_lookup(id);
-	if (!ch)
+	if (!ch) {
+		pr_err("didn't find id : %llu\n", id);
 		return KSMBD_RPC_EBAD_FID;
-
+	}
 	/*
 	 * ksmbd supports the standalone server and
 	 * uses the hostname as the domain name.
@@ -149,7 +156,7 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	hostname = malloc(256);
 	if (!hostname)
 		return KSMBD_RPC_ENOMEM; 
-//	builtin = kmalloc(8, GFP_KERNEL);
+//	builtin = malloc(8);
 //	if (!builtin)
 //		return KSMBD_RPC_ENOMEM; 
 
@@ -162,6 +169,58 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	pipe->num_entries = 1;
 	pipe->entry_processed = __domain_entry_processed;
 	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
+int samr_ndr_write_vstring(struct ksmbd_dcerpc *dce, char *value)
+{
+	gchar *out;
+	gsize bytes_read = 0;
+	gsize bytes_written = 0;
+
+	size_t raw_len;
+	char *raw_value = value;
+	int charset = KSMBD_CHARSET_UTF16LE;
+	int ret;
+
+	if (!value)
+		raw_value = "";
+	raw_len = strlen(raw_value);
+
+	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
+		charset = KSMBD_CHARSET_UTF16BE;
+
+	if (dce->flags & KSMBD_DCERPC_ASCII_STRING)
+		charset = KSMBD_CHARSET_UTF8;
+
+	out = ksmbd_gconvert(raw_value,
+			     raw_len,
+			     charset,
+			     KSMBD_CHARSET_DEFAULT,
+			     &bytes_read,
+			     &bytes_written);
+	if (!out)
+		return -EINVAL;
+
+	/*
+	 * NDR represents a conformant and varying string as an ordered
+	 * sequence of representations of the string elements, preceded
+	 * by three unsigned long integers. The first integer gives the
+	 * maximum number of elements in the string, including the terminator.
+	 * The second integer gives the offset from the first index of the
+	 * string to the first index of the actual subset being passed.
+	 * The third integer gives the actual number of elements being
+	 * passed, including the terminator.
+	 */
+	ret = ndr_write_int32(dce, raw_len);
+	ret |= ndr_write_int32(dce, 0);
+	ret |= ndr_write_int32(dce, raw_len);
+	ret |= ndr_write_bytes(dce, out, bytes_written);
+	auto_align_offset(dce);
+
+	g_free(out);
+	return ret;
 }
 
 int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
@@ -177,8 +236,8 @@ int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
 		ret = ndr_write_int32(dce, i);
 		entry = g_array_index(pipe->entries, gpointer, i);
 		name_len = strlen((char *)entry);
-		ret = ndr_write_int32(dce, name_len);
-		ret = ndr_write_int32(dce, name_len);
+		ret = ndr_write_int16(dce, name_len*2);
+		ret = ndr_write_int16(dce, name_len*2);
 
 		dce->num_pointers++;
 		ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer for name entry*/
@@ -188,7 +247,7 @@ int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
 		gpointer entry;
 
 		entry = g_array_index(pipe->entries,  gpointer, i);
-		ret = ndr_write_vstring(dce, (char *)entry);
+		samr_ndr_write_vstring(dce, (char *)entry);
 	}
 
 	if (pipe->entry_processed) {
@@ -234,6 +293,7 @@ static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
 	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 
 	ch = samr_ch_lookup(id);
 	if (!ch)
@@ -269,6 +329,7 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 		if (!strcmp(STR_VAL(dce->sm_req.lookup_name), (char *)entry)) {
 			smb_init_sid(dce, &sid);
 			smb_write_sid(dce, &sid);
+			pr_err("%s, write sid \n", __func__);
 			smb_copy_sid(&ch->sid, &sid);
 			ch->domain_name =
 				malloc(strlen(STR_VAL(dce->sm_req.lookup_name)));
@@ -653,25 +714,13 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
 	unsigned long long id;
+	int i;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
-	dce->sm_req.ch = ch;
-	pr_err("%s : %d\n", __func__, __LINE__);
-
-	return KSMBD_RPC_OK;
-}
-
-static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
-{
-	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct connect_handle *ch = dce->sm_req.ch;
-	int i;
-
-	pr_err("%s : %d\n", __func__, __LINE__);
 	samr_ch_free(ch);
 
 	for (i = 0; i < pipe->num_entries; i++) {
@@ -681,6 +730,20 @@ static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
 		pipe->entries = g_array_remove_index(pipe->entries, i);
 		free(entry);
 	}
+	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	pr_err("%s : %d\n", __func__, __LINE__);
+	/* write connect handle */
+	ndr_write_int64(dce, 0);
+	ndr_write_int64(dce, 0);
+	ndr_write_int32(dce, 0);
 	pr_err("%s : %d\n", __func__, __LINE__);
 
 	return KSMBD_RPC_OK;
@@ -731,8 +794,7 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 			 int max_resp_sz)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	int ret;
-	int status = KSMBD_RPC_ENOTIMPLEMENTED;
+	int status;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	/*
@@ -776,7 +838,7 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 	default:
 		pr_err("SAMR: unsupported RETURN method %d\n",
 			dce->req_hdr.opnum);
-		ret = KSMBD_RPC_EBAD_FUNC;
+		status = KSMBD_RPC_EBAD_FUNC;
 		break;
 	}
 
@@ -790,8 +852,9 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 	dcerpc_write_headers(dce, status);
 
 	dce->rpc_resp->payload_sz = dce->offset;
+	pr_err("%s : %d, status : %d, payload_sz : %d\n", __func__, __LINE__, status, dce->rpc_resp->payload_sz);
 	pr_err("%s : %d\n", __func__, __LINE__);
-	return ret;
+	return status;
 }
 
 int rpc_samr_read_request(struct ksmbd_rpc_pipe *pipe,
@@ -813,7 +876,7 @@ int rpc_samr_init(void)
 	ch_table = g_hash_table_new(g_int_hash, g_int_equal);
 	if (!ch_table)
 		return -ENOMEM;
-	g_rw_lock_init(&ch_table_lock);
+	pr_err("rpc_samr_init()\n");
 	return 0;
 }
 

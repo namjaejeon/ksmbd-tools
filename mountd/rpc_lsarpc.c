@@ -25,6 +25,7 @@
 #define LSARPC_OPNUM_CLOSE				0
 
 #define DS_ROLE_STANDALONE_SERVER	2
+#define DS_ROLE_BASIC_INFORMATION	1
 
 static GHashTable	*ph_table;
 static GRWLock		ph_table_lock;
@@ -79,7 +80,12 @@ static struct policy_handle *lsarpc_ph_lookup(unsigned int handle)
 
 static int lsarpc_get_primary_domain_info_invoke(struct ksmbd_rpc_pipe *pipe)
 {
-	pr_err("%s : %d\n", __func__, __LINE__);
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	int level;
+
+	level = ndr_read_int16(dce);
+	if (level != DS_ROLE_BASIC_INFORMATION)
+		return KSMBD_RPC_EBAD_FUNC; 
 
 	return KSMBD_RPC_OK;
 }
@@ -95,14 +101,17 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 	ndr_write_int16(dce, 1);
+	ndr_write_int16(dce, 0);
 
+	/* Role */
 	ndr_write_int16(dce, DS_ROLE_STANDALONE_SERVER);
 	ndr_write_int16(dce, 0);
 
+	/* Flags */
+	ndr_write_int32(dce, 0);
+
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
-	gethostname(domain, 256);
-	ndr_write_vstring(dce, domain);
 
 	/* NULL pointer : Pointer to Dns Domain */
 	ndr_write_int32(dce, 0);
@@ -112,6 +121,9 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 	/* NULL Domain guid */
 	for (i = 0; i < 16; i++)
 		ndr_write_int8(dce, 0);
+	
+	gethostname(domain, 256);
+	ndr_write_vstring(dce, domain);
 
 	return KSMBD_RPC_OK;
 }
@@ -127,12 +139,16 @@ static int lsarpc_open_policy2_invoke(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_open_policy2_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct policy_handle *ph;
+//	struct policy_handle *ph;
 	pr_err("%s : %d\n", __func__, __LINE__);
 
-	ph = lsarpc_ph_alloc();
-	if (!ph)
-		return KSMBD_RPC_ENOMEM;
+//	ph = lsarpc_ph_alloc();
+//	if (!ph)
+//		return KSMBD_RPC_ENOMEM;
+	/* write connect handle */
+	ndr_write_int64(dce, (__u64)pipe->id);
+	ndr_write_int64(dce, (__u64)pipe->id);
+	ndr_write_int32(dce, 0);
 	return KSMBD_RPC_OK;
 }
 
@@ -152,15 +168,15 @@ static int __lsarpc_entry_processed(struct ksmbd_rpc_pipe *pipe, int i)
 static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct policy_handle *ph;
-	unsigned long long id;
+//	struct policy_handle *ph;
+//	unsigned long long id;
 	unsigned int num_sid, i;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
-	id = ndr_read_int64(dce);
-	ph = lsarpc_ph_lookup(id);
-	if (!ph)
-		return KSMBD_RPC_EBAD_FID;
+//	id = ndr_read_int64(dce);
+//	ph = lsarpc_ph_lookup(id);
+//	if (!ph)
+//		return KSMBD_RPC_EBAD_FID;
 
 	num_sid = ndr_read_int32(dce);
 	ndr_read_int32(dce); // read Ref ID
@@ -302,17 +318,17 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_close_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	struct policy_handle *ph;
-	unsigned long long id;
+//	struct policy_handle *ph;
+//	unsigned long long id;
 	int i;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
-	id = ndr_read_int64(dce);
-	ph = lsarpc_ph_lookup(id);
-	if (!ph)
-		return KSMBD_RPC_EBAD_FID;
+//	id = ndr_read_int64(dce);
+//	ph = lsarpc_ph_lookup(id);
+//	if (!ph)
+//		return KSMBD_RPC_EBAD_FID;
 
-	lsarpc_ph_free(ph);
+//	lsarpc_ph_free(ph);
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		gpointer entry;
@@ -329,7 +345,11 @@ static int lsarpc_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	switch (pipe->dce->req_hdr.opnum) {
-	case LSARPC_OPNUM_DS_ROLE_GET_PRIMARY_DOMAIN_INFO || LSARPC_OPNUM_CLOSE:
+	case LSARPC_OPNUM_DS_ROLE_GET_PRIMARY_DOMAIN_INFO:
+		ret = lsarpc_get_primary_domain_info_invoke(pipe);
+		break;
+#if 0
+	// || LSARPC_OPNUM_CLOSE:
 		if (pipe->dce->hdr.frag_length == 26)
 			ret = lsarpc_get_primary_domain_info_invoke(pipe);
 		break;
@@ -339,6 +359,7 @@ static int lsarpc_invoke(struct ksmbd_rpc_pipe *pipe)
 	case LSARPC_OPNUM_LOOKUP_SID2:
 		ret = lsarpc_lookup_sid2_invoke(pipe);
 		break;
+#endif
 	default:
 		pr_err("LSARPC: unsupported INVOKE method %d, alloc_hint : %d\n",
 		       pipe->dce->req_hdr.opnum, pipe->dce->req_hdr.alloc_hint);
@@ -354,7 +375,6 @@ static int lsarpc_return(struct ksmbd_rpc_pipe *pipe,
 			 int max_resp_sz)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	int ret;
 	int status = KSMBD_RPC_ENOTIMPLEMENTED;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
@@ -375,16 +395,18 @@ static int lsarpc_return(struct ksmbd_rpc_pipe *pipe,
 		else
 			status = lsarpc_close_return(pipe);
 		break;
+#if 0
 	case LSARPC_OPNUM_OPEN_POLICY2:
 		status = lsarpc_open_policy2_return(pipe);
 		break;
 	case LSARPC_OPNUM_LOOKUP_SID2:
 		status = lsarpc_lookup_sid2_return(pipe);
 		break;
+#endif
 	default:
 		pr_err("LSARPC: unsupported RETURN method %d\n",
 			dce->req_hdr.opnum);
-		ret = KSMBD_RPC_EBAD_FUNC;
+		status = KSMBD_RPC_EBAD_FUNC;
 		break;
 	}
 
@@ -397,7 +419,7 @@ static int lsarpc_return(struct ksmbd_rpc_pipe *pipe,
 
 	dce->rpc_resp->payload_sz = dce->offset;
 	pr_err("%s : %d, payload_sz : %d\n", __func__, __LINE__, dce->rpc_resp->payload_sz);
-	return ret;
+	return status;
 }
 
 int rpc_lsarpc_read_request(struct ksmbd_rpc_pipe *pipe,
@@ -412,22 +434,4 @@ int rpc_lsarpc_write_request(struct ksmbd_rpc_pipe *pipe)
 {
 	pr_err("%s : %d\n", __func__, __LINE__);
 	return lsarpc_invoke(pipe);
-}
-
-int rpc_lsarpc_init(void)
-{
-	pr_err("%s : %d\n", __func__, __LINE__);
-	ph_table = g_hash_table_new(g_int_hash, g_int_equal);
-	if (!ph_table)
-		return -ENOMEM;
-	g_rw_lock_init(&ph_table_lock);
-	return 0;
-}
-
-void rpc_lsarpc_destroy(void)
-{
-	pr_err("%s : %d\n", __func__, __LINE__);
-	if (ph_table)
-		g_hash_table_destroy(ph_table);
-	g_rw_lock_clear(&ph_table_lock);
 }

@@ -251,7 +251,7 @@ static void align_offset(struct ksmbd_dcerpc *dce, size_t n)
 	dce->offset = __ALIGN(dce->offset, n);
 }
 
-static void auto_align_offset(struct ksmbd_dcerpc *dce)
+void auto_align_offset(struct ksmbd_dcerpc *dce)
 {
 	if (dce->flags & KSMBD_DCERPC_ALIGN8)
 		dce->offset = __ALIGN(dce->offset, 8);
@@ -633,9 +633,8 @@ int rpc_init(void)
 	if (!pipes_table)
 		return -ENOMEM;
 	g_rw_lock_init(&pipes_table_lock);
-
-	rpc_lsarpc_init();
 	rpc_samr_init();
+
 	return 0;
 }
 
@@ -646,7 +645,6 @@ void rpc_destroy(void)
 		g_hash_table_destroy(pipes_table);
 	}
 	g_rw_lock_clear(&pipes_table_lock);
-	rpc_lsarpc_destroy();
 	rpc_samr_destroy();
 }
 

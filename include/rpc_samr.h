@@ -14,7 +14,7 @@ struct ksmbd_rpc_command;
 struct ksmbd_rpc_pipe;
 
 struct connect_handle {
-	int handle;
+	unsigned int handle;
 	int rid;
 	char *domain_name;
 	struct ksmbd_user *user;
