@@ -136,8 +136,8 @@ static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-//	char *hostname, *builtin;
-	char *hostname;
+	char *hostname, *builtin;
+//	char *hostname;
 	struct connect_handle *ch;
 	unsigned long long id;
 
@@ -156,17 +156,17 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	hostname = malloc(256);
 	if (!hostname)
 		return KSMBD_RPC_ENOMEM; 
-//	builtin = malloc(8);
-//	if (!builtin)
-//		return KSMBD_RPC_ENOMEM; 
+	builtin = malloc(8);
+	if (!builtin)
+		return KSMBD_RPC_ENOMEM; 
 
 	gethostname(hostname, 256);
-//	strcpy(builtin, "Builtin");
+	strcpy(builtin, "Builtin");
 
 	pipe->entries = g_array_append_val(pipe->entries, hostname);
-//	pipe->entries = g_array_append_val(pipe->entries, builtin);
-//	pipe->num_entries = 2;
-	pipe->num_entries = 1;
+	pipe->entries = g_array_append_val(pipe->entries, builtin);
+	pipe->num_entries = 2;
+//	pipe->num_entries = 1;
 	pipe->entry_processed = __domain_entry_processed;
 	pr_err("%s : %d\n", __func__, __LINE__);
 
@@ -299,6 +299,8 @@ static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
+	dce->sm_req.ch = ch;
+
 	// name len
 	ndr_read_int16(dce);
 	// name size
@@ -329,7 +331,6 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 		if (!strcmp(STR_VAL(dce->sm_req.lookup_name), (char *)entry)) {
 			smb_init_sid(dce, &sid);
 			smb_write_sid(dce, &sid);
-			pr_err("%s, write sid \n", __func__);
 			smb_copy_sid(&ch->sid, &sid);
 			ch->domain_name =
 				malloc(strlen(STR_VAL(dce->sm_req.lookup_name)));
@@ -355,6 +356,8 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
@@ -383,6 +386,7 @@ static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe)
 	pr_err("%s : %d\n", __func__, __LINE__);
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
+	ndr_write_int32(dce, 0);
 	pr_err("%s : %d\n", __func__, __LINE__);
 
 	return KSMBD_RPC_OK;
@@ -400,6 +404,8 @@ static int samr_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
@@ -421,6 +427,8 @@ static int samr_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	/* Names */
 	ndr_read_uniq_vsting_ptr(dce, &username);
+
+	pr_err("username : %s\n", STR_VAL(username));
 
 //	passwd = getpwnam(STR_VAL(username));
 //	if (!passwd)
@@ -471,6 +479,8 @@ static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
@@ -506,6 +516,8 @@ static int samr_query_user_info_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
@@ -675,6 +687,8 @@ static int samr_query_security_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
@@ -718,6 +732,8 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
