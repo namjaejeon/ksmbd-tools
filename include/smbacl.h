@@ -69,7 +69,7 @@ struct smb_ace {
 	struct smb_sid sid; /* ie UUID of user or group who gets these perms */
 };
 
-void smb_init_sid(struct smb_sid *sid);
+void smb_init_domain_sid(struct smb_sid *sid);
 void smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid);
 void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src);
 void smb_copy_sid(struct smb_sid *dst, const struct smb_sid *src);
