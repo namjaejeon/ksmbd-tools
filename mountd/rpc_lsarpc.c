@@ -23,6 +23,7 @@
 #define LSARPC_OPNUM_OPEN_POLICY2			44
 #define LSARPC_OPNUM_QUERY_INFO_POLICY			7
 #define LSARPC_OPNUM_LOOKUP_SID2			57
+#define LSARPC_OPNUM_LOOKUP_NAMES3			68
 #define LSARPC_OPNUM_CLOSE				0
 
 #define DS_ROLE_STANDALONE_SERVER	2
@@ -44,7 +45,7 @@ static void lsarpc_ph_free(struct policy_handle *ph)
 	free(ph);
 }
 
-static struct policy_handle *lsarpc_ph_alloc(void)
+static struct policy_handle *lsarpc_ph_alloc(unsigned int id)
 {
 	struct policy_handle *ph;
 	int ret;
@@ -55,7 +56,7 @@ static struct policy_handle *lsarpc_ph_alloc(void)
 		return NULL;
 	}
 
-	ph->handle = 1;
+	ph->handle = id;
 	g_rw_lock_writer_lock(&ph_table_lock);
 	ret = g_hash_table_insert(ph_table, &(ph->handle), ph);
 	g_rw_lock_writer_unlock(&ph_table_lock);
@@ -142,15 +143,15 @@ static int lsarpc_open_policy2_invoke(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_open_policy2_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-//	struct policy_handle *ph;
+	struct policy_handle *ph;
 	pr_err("%s : %d\n", __func__, __LINE__);
 
-//	ph = lsarpc_ph_alloc();
+	ph = lsarpc_ph_alloc(pipe->id + 1);
 //	if (!ph)
 //		return KSMBD_RPC_ENOMEM;
 	/* write connect handle */
-	ndr_write_int64(dce, (__u64)pipe->id + 1);
-	ndr_write_int64(dce, (__u64)pipe->id + 1);
+	ndr_write_int64(dce, (__u64)(pipe->id + 1));
+	ndr_write_int64(dce, (__u64)(pipe->id + 1));
 	ndr_write_int32(dce, 0);
 	return KSMBD_RPC_OK;
 }
@@ -172,12 +173,16 @@ static int lsarpc_query_info_policy_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	unsigned long long id;
+	struct policy_handle *ph;
 	int level;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	id = ndr_read_int64(dce);
 	ndr_read_int64(dce);
 	ndr_read_int32(dce);
+	ph = lsarpc_ph_lookup(id);
+	if (!ph)
+		return KSMBD_RPC_EBAD_FID;
 
 	level = ndr_read_int16(dce);
 	if (level != LSA_POLICY_INFO_ACCOUNT_DOMAIN)
@@ -268,7 +273,7 @@ static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 
 	lsarpc_ndr_write_vstring(dce, domain_name);
 
-	smb_init_sid(dce, &sid);
+	smb_init_sid(&sid);
 	ndr_write_int32(dce, sid.num_subauth);
 	smb_write_sid(dce, &sid);
 	pr_err("%s : %d\n", __func__, __LINE__);
@@ -279,7 +284,7 @@ static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-//	struct policy_handle *ph;
+	struct policy_handle *ph;
 	unsigned long long id;
 	unsigned int num_sid, i;
 
@@ -287,9 +292,9 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 	id = ndr_read_int64(dce);
 	ndr_read_int64(dce);
 	ndr_read_int32(dce);
-//	ph = lsarpc_ph_lookup(id);
-//	if (!ph)
-//		return KSMBD_RPC_EBAD_FID;
+	ph = lsarpc_ph_lookup(id);
+	if (!ph)
+		return KSMBD_RPC_EBAD_FID;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 	num_sid = ndr_read_int32(dce);
@@ -311,14 +316,11 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 		if (!ui)
 			break;
 
-	pr_err("%s : %d\n", __func__, __LINE__);
 		ndr_read_int32(dce); // read Max Count
 		smb_read_sid(dce, &ui->sid);
 		ui->sid.num_subauth--;
-	pr_err("%s : %d\n", __func__, __LINE__);
 		rid = ui->sid.sub_auth[ui->sid.num_subauth];
 		passwd = getpwuid(rid);
-	pr_err("%s : %d, rid : %d, passwd : %p\n", __func__, __LINE__, rid, passwd);
 		if (!passwd) {
 			free(ui);
 			continue;
@@ -327,18 +329,14 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 		user = usm_lookup_user(passwd->pw_name);
 		if (!user)
 			break;
-	pr_err("%s : %d\n", __func__, __LINE__);
 
 		ui->user = user;
 
-	pr_err("%s : %d\n", __func__, __LINE__);
 		if (get_sid_info(&ui->sid, &ui->type, ui->domain_name) < 0);
 			break;
-	pr_err("%s : %d\n", __func__, __LINE__);
 
 		pipe->entries = g_array_append_val(pipe->entries, ui);
 		pipe->num_entries++;
-	pr_err("%s : %d\n", __func__, __LINE__);
 	}
 
 	pipe->entry_processed = __lsarpc_entry_processed;
@@ -444,20 +442,153 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 	return KSMBD_RPC_OK;
 }
 
+static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct ndr_uniq_char_ptr username;
+	struct policy_handle *ph;
+	unsigned long long id;
+	int num_names, i;
+
+	pr_err("%s : %d\n", __func__, __LINE__);
+	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
+//	ph = lsarpc_ph_lookup(id);
+//	if (!ph)
+//		return KSMBD_RPC_EBAD_FID;
+
+	/* Num Names */
+	num_names = ndr_read_int32(dce);
+	/* Max Count */
+	ndr_read_int32(dce);
+
+	for (i = 0; i < num_names; i++) {	
+		struct user_info *ui;
+		char *name;
+
+	pr_err("%s : %d, i : %d\n", __func__, __LINE__, i);
+		ui = malloc(sizeof(struct user_info));
+		if (!ui)
+			break;
+		/* Length */
+		ndr_read_int16(dce);
+		/* Size */
+		ndr_read_int16(dce);
+
+		ndr_read_uniq_vsting_ptr(dce, &username);
+
+		pr_err("1 %s : %d, username : %s\n", __func__, __LINE__, STR_VAL(username));
+		if (strstr(STR_VAL(username), "\\")) {
+			strtok(STR_VAL(username), "\\");
+			name = strtok(NULL, "\\");
+			pr_err("2 %s : %d, name : %s\n", __func__, __LINE__,  name);
+		}
+		ui->user = usm_lookup_user(name);
+		if (!ui->user)
+			break;
+
+		pipe->entries = g_array_append_val(pipe->entries, ui);
+		pipe->num_entries++;
+		
+	pr_err("%s : %d, pipe->num_entries : %d\n", __func__, __LINE__, pipe->num_entries);
+
+
+		smb_init_sid(&ui->sid);
+	}
+	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
+static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	int len, i;
+	char domain_name[256];
+	struct smb_sid sid;
+
+	pr_err("%s : %d\n", __func__, __LINE__);
+	/* Domain list */
+	/* Ref ID */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+
+	/* Domain Count */
+	ndr_write_int32(dce, 1);
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	/* Max Size */
+	ndr_write_int32(dce, 32);
+	/* Max Count */
+	ndr_write_int32(dce, 1);
+
+	/* Length and Size */
+	gethostname(domain_name, 256);
+	len = strlen(domain_name);
+	ndr_write_int16(dce, len*2);
+	ndr_write_int16(dce, (len+1)*2);
+
+	/* Domain string Ref ID */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	/* SID ref ID */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	/* Pointer to Domain string */
+	lsarpc_ndr_write_vstring(dce, domain_name);
+	
+	/* Pointer to Domain SID */
+	smb_init_sid(&sid);
+	ndr_write_int32(dce, sid.num_subauth);
+	smb_write_sid(dce, &sid);
+
+	/* Count */
+	ndr_write_int32(dce, pipe->num_entries);
+	/* SID ref ID */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	ndr_write_int32(dce, pipe->num_entries);
+	
+	for (i = 0; i < pipe->num_entries; i++) {
+		/* SID Type */
+		ndr_write_int16(dce, SID_TYPE_USER);
+		ndr_write_int16(dce, 0);
+		dce->num_pointers++;
+		ndr_write_int32(dce, dce->num_pointers);
+
+		/* Sid Index */
+		ndr_write_int32(dce, i);
+		ndr_write_int32(dce, 0);
+	}
+
+	for (i = 0; i < pipe->num_entries; i++) {
+		struct user_info *ui;
+
+		ui = (struct user_info *)g_array_index(pipe->entries, gpointer, i);
+		ndr_write_int32(dce, ++ui->sid.num_subauth);
+		smb_write_sid(dce, &ui->sid);
+		ndr_write_int32(dce, ui->user->uid);
+	}
+
+	ndr_write_int32(dce, pipe->num_entries);
+	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
 static int lsarpc_close_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-//	struct policy_handle *ph;
-//	unsigned long long id;
+	struct policy_handle *ph;
+	unsigned long long id;
 	int i;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
 //	id = ndr_read_int64(dce);
 //	ph = lsarpc_ph_lookup(id);
-//	if (!ph)
-//		return KSMBD_RPC_EBAD_FID;
-
-//	lsarpc_ph_free(ph);
+//	if (ph)
+//		lsarpc_ph_free(ph);
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		gpointer entry;
@@ -492,6 +623,9 @@ static int lsarpc_invoke(struct ksmbd_rpc_pipe *pipe)
 		break;
 	case LSARPC_OPNUM_LOOKUP_SID2:
 		ret = lsarpc_lookup_sid2_invoke(pipe);
+		break;
+	case LSARPC_OPNUM_LOOKUP_NAMES3:
+		ret = lsarpc_lookup_names3_invoke(pipe);
 		break;
 	default:
 		pr_err("LSARPC: unsupported INVOKE method %d, alloc_hint : %d\n",
@@ -536,6 +670,9 @@ static int lsarpc_return(struct ksmbd_rpc_pipe *pipe,
 		break;
 	case LSARPC_OPNUM_LOOKUP_SID2:
 		status = lsarpc_lookup_sid2_return(pipe);
+		break;
+	case LSARPC_OPNUM_LOOKUP_NAMES3:
+		status = lsarpc_lookup_names3_return(pipe);
 		break;
 	default:
 		pr_err("LSARPC: unsupported RETURN method %d\n",

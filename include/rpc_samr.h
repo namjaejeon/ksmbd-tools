@@ -15,7 +15,7 @@ struct ksmbd_rpc_pipe;
 
 struct connect_handle {
 	unsigned int handle;
-	int rid;
+//	int rid;
 	char *domain_name;
 	struct ksmbd_user *user;
 	struct smb_sid sid;

@@ -1079,6 +1079,10 @@ int rpc_write_request(struct ksmbd_rpc_command *req,
 		return dcerpc_bind_invoke(pipe);
 	}
 
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT)  {
+		return KSMBD_RPC_OK;
+	}
+
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST) {
 		return KSMBD_RPC_ENOTIMPLEMENTED;
 	}

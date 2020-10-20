@@ -27,6 +27,8 @@
 #define SAMR_OPNUM_OPEN_USER		34
 #define SAMR_OPNUM_QUERY_USER_INFO	36
 #define SAMR_OPNUM_QUERY_SECURITY	3
+#define SAMR_OPNUM_GET_GROUP_FOR_USER	39
+#define SAMR_OPNUM_GET_ALIAS_MEMBERSHIP	16
 #define SAMR_OPNUM_CLOSE		1
 
 static GHashTable	*ch_table;
@@ -329,7 +331,7 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 
 		entry = g_array_index(pipe->entries, gpointer, i);
 		if (!strcmp(STR_VAL(dce->sm_req.lookup_name), (char *)entry)) {
-			smb_init_sid(dce, &sid);
+			smb_init_sid(&sid);
 			smb_write_sid(dce, &sid);
 			smb_copy_sid(&ch->sid, &sid);
 			ch->domain_name =
@@ -371,8 +373,9 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	smb_read_sid(dce, &sid);
 
-	if (smb_compare_sids(&sid, &ch->sid))
-		return KSMBD_RPC_EBAD_FID;
+	/* check domain and local group */
+//	if (smb_compare_sids(&sid, &ch->sid) && smb_compare_sids(&sid, &sid_local_group))
+//		return KSMBD_RPC_EBAD_FID;
 	pr_err("%s : %d\n", __func__, __LINE__);
 
 	return KSMBD_RPC_OK;
@@ -489,9 +492,9 @@ static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 	ndr_read_int32(dce);
 	req_rid = ndr_read_int32(dce);
 
-	if (req_rid != ch->rid)
-		return KSMBD_RPC_EBAD_FID;
 	pr_err("%s : %d\n", __func__, __LINE__);
+	if (req_rid != ch->user->uid)
+		return KSMBD_RPC_EBAD_FID;
 
 	return KSMBD_RPC_OK;
 }
@@ -504,6 +507,7 @@ static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
 	pr_err("%s : %d\n", __func__, __LINE__);
 	ndr_write_int64(dce, (__u64)ch->handle);
 	ndr_write_int64(dce, (__u64)ch->handle);
+	ndr_write_int32(dce, 0);
 	pr_err("%s : %d\n", __func__, __LINE__);
 	return KSMBD_RPC_OK;
 }
@@ -550,15 +554,22 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	if (!profile_path)
 		return KSMBD_RPC_EBAD_FID;
 
+	strcat(profile_path, "\\\\");
+	strcat(profile_path, ch->domain_name);
+	strcat(profile_path, "\\");
+	strcat(profile_path, ch->user->name);
 	strcat(profile_path, "\\");
 	strcat(profile_path, "profile");
+
+	pr_err("username : %s, home_dir : %s, profile_path : %s\n", ch->user->name, home_dir, profile_path);
 
 	/* Ref ID */
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 
 	/* Info */
-	ndr_write_int16(dce, 15);
+	ndr_write_int16(dce, 0x15);
+	ndr_write_int16(dce, 0);
 
 	/* Last Logon time */
 	ndr_write_int64(dce, 0);
@@ -580,8 +591,8 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, dce->num_pointers);
 
 	/* Full Name */
-	ndr_write_int16(dce, 0);
-	ndr_write_int16(dce, 0);
+	ndr_write_int16(dce, strlen(ch->user->name)*2);
+	ndr_write_int16(dce, strlen(ch->user->name)*2);
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 
@@ -645,7 +656,7 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	/* Pointer to Buffer */
 	ndr_write_int32(dce, 0);
 	/* RID */
-	ndr_write_int32(dce, ch->rid);
+	ndr_write_int32(dce, ch->user->uid);
 	/* Primary Gid */
 	ndr_write_int32(dce, 513);
 
@@ -658,7 +669,6 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	/* Logon Hours */
 	ndr_write_int16(dce, 168);
 	ndr_write_int16(dce, 0);
-
 	/* Pointers to Bits */
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
@@ -676,6 +686,52 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int8(dce, 0);
 	pr_err("%s : %d\n", __func__, __LINE__);
 
+	samr_ndr_write_vstring(dce, ch->user->name);
+	samr_ndr_write_vstring(dce, ch->user->name);
+	samr_ndr_write_vstring(dce, home_dir);
+
+	/* Home Drive */
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+
+	/* Logon Script */
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	
+	samr_ndr_write_vstring(dce, profile_path);
+
+	/* Description */
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	
+	/* Workstations */
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+
+	/* Comments */
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	
+	/* Parameters */
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 0);
+
+	/* Logon Hours */
+	ndr_write_int32(dce, 1260);
+	ndr_write_int32(dce, 0);
+	ndr_write_int32(dce, 21);
+	
+	for (i = 0; i < 21; i++)
+		ndr_write_int8(dce, 0xff);
+
+	free(home_dir);
+	free(profile_path);
 	return KSMBD_RPC_OK;
 }
 
@@ -702,13 +758,16 @@ static int samr_query_security_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch = dce->sm_req.ch;
-	int sec_desc_len, offset;
+	int sec_desc_len, s_offset, l_offset;
 
 	pr_err("%s : %d\n", __func__, __LINE__);
-	build_sec_desc(dce, &sec_desc_len, ch->rid);
-	offset = dce->offset;
+	s_offset = dce->offset;
+	dce->offset += 16;
+	build_sec_desc(dce, &sec_desc_len, ch->user->uid);
+	l_offset = dce->offset;
 
-	dce->offset = 0;
+	dce->offset = s_offset;
+	pr_err("%s : %d, sec_desc_len : %d\n", __func__, __LINE__, sec_desc_len);
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers);
 	ndr_write_int32(dce, sec_desc_len);
@@ -717,8 +776,85 @@ static int samr_query_security_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, dce->num_pointers);
 	ndr_write_int32(dce, sec_desc_len);
 
-	dce->offset = offset;
+	dce->offset = l_offset;
 	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_get_group_for_user_invoke(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct connect_handle *ch;
+	unsigned long long id;
+
+	pr_err("%s : %d\n", __func__, __LINE__);
+	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
+	ch = samr_ch_lookup(id);
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
+	dce->sm_req.ch = ch;
+	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_get_group_for_user_return(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	/* Ref ID */	
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	/* Count */
+	ndr_write_int32(dce, 1);
+
+	/* Ref ID */	
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	/* Max Count */
+	ndr_write_int32(dce, 1);
+	/* Group RID */
+	ndr_write_int32(dce, 513);
+	/* Attributes */
+	ndr_write_int32(dce, 0x00000007);
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_get_alias_membership_invoke(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct connect_handle *ch;
+	unsigned long long id;
+
+	pr_err("%s : %d\n", __func__, __LINE__);
+	id = ndr_read_int64(dce);
+	ndr_read_int64(dce);
+	ndr_read_int32(dce);
+	ch = samr_ch_lookup(id);
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
+	dce->sm_req.ch = ch;
+	pr_err("%s : %d\n", __func__, __LINE__);
+
+	return KSMBD_RPC_OK;
+}
+
+static int samr_get_alias_membership_return(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	/* Count */
+	ndr_write_int32(dce, 0);
+	
+	/* Ref ID */
+	dce->num_pointers++;
+	ndr_write_int32(dce, dce->num_pointers);
+	/* Max Count */
+	ndr_write_int32(dce, 0);
 
 	return KSMBD_RPC_OK;
 }
@@ -735,16 +871,15 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 	ndr_read_int64(dce);
 	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
-	if (!ch)
-		return KSMBD_RPC_EBAD_FID;
-	samr_ch_free(ch);
+	if (ch) {
+		samr_ch_free(ch);
+		for (i = 0; i < pipe->num_entries; i++) {
+			gpointer entry;
 
-	for (i = 0; i < pipe->num_entries; i++) {
-		gpointer entry;
-
-		entry = g_array_index(pipe->entries, gpointer, i);
-		pipe->entries = g_array_remove_index(pipe->entries, i);
-		free(entry);
+			entry = g_array_index(pipe->entries, gpointer, i);
+			pipe->entries = g_array_remove_index(pipe->entries, i);
+			free(entry);
+		}
 	}
 	pr_err("%s : %d\n", __func__, __LINE__);
 
@@ -791,6 +926,15 @@ static int samr_invoke(struct ksmbd_rpc_pipe *pipe)
 		break;
 	case SAMR_OPNUM_QUERY_USER_INFO:
 		ret = samr_query_user_info_invoke(pipe);
+		break;
+	case SAMR_OPNUM_QUERY_SECURITY:
+		ret = samr_query_security_invoke(pipe);
+		break;
+	case SAMR_OPNUM_GET_GROUP_FOR_USER:
+		ret = samr_get_group_for_user_invoke(pipe);
+		break;
+	case SAMR_OPNUM_GET_ALIAS_MEMBERSHIP:
+		ret = samr_get_alias_membership_invoke(pipe);
 		break;
 	case SAMR_OPNUM_CLOSE:
 		ret = samr_close_invoke(pipe);
@@ -846,7 +990,13 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 		status = samr_query_user_info_return(pipe);
 		break;
 	case SAMR_OPNUM_QUERY_SECURITY:
-		status = samr_query_user_info_return(pipe);
+		status = samr_query_security_return(pipe);
+		break;
+	case SAMR_OPNUM_GET_GROUP_FOR_USER:
+		status = samr_get_group_for_user_return(pipe);
+		break;
+	case SAMR_OPNUM_GET_ALIAS_MEMBERSHIP:
+		status = samr_get_alias_membership_return(pipe);
 		break;
 	case SAMR_OPNUM_CLOSE:
 		status = samr_close_return(pipe);

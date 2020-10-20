@@ -36,6 +36,9 @@
 #define RM_CONTROL_VALID	0x4000
 #define SELF_RELATIVE		0x8000
 
+#define SID_TYPE_USER	1
+#define SID_TYPE_GROUP	2
+
 struct smb_ntsd {
 	__u16 revision; /* revision level */
 	__u16 type;
@@ -66,7 +69,7 @@ struct smb_ace {
 	struct smb_sid sid; /* ie UUID of user or group who gets these perms */
 };
 
-void smb_init_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid);
+void smb_init_sid(struct smb_sid *sid);
 void smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid);
 void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src);
 void smb_copy_sid(struct smb_sid *dst, const struct smb_sid *src);

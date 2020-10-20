@@ -15,6 +15,7 @@ struct ksmbd_rpc_pipe;
 
 struct policy_handle {
 	int handle;
+	struct ksmbd_user *user;
 };
 
 struct user_info {
