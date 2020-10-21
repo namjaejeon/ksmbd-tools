@@ -260,8 +260,6 @@ int usm_add_subauth_global_conf(char *data)
 	global_conf.sub_auth[1] = atoi(g_strdup(pos));
 	global_conf.sub_auth[2] = atoi(g_strdup(spos + 1));
 
-	pr_err("subauth : %d, %d, %d\n", global_conf.sub_auth[0], global_conf.sub_auth[1], global_conf.sub_auth[2]);
-
 	return 0;
 }
 

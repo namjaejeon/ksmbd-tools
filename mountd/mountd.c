@@ -143,7 +143,6 @@ static int generate_sub_auth(void)
 {
 	int rc;
 
-	pr_err("generate_sub_auth\n");
 retry:
 	rc = cp_parse_subauth("/etc/ksmbd/subauth");
 	if (rc < 0) {

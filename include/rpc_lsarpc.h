@@ -18,7 +18,7 @@ struct policy_handle {
 	struct ksmbd_user *user;
 };
 
-struct user_info {
+struct lsarpc_names_info {
 	int type;
 	char domain_name[256];
 	struct smb_sid sid;
