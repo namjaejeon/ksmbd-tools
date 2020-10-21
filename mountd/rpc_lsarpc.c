@@ -250,6 +250,7 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	ndr_write_int32(dce, 32); // max size
 	ndr_write_int32(dce, pipe->num_entries); // max count
 
 	for (i = 0; i < pipe->num_entries; i++) {

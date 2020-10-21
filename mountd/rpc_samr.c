@@ -70,7 +70,8 @@ static struct connect_handle *samr_ch_alloc(unsigned int id)
 	if (!ch)
 		return NULL;
 
-	ch->handle = id;
+	ch->handle = ++id;
+	ch->refcount++;
 	g_rw_lock_writer_lock(&ch_table_lock);
 	ret = g_hash_table_insert(ch_table, &(ch->handle), ch);
 	g_rw_lock_writer_unlock(&ch_table_lock);
@@ -106,7 +107,7 @@ static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, dce->sm_req.client_version); //client version
 	ndr_write_int32(dce, 0); //reserved
 
-	ch = samr_ch_alloc(pipe->id + 1);
+	ch = samr_ch_alloc(pipe->id);
 	if (!ch)
 		return KSMBD_RPC_ENOMEM;
 
@@ -295,6 +296,7 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	ch = samr_ch_lookup(id);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
+	ch->refcount++;
 
 	dce->sm_req.ch = ch;
 
@@ -392,6 +394,7 @@ static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 	dce->sm_req.ch = ch;
+	ch->refcount++;
 
 	ndr_read_int32(dce);
 	req_rid = ndr_read_int32(dce); // RID
@@ -689,7 +692,11 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 	ndr_read_int64(dce);
 	ndr_read_int32(dce);
 	ch = samr_ch_lookup(id);
-	if (ch)
+	if (!ch)
+		return KSMBD_RPC_EBAD_FID;
+	else if (ch->refcount > 1)
+		ch->refcount--;
+	else
 		samr_ch_free(ch);
 
 	return KSMBD_RPC_OK;
