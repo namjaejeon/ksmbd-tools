@@ -773,7 +773,7 @@ int rpc_samr_write_request(struct ksmbd_rpc_pipe *pipe)
 	return samr_invoke(pipe);
 }
 
-int rpc_samr_add_domain_entry(char *name)
+static int rpc_samr_add_domain_entry(char *name)
 {
 	char *domain_string;
 
@@ -788,7 +788,7 @@ int rpc_samr_add_domain_entry(char *name)
 	return 0;
 }
 
-void rpc_samr_remove_domain_entry(unsigned int eidx)
+static void rpc_samr_remove_domain_entry(unsigned int eidx)
 {
 	gpointer entry;
 
