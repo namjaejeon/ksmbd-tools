@@ -634,6 +634,7 @@ int rpc_init(void)
 		return -ENOMEM;
 	g_rw_lock_init(&pipes_table_lock);
 	rpc_samr_init();
+	rpc_lsarpc_init();
 
 	return 0;
 }
@@ -646,6 +647,7 @@ void rpc_destroy(void)
 	}
 	g_rw_lock_clear(&pipes_table_lock);
 	rpc_samr_destroy();
+	rpc_lsarpc_destroy();
 }
 
 static int dcerpc_hdr_write(struct ksmbd_dcerpc *dce,

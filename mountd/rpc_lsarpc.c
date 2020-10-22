@@ -13,7 +13,6 @@
 #include <linux/ksmbd_server.h>
 
 #include <management/user.h>
-
 #include <rpc.h>
 #include <rpc_lsarpc.h>
 #include <smbacl.h>
@@ -31,14 +30,58 @@
 
 #define LSA_POLICY_INFO_ACCOUNT_DOMAIN	5
 
+static GHashTable	*ph_table;
+static GRWLock		ph_table_lock;
+
+static void lsarpc_ph_free(struct policy_handle *ph)
+{
+	g_rw_lock_writer_lock(&ph_table_lock);
+	g_hash_table_remove(ph_table, &(ph->handle));
+	g_rw_lock_writer_unlock(&ph_table_lock);
+
+	free(ph);
+}
+
+static struct policy_handle *lsarpc_ph_lookup(unsigned char *handle)
+{
+	struct policy_handle *ph;
+
+	g_rw_lock_reader_lock(&ph_table_lock);
+	ph = g_hash_table_lookup(ph_table, handle);
+	g_rw_lock_reader_unlock(&ph_table_lock);
+
+	return ph;
+}
+
+static struct policy_handle *lsarpc_ph_alloc(unsigned int id)
+{
+	struct policy_handle *ph;
+	int ret;
+
+	ph = calloc(1, sizeof(struct policy_handle));
+	if (!ph)
+		return NULL;
+
+	id++;
+	memcpy(ph->handle, &id, sizeof(unsigned int));
+	g_rw_lock_writer_lock(&ph_table_lock);
+	ret = g_hash_table_insert(ph_table, &(ph->handle), ph);
+	g_rw_lock_writer_unlock(&ph_table_lock);
+
+	if (!ret) {
+		lsarpc_ph_free(ph);
+		ph = NULL;
+	}
+
+	return ph;
+}
+
+
 static int lsarpc_get_primary_domain_info_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	int level;
 
-	level = ndr_read_int16(dce);
-	if (level != DS_ROLE_BASIC_INFORMATION)
-		return KSMBD_RPC_EBAD_FUNC; 
+	dce->lr_req.level = ndr_read_int16(dce);
 
 	return KSMBD_RPC_OK;
 }
@@ -47,7 +90,10 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	int i;
-	char domain_string[256];
+	char domain_string[NAME_MAX];
+
+	if (dce->lr_req.level != DS_ROLE_BASIC_INFORMATION)
+		return KSMBD_RPC_EBAD_FUNC;
 
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers); // ref pointer
@@ -64,8 +110,8 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 	/* NULL Domain guid */
 	for (i = 0; i < 16; i++)
 		ndr_write_int8(dce, 0);
-	
-	gethostname(domain_string, 256);
+
+	gethostname(domain_string, NAME_MAX);
 	ndr_write_vstring(dce, domain_string); // domain string
 
 	return KSMBD_RPC_OK;
@@ -74,11 +120,15 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_open_policy2_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct policy_handle *ph;
+
+	ph = lsarpc_ph_alloc(pipe->id);
+	if (!ph)
+		return KSMBD_RPC_ENOMEM;
 
 	/* write connect handle */
-	ndr_write_int64(dce, (__u64)(pipe->id + 1));
-	ndr_write_int64(dce, (__u64)(pipe->id + 1));
-	ndr_write_int32(dce, 0);
+	ndr_write_bytes(dce, ph->handle, HANDLE_SIZE);
+
 	return KSMBD_RPC_OK;
 }
 
@@ -86,17 +136,9 @@ static int lsarpc_query_info_policy_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	unsigned long long id;
-	int level;
 
-	id = ndr_read_int64(dce);
-	ndr_read_int64(dce);
-	ndr_read_int32(dce);
-	if (id != pipe->id + 1)
-		return KSMBD_RPC_EBAD_FID;
-
-	level = ndr_read_int16(dce);
-	if (level != LSA_POLICY_INFO_ACCOUNT_DOMAIN)
-		return KSMBD_RPC_EBAD_FUNC; 
+	ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE);
+	dce->lr_req.level = ndr_read_int16(dce); // level
 
 	return KSMBD_RPC_OK;
 }
@@ -144,9 +186,17 @@ int lsarpc_ndr_write_vstring(struct ksmbd_dcerpc *dce, char *value)
 static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	char domain_string[256];
+	char domain_string[NAME_MAX];
 	struct smb_sid sid;
+	struct policy_handle *ph;
 	int len;
+
+	ph = lsarpc_ph_lookup(dce->lr_req.handle);
+	if (!ph)
+		return KSMBD_RPC_EBAD_FID;
+
+	if (dce->lr_req.level != LSA_POLICY_INFO_ACCOUNT_DOMAIN)
+		return KSMBD_RPC_EBAD_FUNC;
 
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers); // ref pointer
@@ -154,7 +204,7 @@ static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int16(dce, 0);
 
 	/* Account Domain */
-	gethostname(domain_string, 256); // domain string
+	gethostname(domain_string, NAME_MAX); // domain string
 	len = strlen(domain_string);
 	ndr_write_int16(dce, (len+1)*2); // length
 	ndr_write_int16(dce, len*2); // size
@@ -188,11 +238,7 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 	unsigned long long id;
 	unsigned int num_sid, i;
 
-	id = ndr_read_int64(dce);
-	ndr_read_int64(dce);
-	ndr_read_int32(dce);
-	if (id != pipe->id + 1)
-		return KSMBD_RPC_EBAD_FID;
+	ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE);
 
 	num_sid = ndr_read_int32(dce);
 	ndr_read_int32(dce); // ref pointer 
@@ -226,7 +272,7 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 			continue;
 		}
 
-		if (get_sid_info(&ni->sid, &ni->type, ni->domain_name) < 0) {
+		if (get_sid_info(&ni->sid, &ni->type, ni->domain_str) < 0) {
 			free(ni);
 			continue;
 		}
@@ -242,7 +288,12 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
+	struct policy_handle *ph;
 	int i;
+
+	ph = lsarpc_ph_lookup(dce->lr_req.handle);
+	if (!ph)
+		return KSMBD_RPC_EBAD_FID;
 
 	dce->num_pointers++;
 	ndr_write_int32(dce, dce->num_pointers); // ref pointer
@@ -259,7 +310,7 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
-		actual_cnt = strlen(ni->domain_name);
+		actual_cnt = strlen(ni->domain_str);
 		max_cnt = actual_cnt + 1;
 		ndr_write_int32(dce, actual_cnt * 2); // length
 		ndr_write_int32(dce, max_cnt * 2); // size
@@ -274,7 +325,7 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
-		ndr_write_vstring(dce, ni->domain_name); // domain string
+		ndr_write_vstring(dce, ni->domain_str); // domain string
 		ndr_write_int32(dce, ni->sid.num_subauth); // count
 		smb_write_sid(dce, &ni->sid); // sid
 	}
@@ -326,14 +377,9 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct ndr_uniq_char_ptr username;
-	unsigned long long id;
 	int num_names, i;
 
-	id = ndr_read_int64(dce);
-	ndr_read_int64(dce);
-	ndr_read_int32(dce);
-	if (id != pipe->id + 1)
-		return KSMBD_RPC_EBAD_FID;
+	ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE);
 
 	num_names = ndr_read_int32(dce); // num names
 	ndr_read_int32(dce); // max count
@@ -368,9 +414,14 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
-	int len, i;
-	char domain_string[256];
+	struct policy_handle *ph;
 	struct smb_sid sid;
+	int len, i;
+	char domain_string[NAME_MAX];
+
+	ph = lsarpc_ph_lookup(dce->lr_req.handle);
+	if (!ph)
+		return KSMBD_RPC_EBAD_FID;
 
 	/* Domain list */
 	dce->num_pointers++;
@@ -382,7 +433,7 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, 32); // max size
 	ndr_write_int32(dce, 1); // max count
 
-	gethostname(domain_string, 256);
+	gethostname(domain_string, NAME_MAX);
 	len = strlen(domain_string);
 	ndr_write_int16(dce, len*2); // domain string length
 	ndr_write_int16(dce, (len+1)*2); // domain string size
@@ -430,16 +481,29 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 	return KSMBD_RPC_OK;
 }
 
+static int lsarpc_close_invoke(struct ksmbd_rpc_pipe *pipe)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE);
+
+	return KSMBD_RPC_OK;
+}
+
 static int lsarpc_close_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct policy_handle *ph;
-	unsigned long long id;
-	int i;
+
+	ph = lsarpc_ph_lookup(dce->lr_req.handle);
+	if (!ph)
+		return KSMBD_RPC_EBAD_FID;
+	lsarpc_ph_free(ph);
 
 	ndr_write_int64(dce, 0);
 	ndr_write_int64(dce, 0);
 	ndr_write_int32(dce, 0);
+	return KSMBD_RPC_OK;
 }
 
 static int lsarpc_invoke(struct ksmbd_rpc_pipe *pipe)
@@ -451,7 +515,7 @@ static int lsarpc_invoke(struct ksmbd_rpc_pipe *pipe)
 		if (pipe->dce->hdr.frag_length == 26)
 			ret = lsarpc_get_primary_domain_info_invoke(pipe);
 		else
-			ret = KSMBD_RPC_OK;
+			ret = lsarpc_close_invoke(pipe);
 		break;
 	case LSARPC_OPNUM_OPEN_POLICY2:
 		ret = KSMBD_RPC_OK;
@@ -530,4 +594,19 @@ int rpc_lsarpc_read_request(struct ksmbd_rpc_pipe *pipe,
 int rpc_lsarpc_write_request(struct ksmbd_rpc_pipe *pipe)
 {
 	return lsarpc_invoke(pipe);
+}
+
+int rpc_lsarpc_init(void)
+{
+	ph_table = g_hash_table_new(g_str_hash, g_str_equal);
+	if (!ph_table)
+		return -ENOMEM;
+	return 0;
+}
+
+void rpc_lsarpc_destroy(void)
+{
+	if (ph_table)
+		g_hash_table_destroy(ph_table);
+	g_rw_lock_clear(&ph_table_lock);
 }

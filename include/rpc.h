@@ -155,11 +155,16 @@ struct wkssvc_netwksta_info_request {
 };
 
 struct samr_info_request {
-	struct ndr_uniq_char_ptr	server_name;
 	int				level;
 	int				client_version;
-	struct ndr_uniq_char_ptr	lookup_name;
-	struct connect_handle		*ch;
+	struct ndr_uniq_char_ptr	name;
+	unsigned char handle[20];
+	unsigned int rid;
+};
+
+struct lsarpc_info_request {
+	unsigned char handle[20];
+	unsigned int level;
 };
 
 struct dcerpc_guid {
@@ -250,6 +255,7 @@ struct ksmbd_dcerpc {
 		struct dcerpc_bind_request		bi_req;
 		struct wkssvc_netwksta_info_request	wi_req;
 		struct samr_info_request		sm_req;
+		struct lsarpc_info_request		lr_req;
 	};
 
 	struct ksmbd_rpc_command	*rpc_req;

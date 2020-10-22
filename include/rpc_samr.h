@@ -10,15 +10,15 @@
 
 #include <smbacl.h>
 
+#define HANDLE_SIZE	20
+
 struct ksmbd_rpc_command;
 struct ksmbd_rpc_pipe;
 
 struct connect_handle {
-	unsigned int handle;
+	unsigned char handle[HANDLE_SIZE];
 	unsigned int refcount;
-	char *domain_name;
 	struct ksmbd_user *user;
-	struct smb_sid sid;
 };
 
 int rpc_samr_read_request(struct ksmbd_rpc_pipe *pipe,
