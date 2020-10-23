@@ -68,8 +68,8 @@ void smb_init_domain_sid(struct smb_sid *sid)
 	sid->num_subauth = 4;
 	sid->authority[5] = 5;
 	sid->sub_auth[0] = 21;
-	for (i = 1; i < 4; i++)
-		sid->sub_auth[i] = global_conf.sub_auth[i - 1];
+	for (i = 0; i < 3; i++)
+		sid->sub_auth[i+1] = global_conf.sub_auth[i];
 }
 
 int smb_compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid)
