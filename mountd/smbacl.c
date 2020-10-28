@@ -64,6 +64,7 @@ void smb_init_domain_sid(struct smb_sid *sid)
 {
 	int i;
 
+	memset(sid, 0, sizeof(struct smb_sid));
 	sid->revision = 1;
 	sid->num_subauth = 4;
 	sid->authority[5] = 5;

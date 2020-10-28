@@ -312,8 +312,8 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 				gpointer, i);
 		actual_cnt = strlen(ni->domain_str);
 		max_cnt = actual_cnt + 1;
-		ndr_write_int32(dce, actual_cnt * 2); // length
-		ndr_write_int32(dce, max_cnt * 2); // size
+		ndr_write_int16(dce, actual_cnt * 2); // length
+		ndr_write_int16(dce, max_cnt * 2); // size
 		dce->num_pointers++;
 		ndr_write_int32(dce, dce->num_pointers); /* ref pointer for domain name*/
 		dce->num_pointers++;
@@ -359,8 +359,6 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
 		ndr_write_vstring(dce, ni->user->name); // username
-		ndr_write_int32(dce, ni->sid.num_subauth); // count
-		smb_write_sid(dce, &ni->sid); // sid
 	}
 	
 	ndr_write_int32(dce, pipe->num_entries); // count
