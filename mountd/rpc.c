@@ -14,6 +14,8 @@
 #include <rpc.h>
 #include <rpc_srvsvc.h>
 #include <rpc_wkssvc.h>
+#include <rpc_samr.h>
+#include <rpc_lsarpc.h>
 #include <ksmbdtools.h>
 
 static GHashTable	*pipes_table;
@@ -249,7 +251,7 @@ static void align_offset(struct ksmbd_dcerpc *dce, size_t n)
 	dce->offset = __ALIGN(dce->offset, n);
 }
 
-static void auto_align_offset(struct ksmbd_dcerpc *dce)
+void auto_align_offset(struct ksmbd_dcerpc *dce)
 {
 	if (dce->flags & KSMBD_DCERPC_ALIGN8)
 		dce->offset = __ALIGN(dce->offset, 8);
@@ -631,6 +633,9 @@ int rpc_init(void)
 	if (!pipes_table)
 		return -ENOMEM;
 	g_rw_lock_init(&pipes_table_lock);
+	rpc_samr_init();
+	rpc_lsarpc_init();
+
 	return 0;
 }
 
@@ -641,6 +646,8 @@ void rpc_destroy(void)
 		g_hash_table_destroy(pipes_table);
 	}
 	g_rw_lock_clear(&pipes_table_lock);
+	rpc_samr_destroy();
+	rpc_lsarpc_destroy();
 }
 
 static int dcerpc_hdr_write(struct ksmbd_dcerpc *dce,
@@ -903,11 +910,21 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 		addr = "\\PIPE\\srvsvc";
 	else if (dce->bi_req.flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		addr = "\\PIPE\\wkssvc";
+	else if (dce->bi_req.flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+		addr = "\\PIPE\\samr";
+	else if (dce->bi_req.flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
+		addr = "\\PIPE\\lsarpc";
 	else
 		return KSMBD_RPC_EBAD_FUNC;
 
-	ndr_write_int16(dce, strlen(addr));
-	ndr_write_bytes(dce, addr, strlen(addr));
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT) {
+		ndr_write_int16(dce, 0);
+		ndr_write_int16(dce, 0);
+	} else {
+		ndr_write_int16(dce, strlen(addr));
+		ndr_write_bytes(dce, addr, strlen(addr));
+	}
+
 	align_offset(dce, 4); /* [flag(NDR_ALIGN4)]    DATA_BLOB _pad1; */
 
 	num_trans = dce->bi_req.num_contexts;
@@ -939,7 +956,10 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 	payload_offset = dce->offset;
 	dce->offset = 0;
 
-	dce->hdr.ptype = DCERPC_PTYPE_RPC_BINDACK;
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT)
+		dce->hdr.ptype = DCERPC_PTYPE_RPC_ALTCONTRESP;
+	else
+		dce->hdr.ptype = DCERPC_PTYPE_RPC_BINDACK;
 	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
 	dce->hdr.frag_length = payload_offset;
 	dcerpc_hdr_write(dce, &dce->hdr);
@@ -967,7 +987,6 @@ static int dcerpc_bind_return(struct ksmbd_rpc_pipe *pipe)
 	}
 
 	if (!ack) {
-		pr_err("Unsupported transfer syntax\n");
 		ret =  dcerpc_bind_nack_return(pipe);
 	} else {
 		ret = dcerpc_bind_ack_return(pipe);
@@ -1018,7 +1037,8 @@ int rpc_read_request(struct ksmbd_rpc_command *req,
 	dce->rpc_resp = resp;
 	dcerpc_set_ext_payload(dce, resp->payload, max_resp_sz);
 
-	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND ||
+	    dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT)
 		return dcerpc_bind_return(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
@@ -1029,6 +1049,13 @@ int rpc_read_request(struct ksmbd_rpc_command *req,
 
 	if (req->flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_read_request(pipe, resp, max_resp_sz);
+
+	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+		return rpc_samr_read_request(pipe, resp, max_resp_sz);
+
+	if (req->flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
+		return rpc_lsarpc_read_request(pipe, resp, max_resp_sz);
+
 	return ret;
 }
 
@@ -1041,7 +1068,6 @@ int rpc_write_request(struct ksmbd_rpc_command *req,
 	pipe = rpc_pipe_lookup(req->handle);
 	if (!pipe)
 		return KSMBD_RPC_ENOMEM;
-
 	if (pipe->dce->flags & KSMBD_DCERPC_RETURN_READY)
 		return KSMBD_RPC_OK;
 
@@ -1058,7 +1084,8 @@ int rpc_write_request(struct ksmbd_rpc_command *req,
 	if (dcerpc_hdr_read(dce, &dce->hdr))
 		return KSMBD_RPC_EBAD_DATA;
 
-	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND ||
+	    dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT)
 		return dcerpc_bind_invoke(pipe);
 
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
@@ -1072,6 +1099,13 @@ int rpc_write_request(struct ksmbd_rpc_command *req,
 
 	if (req->flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_write_request(pipe);
+
+	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+		return rpc_samr_write_request(pipe);
+
+	if (req->flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
+		return rpc_lsarpc_write_request(pipe);
+
 	return KSMBD_RPC_ENOTIMPLEMENTED;
 }
 
