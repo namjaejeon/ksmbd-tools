@@ -382,20 +382,21 @@ int ndr_read_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz)
 	return 0;
 }
 
-int ndr_write_vstring(struct ksmbd_dcerpc *dce, char *value)
+int ndr_write_vstring(struct ksmbd_dcerpc *dce, void *value,
+		size_t max_len, size_t actual_len)
 {
 	gchar *out;
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
 
-	size_t raw_len;
 	char *raw_value = value;
 	int charset = KSMBD_CHARSET_UTF16LE;
 	int ret;
 
-	if (!value)
+	if (!value) {
 		raw_value = "";
-	raw_len = strlen(raw_value) + 1;
+		max_len = actual_len = strlen("") + 1;
+	}
 
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
@@ -404,7 +405,7 @@ int ndr_write_vstring(struct ksmbd_dcerpc *dce, char *value)
 		charset = KSMBD_CHARSET_UTF8;
 
 	out = ksmbd_gconvert(raw_value,
-			     raw_len,
+			     actual_len,
 			     charset,
 			     KSMBD_CHARSET_DEFAULT,
 			     &bytes_read,
@@ -422,9 +423,9 @@ int ndr_write_vstring(struct ksmbd_dcerpc *dce, char *value)
 	 * The third integer gives the actual number of elements being
 	 * passed, including the terminator.
 	 */
-	ret = ndr_write_int32(dce, raw_len);
+	ret = ndr_write_int32(dce, max_len);
 	ret |= ndr_write_int32(dce, 0);
-	ret |= ndr_write_int32(dce, raw_len);
+	ret |= ndr_write_int32(dce, actual_len);
 	ret |= ndr_write_bytes(dce, out, bytes_written);
 	auto_align_offset(dce);
 

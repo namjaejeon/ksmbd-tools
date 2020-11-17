@@ -299,7 +299,8 @@ __u32 ndr_read_union_int32(struct ksmbd_dcerpc *dce);
 
 int ndr_write_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz);
 int ndr_read_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz);
-int ndr_write_vstring(struct ksmbd_dcerpc *dce, char *value);
+int ndr_write_vstring(struct ksmbd_dcerpc *dce, void *value,
+		size_t max_len, size_t actual_len);
 char *ndr_read_vstring(struct ksmbd_dcerpc *dce);
 void ndr_read_vstring_ptr(struct ksmbd_dcerpc *dce, struct ndr_char_ptr *ctr);
 void ndr_read_uniq_vsting_ptr(struct ksmbd_dcerpc *dce,
