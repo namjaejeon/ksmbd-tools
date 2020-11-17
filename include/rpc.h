@@ -154,6 +154,14 @@ struct wkssvc_netwksta_info_request {
 	int				level;
 };
 
+struct samr_info_request {
+	int				level;
+	int				client_version;
+	struct ndr_uniq_char_ptr	name;
+	unsigned char handle[20];
+	unsigned int rid;
+};
+
 struct dcerpc_guid {
 	__u32		time_low;
 	__u16		time_mid;
@@ -241,6 +249,7 @@ struct ksmbd_dcerpc {
 		struct srvsvc_share_info_request	si_req;
 		struct dcerpc_bind_request		bi_req;
 		struct wkssvc_netwksta_info_request	wi_req;
+		struct samr_info_request		sm_req;
 	};
 
 	struct ksmbd_rpc_command	*rpc_req;
@@ -336,4 +345,5 @@ int rpc_open_request(struct ksmbd_rpc_command *req,
 		     struct ksmbd_rpc_command *resp);
 int rpc_close_request(struct ksmbd_rpc_command *req,
 		      struct ksmbd_rpc_command *resp);
+void auto_align_offset(struct ksmbd_dcerpc *dce);
 #endif /* __KSMBD_RPC_H__ */

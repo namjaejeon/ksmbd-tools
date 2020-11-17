@@ -14,6 +14,7 @@
 #include <rpc.h>
 #include <rpc_srvsvc.h>
 #include <rpc_wkssvc.h>
+#include <rpc_samr.h>
 #include <ksmbdtools.h>
 
 static GHashTable	*pipes_table;
@@ -249,7 +250,7 @@ static void align_offset(struct ksmbd_dcerpc *dce, size_t n)
 	dce->offset = __ALIGN(dce->offset, n);
 }
 
-static void auto_align_offset(struct ksmbd_dcerpc *dce)
+void auto_align_offset(struct ksmbd_dcerpc *dce)
 {
 	if (dce->flags & KSMBD_DCERPC_ALIGN8)
 		dce->offset = __ALIGN(dce->offset, 8);
@@ -632,6 +633,7 @@ int rpc_init(void)
 	if (!pipes_table)
 		return -ENOMEM;
 	g_rw_lock_init(&pipes_table_lock);
+	rpc_samr_init();
 	return 0;
 }
 
@@ -642,6 +644,7 @@ void rpc_destroy(void)
 		g_hash_table_destroy(pipes_table);
 	}
 	g_rw_lock_clear(&pipes_table_lock);
+	rpc_samr_destroy();
 }
 
 static int dcerpc_hdr_write(struct ksmbd_dcerpc *dce,
@@ -904,6 +907,8 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 		addr = "\\PIPE\\srvsvc";
 	else if (dce->bi_req.flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		addr = "\\PIPE\\wkssvc";
+	else if (dce->bi_req.flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+		addr = "\\PIPE\\samr";
 	else
 		return KSMBD_RPC_EBAD_FUNC;
 
@@ -1030,6 +1035,9 @@ int rpc_read_request(struct ksmbd_rpc_command *req,
 
 	if (req->flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_read_request(pipe, resp, max_resp_sz);
+
+	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+		return rpc_samr_read_request(pipe, resp, max_resp_sz);
 	return ret;
 }
 
@@ -1073,6 +1081,9 @@ int rpc_write_request(struct ksmbd_rpc_command *req,
 
 	if (req->flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_write_request(pipe);
+
+	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+		return rpc_samr_write_request(pipe);
 	return KSMBD_RPC_ENOTIMPLEMENTED;
 }
 
