@@ -162,6 +162,11 @@ struct samr_info_request {
 	unsigned int rid;
 };
 
+struct lsarpc_info_request {
+	unsigned char handle[20];
+	unsigned int level;
+};
+
 struct dcerpc_guid {
 	__u32		time_low;
 	__u16		time_mid;
@@ -250,6 +255,7 @@ struct ksmbd_dcerpc {
 		struct dcerpc_bind_request		bi_req;
 		struct wkssvc_netwksta_info_request	wi_req;
 		struct samr_info_request		sm_req;
+		struct lsarpc_info_request		lr_req;
 	};
 
 	struct ksmbd_rpc_command	*rpc_req;
