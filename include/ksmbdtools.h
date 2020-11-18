@@ -53,6 +53,7 @@ struct smbconf_global {
 	unsigned int		smb2_max_write;
 	unsigned int		smb2_max_trans;
 	unsigned int		share_fake_fscaps;
+	unsigned int		gen_subauth[3];
 	char			*pwddb;
 	char			*smbconf;
 };

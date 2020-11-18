@@ -113,6 +113,77 @@ retry:
 	return 0;
 }
 
+char *make_path_subauth(void)
+{
+	char *path;
+	int smbconf_len = strlen(global_conf.smbconf);
+	int loc = 0;
+	const char *subauth_filename = "ksmbd.subauth";
+
+	if (strchr(global_conf.smbconf, '/')) {
+		for (loc = smbconf_len - 1; loc > 0; loc--)
+			if (global_conf.smbconf[loc] == '/') {
+				loc++;
+				break;
+			}
+	}
+
+	path = calloc(1, loc + strlen(subauth_filename) + 1);
+	if (!path)
+		return NULL;
+
+	strncat(path, global_conf.smbconf, loc);
+	strcat(path, subauth_filename);
+
+	return path;
+}
+
+static int create_subauth_file(char *path_subauth)
+{
+	int fd;
+	char subauth_buf[35];
+	GRand *rnd;
+
+	rnd = g_rand_new();
+	sprintf(subauth_buf, "%d:%d:%d\n", g_rand_int_range(rnd, 0, INT_MAX),
+		g_rand_int_range(rnd, 0, INT_MAX),
+		g_rand_int_range(rnd, 0, INT_MAX));
+
+	fd = open(path_subauth, O_CREAT | O_WRONLY,
+			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if (fd < 0)
+		return -1;
+
+	if (write(fd, subauth_buf, strlen(subauth_buf)) == -1) {
+		pr_err("Unable to write subauth: %s\n", strerr(errno));
+		close(fd);
+		return -1;
+	}
+	close(fd);
+
+	return 0;
+}
+
+static int generate_sub_auth(void)
+{
+	int rc;
+	char *path_subauth;
+
+	path_subauth = make_path_subauth();
+	if (!path_subauth)
+		return -ENOMEM;
+retry:
+	rc = cp_parse_subauth(path_subauth);
+	if (rc < 0) {
+		rc = create_subauth_file(path_subauth);
+		if (rc)
+			return -1;
+		goto retry;
+	}
+
+	return 0;
+}
+
 static void delete_lock_file(void)
 {
 	if (lock_fd == -1)
@@ -371,6 +442,12 @@ static int manager_process_init(void)
 
 	if (create_lock_file()) {
 		pr_err("Failed to create lock file: %s\n", strerr(errno));
+		goto out;
+	}
+
+	if (generate_sub_auth()) {
+		pr_err("Failed to generate subauth for domain sid: %s\n",
+				strerr(errno));
 		goto out;
 	}
 
