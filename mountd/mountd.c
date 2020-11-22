@@ -29,6 +29,7 @@
 #include "management/share.h"
 #include "management/session.h"
 #include "management/tree_conn.h"
+#include "management/spnego.h"
 #include "version.h"
 
 static int no_detach = 0;
@@ -281,6 +282,7 @@ static void worker_process_free(void)
 	 * NOTE, this is the final release, we don't look at ref_count
 	 * values. User management should be destroyed last.
 	 */
+	spnego_destroy();
 	ipc_destroy();
 	rpc_destroy();
 	wp_destroy();
@@ -384,6 +386,13 @@ static int worker_process_init(void)
 	ret = ipc_init();
 	if (ret) {
 		pr_err("Failed to init IPC subsystem\n");
+		goto out;
+	}
+
+	ret = spnego_init();
+	if (ret) {
+		pr_err("Failed to init spnego subsystem\n");
+		ret = KSMBD_STATUS_IPC_FATAL_ERROR;
 		goto out;
 	}
 
