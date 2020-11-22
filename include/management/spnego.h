@@ -18,8 +18,19 @@ struct ksmbd_spnego_auth_out {
 
 struct ksmbd_spnego_authen_request;
 
+#ifdef CONFIG_KRB5
 int spnego_init(void);
 void spnego_destroy(void);
 int spnego_handle_authen_request(struct ksmbd_spnego_authen_request *req,
 				struct ksmbd_spnego_auth_out *auth_out);
+#else
+static int spnego_init(void) { return 0; }
+static void spnego_destroy(void) {}
+static int spnego_handle_authen_request(struct ksmbd_spnego_authen_request *req,
+				struct ksmbd_spnego_auth_out *auth_out)
+{
+	return -ENOTSUP;
+}
+#endif
+
 #endif

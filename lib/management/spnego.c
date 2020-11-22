@@ -38,6 +38,12 @@ int spnego_init(void)
 	struct spnego_mech_ctx *mech_ctx;
 	int i;
 
+	mech_ctx = &mech_ctxs[SPNEGO_MECH_MSKRB5];
+	mech_ctx->ops = &spnego_mskrb5_operations;
+
+	mech_ctx = &mech_ctxs[SPNEGO_MECH_KRB5];
+	mech_ctx->ops = &spnego_krb5_operations;
+
 	for (i = 0; i < SPNEGO_MAX_MECHS; i++) {
 		if (mech_ctxs[i].ops->setup &&
 				mech_ctxs[i].ops->setup(&mech_ctxs[i])) {
@@ -83,6 +89,14 @@ static int compare_oid(unsigned long *oid1, unsigned int oid1len,
 static bool is_supported_mech(unsigned long *oid, unsigned int len,
 			int *mech_type)
 {
+	if (!compare_oid(oid, len, MSKRB5_OID, ARRAY_SIZE(MSKRB5_OID))) {
+		*mech_type = SPNEGO_MECH_MSKRB5;
+		return true;
+	} else if (!compare_oid(oid, len, KRB5_OID, ARRAY_SIZE(KRB5_OID))) {
+		*mech_type = SPNEGO_MECH_KRB5;
+		return true;
+	}
+
 	*mech_type = SPNEGO_MAX_MECHS;
 	return false;
 }

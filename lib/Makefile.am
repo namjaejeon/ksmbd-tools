@@ -6,6 +6,11 @@ libksmbdtools_a_SOURCES = management/tree_conn.c \
 			   management/user.c \
 			   management/share.c \
 			   management/session.c \
-			   management/spnego.c \
 			   config_parser.c \
 			   ksmbdtools.c
+
+if HAVE_LIBKRB5
+libksmbdtools_a_SOURCES += management/spnego.c \
+			   asn1.c \
+			   management/spnego_krb5.c
+endif

@@ -42,4 +42,7 @@ struct spnego_mech_ctx {
 	struct spnego_mech_operations *ops;
 };
 
+extern struct spnego_mech_operations spnego_krb5_operations;
+extern struct spnego_mech_operations spnego_mskrb5_operations;
+
 #endif
