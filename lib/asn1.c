@@ -279,3 +279,110 @@ asn1_oid_decode(struct asn1_ctx *ctx,
 	}
 	return 1;
 }
+
+/* return the size of @depth-nested headers + payload */
+int asn1_header_len(unsigned int payload_len, int depth)
+{
+	unsigned int len;
+	int i;
+
+	len = payload_len;
+	for (i = 0; i < depth; i++) {
+		/* length */
+		if (len >= (1 << 24))
+			len += 5;
+		else if (len >= (1 << 16))
+			len += 4;
+		else if (len >= (1 << 8))
+			len += 3;
+		else if (len >= (1 << 7))
+			len += 2;
+		else
+			len += 1;
+		/* 1-byte header */
+		len += 1;
+	}
+	return len;
+}
+
+int asn1_oid_encode(const unsigned long *in_oid, int in_len,
+			unsigned char **out_oid, int *out_len)
+{
+	unsigned char *oid;
+	unsigned long id;
+	int i;
+
+	*out_oid = calloc(1, in_len * 5);
+	if (*out_oid == NULL)
+		return -ENOMEM;
+
+	oid = *out_oid;
+	*oid++ = (unsigned char)(40 * in_oid[0] + in_oid[1]);
+	for (i = 2; i < in_len; i++) {
+		id = in_oid[i];
+		if (id >= (1 << 28))
+			*oid++ = (0x80 | ((id>>28) & 0x7F));
+		if (id >= (1 << 21))
+			*oid++ = (0x80 | ((id>>21) & 0x7F));
+		if (id >= (1 << 14))
+			*oid++ = (0x80 | ((id>>14) & 0x7F));
+		if (id >= (1 << 7))
+			*oid++ = (0x80 | ((id>>7) & 0x7F));
+		*oid++ = id & 0x7F;
+	}
+	*out_len = (int)(oid - *out_oid);
+	return 0;
+}
+
+/*
+ * @len is the sum of all sizes of header, length and payload.
+ * it will be decreased by the sum of sizes of header and length.
+ */
+int asn1_header_encode(unsigned char **buf,
+			unsigned int cls, unsigned int con, unsigned int tag,
+			unsigned int *len)
+{
+	unsigned char *loc;
+	unsigned int r_len;
+
+	/* at least, 1-byte header + 1-byte length is needed. */
+	if (*len < 2)
+		return -EINVAL;
+
+	loc = *buf;
+	r_len = *len;
+
+	*loc++ = ((cls & 0x3) << 6) | ((con & 0x1) << 5) | (tag & 0x1F);
+	r_len -= 1;
+
+	if (r_len - 1 < (1 << 7)) {
+		r_len -= 1;
+		*loc++ = (unsigned char)(r_len & 0x7F);
+	} else if (r_len - 2 < (1 << 8)) {
+		r_len -= 2;
+		*loc++ = 0x81;
+		*loc++ = (unsigned char)(r_len & 0xFF);
+	} else if (r_len - 3 < (1 << 16)) {
+		r_len -= 3;
+		*loc++ = 0x82;
+		*loc++ = (unsigned char)((r_len>>8) & 0xFF);
+		*loc++ = (unsigned char)(r_len & 0xFF);
+	} else if (r_len - 4 < (1 << 24)) {
+		r_len -= 4;
+		*loc++ = 0x83;
+		*loc++ = (unsigned char)((r_len>>16) & 0xFF);
+		*loc++ = (unsigned char)((r_len>>8) & 0xFF);
+		*loc++ = (unsigned char)(r_len & 0xFF);
+	} else {
+		r_len -= 5;
+		*loc++ = 0x84;
+		*loc++ = (unsigned char)((r_len>>24) & 0xFF);
+		*loc++ = (unsigned char)((r_len>>16) & 0xFF);
+		*loc++ = (unsigned char)((r_len>>8) & 0xFF);
+		*loc++ = (unsigned char)(r_len & 0xFF);
+	}
+
+	*buf = loc;
+	*len = r_len;
+	return 0;
+}

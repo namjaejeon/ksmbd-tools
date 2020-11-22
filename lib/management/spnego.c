@@ -203,6 +203,88 @@ static int encode_negTokenTarg(char *in_blob, int in_len,
 			const unsigned long *oid, int oid_len,
 			char **out_blob, int *out_len)
 {
+	unsigned char *buf;
+	unsigned char *sup_oid, *krb5_oid;
+	int sup_oid_len, krb5_oid_len;
+	unsigned int neg_result_len, sup_mech_len, rep_token_len, len;
+
+	if (asn1_oid_encode(oid, oid_len, &sup_oid, &sup_oid_len))
+		return -ENOMEM;
+	if (asn1_oid_encode(KRB5_OID, ARRAY_SIZE(KRB5_OID),
+			&krb5_oid, &krb5_oid_len)) {
+		free(sup_oid);
+		return -ENOMEM;
+	}
+
+	neg_result_len = asn1_header_len(1, 2);
+	sup_mech_len = asn1_header_len(sup_oid_len, 2);
+	rep_token_len = asn1_header_len(krb5_oid_len, 1);
+	rep_token_len += 2 + in_len;
+	rep_token_len = asn1_header_len(rep_token_len, 3);
+
+	*out_len = asn1_header_len(
+			neg_result_len + sup_mech_len + rep_token_len, 2);
+	*out_blob = calloc(1, *out_len);
+	if (*out_blob == NULL)
+		return -ENOMEM;
+	buf = *out_blob;
+
+	/* negTokenTarg */
+	len = *out_len;
+	asn1_header_encode(&buf,
+			ASN1_CTX, ASN1_CON, 1,
+			&len);
+	asn1_header_encode(&buf,
+			ASN1_UNI, ASN1_CON, ASN1_SEQ,
+			&len);
+
+	/* negTokenTarg/negResult */
+	len = neg_result_len;
+	asn1_header_encode(&buf,
+			ASN1_CTX, ASN1_CON, 0,
+			&len);
+	asn1_header_encode(&buf,
+			ASN1_UNI, ASN1_PRI, ASN1_ENUM,
+			&len);
+	*buf++ = 0;
+
+	/* negTokenTarg/supportedMechType */
+	len = sup_mech_len;
+	asn1_header_encode(&buf,
+			ASN1_CTX, ASN1_CON, 1,
+			&len);
+	asn1_header_encode(&buf,
+			ASN1_UNI, ASN1_PRI, ASN1_OJI,
+			&len);
+	memcpy(buf, sup_oid, sup_oid_len);
+	buf += len;
+
+	/* negTokenTarg/responseToken */
+	len = rep_token_len;
+	asn1_header_encode(&buf,
+			ASN1_CTX, ASN1_CON, 2,
+			&len);
+	asn1_header_encode(&buf,
+			ASN1_UNI, ASN1_PRI, ASN1_OTS,
+			&len);
+	asn1_header_encode(&buf,
+			ASN1_APL, ASN1_CON, 0,
+			&len);
+	/* negTokenTarg/responseToken/OID */
+	len = asn1_header_len(krb5_oid_len, 1);
+	asn1_header_encode(&buf,
+			ASN1_UNI, ASN1_PRI, ASN1_OJI,
+			&len);
+	/* negTokenTarg/responseToken/mechToken*/
+	memcpy(buf, krb5_oid, krb5_oid_len);
+	buf += len;
+	/* AP_REP id */
+	*buf++ = 2;
+	*buf++ = 0;
+	memcpy(buf, in_blob, in_len);
+
+	free(sup_oid);
+	free(krb5_oid);
 }
 
 int spnego_handle_authen_request(struct ksmbd_spnego_authen_request *req,

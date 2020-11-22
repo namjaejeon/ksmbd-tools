@@ -85,4 +85,11 @@ unsigned char asn1_read(struct asn1_ctx *ctx,
 int asn1_oid_decode(struct asn1_ctx *ctx, unsigned char *eoc,
 		unsigned long **oid, unsigned int *len);
 
+int asn1_header_len(unsigned int payload_len, int depth);
+int asn1_header_encode(unsigned char **buf,
+			unsigned int cls, unsigned int con, unsigned int tag,
+			unsigned int *len);
+int asn1_oid_encode(const unsigned long *in_oid, int in_len,
+			unsigned char **out_oid, int *out_len);
+
 #endif
