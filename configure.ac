@@ -26,7 +26,7 @@ AC_PROG_LIBTOOL
 AC_ARG_ENABLE(krb5,
 	      [AC_HELP_STRING([--enable-krb5], [Enable kerberos authentication @<:@default=no@:>@:])],
 	      enable_krb5=$enableval,
-	      enable_krb5="maybe")
+	      enable_krb5="no")
 
 # Checks for header files.
 if test "$enable_krb5" != "no"; then
