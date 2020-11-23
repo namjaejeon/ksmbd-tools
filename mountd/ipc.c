@@ -300,6 +300,14 @@ static struct nla_policy ksmbd_nl_policy[KSMBD_EVENT_MAX] = {
 	[KSMBD_EVENT_RPC_RESPONSE] = {
 		.minlen = sizeof(struct ksmbd_rpc_command),
 	},
+
+	[KSMBD_EVENT_SPNEGO_AUTHEN_REQUEST] = {
+		.minlen = sizeof(struct ksmbd_spnego_authen_request),
+	},
+
+	[KSMBD_EVENT_SPNEGO_AUTHEN_RESPONSE] = {
+		.minlen = sizeof(struct ksmbd_spnego_authen_response),
+	},
 };
 
 static struct genl_cmd ksmbd_genl_cmds[] = {
@@ -383,6 +391,18 @@ static struct genl_cmd ksmbd_genl_cmds[] = {
 	},
 	{
 		.c_id		= KSMBD_EVENT_RPC_RESPONSE,
+		.c_attr_policy	= ksmbd_nl_policy,
+		.c_msg_parser	= &handle_unsupported_event,
+		.c_maxattr	= KSMBD_EVENT_MAX,
+	},
+	{
+		.c_id		= KSMBD_EVENT_SPNEGO_AUTHEN_REQUEST,
+		.c_attr_policy	= ksmbd_nl_policy,
+		.c_msg_parser	= &handle_generic_event,
+		.c_maxattr	= KSMBD_EVENT_MAX,
+	},
+	{
+		.c_id		= KSMBD_EVENT_SPNEGO_AUTHEN_RESPONSE,
 		.c_attr_policy	= ksmbd_nl_policy,
 		.c_msg_parser	= &handle_unsupported_event,
 		.c_maxattr	= KSMBD_EVENT_MAX,
