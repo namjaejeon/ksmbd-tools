@@ -236,10 +236,8 @@ int usm_add_subauth_global_conf(char *data)
 	char *spos;
 	int ret;
 
-	if (!pos) {
-		pr_err("Invalid subauth entry %s\n", data);
+	if (!pos)
 		return -EINVAL;
-	}
 
 	spos = strchr(pos, ':');
 	if (!spos) {
