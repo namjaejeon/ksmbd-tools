@@ -77,6 +77,29 @@ static struct policy_handle *lsarpc_ph_alloc(unsigned int id)
 	return ph;
 }
 
+static int lsa_domain_account_rep(struct ksmbd_dcerpc *dce, char *domain_name)
+{
+	int len, ret;
+
+	len = strlen(domain_name);
+	ret = ndr_write_int16(dce, len*2); // length
+	ret |= ndr_write_int16(dce, (len+1)*2); // size
+	dce->num_pointers++;
+	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer for domain name*/
+	dce->num_pointers++;
+	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer for sid*/
+}
+
+static int lsa_domain_account_data(struct ksmbd_dcerpc *dce, char *domain_name,
+		struct smb_sid *sid)
+{
+	int ret;
+
+	ret = ndr_write_lsa_string(dce, domain_name); // domain string
+	ret |= ndr_write_int32(dce, sid->num_subauth); // count
+	smb_write_sid(dce, sid); // sid
+	return ret;
+}
 
 static int lsarpc_get_primary_domain_info_invoke(struct ksmbd_rpc_pipe *pipe)
 {
@@ -112,8 +135,7 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 	for (i = 0; i < 16; i++)
 		ndr_write_int8(dce, 0);
 
-	max_len = actual_len = strlen(domain_name) + 1;
-	ndr_write_vstring(dce, domain_name, max_len, actual_len); // domain string
+	ndr_write_vstring(dce, domain_name); // domain string
 
 	return KSMBD_RPC_OK;
 }
@@ -149,7 +171,7 @@ static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct smb_sid sid;
 	struct policy_handle *ph;
-	size_t max_len, actual_len;
+	int len;
 
 	ph = lsarpc_ph_lookup(dce->lr_req.handle);
 	if (!ph)
@@ -163,21 +185,12 @@ static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int16(dce, LSA_POLICY_INFO_ACCOUNT_DOMAIN); // level
 	ndr_write_int16(dce, 0);
 
-	/* Account Domain */
-	actual_len = strlen(domain_name);
-	max_len = actual_len + 1;
-	ndr_write_int16(dce, actual_len*2); // length
-	ndr_write_int16(dce, max_len*2); // size
-	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	/* Domain, Sid ref pointer */
+	lsa_domain_account_rep(dce, domain_name);
 
-	/* Pointer to Sid */
-	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers);
-	ndr_write_vstring(dce, domain_name, max_len, actual_len); // domain string
+	/* Pointer to domain, Sid */
 	smb_init_domain_sid(&sid);
-	ndr_write_int32(dce, sid.num_subauth); // count
-	smb_write_sid(dce, &sid); // sid
+	lsa_domain_account_data(dce, domain_name, &sid);
 
 	return KSMBD_RPC_OK;
 }
@@ -248,7 +261,6 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct policy_handle *ph;
 	int i;
-	size_t max_len, actual_len;
 
 	ph = lsarpc_ph_lookup(dce->lr_req.handle);
 	if (!ph)
@@ -265,31 +277,19 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		struct lsarpc_names_info *ni;
-		size_t max_len, actual_len;
+		int len;
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
-		actual_len = strlen(ni->domain_str);
-		max_len = actual_len + 1;
-		ndr_write_int16(dce, actual_len*2); // length
-		ndr_write_int16(dce, max_len*2); // size
-		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers); /* ref pointer for domain name*/
-		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers); /* ref pointer for sid*/
+		lsa_domain_account_rep(dce, ni->domain_str);
 	}
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		struct lsarpc_names_info *ni;
-		size_t max_len, actual_len;
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
-		actual_len = strlen(ni->domain_str);
-		max_len = actual_len + 1;
-		ndr_write_vstring(dce, ni->domain_str, max_len, actual_len); // domain string
-		ndr_write_int32(dce, ni->sid.num_subauth); // count
-		smb_write_sid(dce, &ni->sid); // sid
+		lsa_domain_account_data(dce, ni->domain_str, &ni->sid);
 	}
 
 	/* Pointer to Names */
@@ -320,15 +320,13 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		struct lsarpc_names_info *ni;
-		size_t len;
 		char *username = "None";
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
 		if (ni->user)
 			username = ni->user->name;
-		len = strlen(username);
-		ndr_write_vstring(dce, username, len, len); // username
+		ndr_write_string(dce, username); // username
 	}
 
 	ndr_write_int32(dce, pipe->num_entries); // count
@@ -384,8 +382,7 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct policy_handle *ph;
 	struct smb_sid sid;
-	int i;
-	size_t max_len, actual_len;
+	int i, len;
 
 	ph = lsarpc_ph_lookup(dce->lr_req.handle);
 	if (!ph)
@@ -401,19 +398,9 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int32(dce, 32); // max size
 	ndr_write_int32(dce, 1); // max count
 
-	actual_len = strlen(domain_name);
-	max_len = actual_len + 1;
-	ndr_write_int16(dce, actual_len*2); // domain string length
-	ndr_write_int16(dce, max_len*2); // domain string size
-
-	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // domain string ref pointer
-	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // sid ref pointer
-	ndr_write_vstring(dce, domain_name, max_len, actual_len); // domain string
+	lsa_domain_account_rep(dce, domain_name);
 	smb_init_domain_sid(&sid);
-	ndr_write_int32(dce, sid.num_subauth); // sid auth count
-	smb_write_sid(dce, &sid); // sid
+	lsa_domain_account_data(dce, domain_name, &sid);
 
 	ndr_write_int32(dce, pipe->num_entries); // count
 	dce->num_pointers++;
