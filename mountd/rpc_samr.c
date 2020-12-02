@@ -143,11 +143,9 @@ int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
 
 	for (i = 0; i < num_domain_entries; i++) {
 		gpointer entry;
-		size_t name_len;
 
 		entry = g_array_index(domain_entries,  gpointer, i);
-		name_len = strlen((char *)entry);
-		ret |= ndr_write_vstring(dce, (char *)entry, name_len, name_len);
+		ret |= ndr_write_string(dce, (char *)entry);
 	}
 
 	return ret;
@@ -341,7 +339,6 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	char *home_dir, *profile_path;
 	char hostname[NAME_MAX];
 	int home_dir_len, i;
-	size_t len;
 
 	ch = samr_ch_lookup(dce->sm_req.handle);
 	if (!ch)
@@ -451,11 +448,9 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	ndr_write_int8(dce, 0);
 	ndr_write_int8(dce, 0);
 
-	len = strlen(ch->user->name);
-	ndr_write_vstring(dce, ch->user->name, len, len);
-	ndr_write_vstring(dce, ch->user->name, len, len);
-	len = strlen(home_dir);
-	ndr_write_vstring(dce, home_dir, len, len);
+	ndr_write_string(dce, ch->user->name);
+	ndr_write_string(dce, ch->user->name);
+	ndr_write_string(dce, home_dir);
 
 	/* Home Drive, Logon Script */
 	for (i = 0; i < 2; i++) {
@@ -464,8 +459,7 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 		ndr_write_int32(dce, 0);
 	}
 
-	len = strlen(profile_path);
-	ndr_write_vstring(dce, profile_path, len, len);
+	ndr_write_string(dce, profile_path);
 
 	/* Description, Workstations, Comments, Parameters */
 	for (i = 0; i < 4; i++) {

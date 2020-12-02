@@ -61,15 +61,12 @@ static int __netwksta_entry_data_ctr100(struct ksmbd_dcerpc *dce,
 					gpointer entry)
 {
 	int ret = 0;
-	size_t len;
 
 	/*
 	 * Umm... Hmm... Huh...
 	 */
-	len = strlen(STR_VAL(dce->wi_req.server_name)) + 1;
-	ret |= ndr_write_vstring(dce, STR_VAL(dce->wi_req.server_name), len, len);
-	len = strlen(global_conf.work_group) + 1;
-	ret |= ndr_write_vstring(dce, global_conf.work_group, len, len);
+	ret |= ndr_write_vstring(dce, STR_VAL(dce->wi_req.server_name));
+	ret |= ndr_write_vstring(dce, global_conf.work_group);
 	return ret;
 }
 
