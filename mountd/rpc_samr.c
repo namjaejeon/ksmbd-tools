@@ -757,6 +757,13 @@ static void rpc_samr_remove_domain_entry(unsigned int eidx)
 	free(entry);
 }
 
+static void domain_entry_free(void *v)
+{
+	char **entry = v;
+
+	free(*entry);
+}
+
 int rpc_samr_init(void)
 {
 	char hostname[NAME_MAX];
@@ -767,6 +774,9 @@ int rpc_samr_init(void)
 	domain_entries = g_array_new(0, 0, sizeof(void *));
 	if (!domain_entries)
 		return -ENOMEM;
+
+	g_array_set_clear_func(domain_entries, domain_entry_free);
+
 	/*
 	 * ksmbd supports the standalone server and
 	 * uses the hostname as the domain name.
