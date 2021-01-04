@@ -738,11 +738,10 @@ static int rpc_samr_add_domain_entry(char *name)
 {
 	char *domain_string;
 
-	domain_string = malloc(strlen(name));
+	domain_string = strdup(name);
 	if (!domain_string)
 		return KSMBD_RPC_ENOMEM;
 
-	strcpy(domain_string, name);
 	domain_entries = g_array_append_val(domain_entries, domain_string);
 	num_domain_entries++;
 
