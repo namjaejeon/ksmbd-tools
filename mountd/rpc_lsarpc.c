@@ -237,13 +237,8 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 		if (passwd)
 			ni->user = usm_lookup_user(passwd->pw_name);
 
-		/*
-		 * SID TYPE USER : 0x1
-		 * SID TYPE GRIUP : 0x2
-		 */
 		ni->type = i + 1;
-
-		if (set_domain_name(&ni->sid, ni->domain_str, ni->type)) {
+		if (set_domain_name(&ni->sid, ni->domain_str)) {
 			free(ni);
 			continue;
 		}

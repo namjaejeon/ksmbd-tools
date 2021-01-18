@@ -17,6 +17,14 @@ static const struct smb_sid sid_domain = {1, 1, {0, 0, 0, 0, 0, 5},
 static const struct smb_sid sid_everyone = {
 	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
 
+/* S-1-22-1 Unmapped Unix users */
+static const struct smb_sid sid_unix_users = {1, 1, {0, 0, 0, 0, 0, 22},
+	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
+/* S-1-22-2 Unmapped Unix groups */
+static const struct smb_sid sid_unix_groups = { 1, 1, {0, 0, 0, 0, 0, 22},
+	{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
 /* security id for local group */
 static const struct smb_sid sid_local_group = {
 	1, 1, {0, 0, 0, 0, 0, 5}, {32} };
@@ -115,7 +123,7 @@ int smb_compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid)
 	return 0; /* sids compare/match */
 }
 
-int set_domain_name(struct smb_sid *sid, char *domain, int sid_type)
+int set_domain_name(struct smb_sid *sid, char *domain)
 {
 	int ret = 0;
 
@@ -128,9 +136,9 @@ int set_domain_name(struct smb_sid *sid, char *domain, int sid_type)
 				strlen(domain_string));
 		strcpy(domain, domain_name);
 		g_free(domain_name);
-	} else if (sid_type == SID_TYPE_USER)
+	} else if (!smb_compare_sids(sid, &sid_unix_users))
 		strcpy(domain, "Unix User");
-	else if (sid_type == SID_TYPE_GROUP)
+	else if (!smb_compare_sids(sid, &sid_unix_groups))
 		strcpy(domain, "Unix Group");
 	else
 		ret = -ENOENT;
