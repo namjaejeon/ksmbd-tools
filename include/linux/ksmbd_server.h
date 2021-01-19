@@ -228,6 +228,7 @@ enum KSMBD_TREE_CONN_STATUS {
 #define KSMBD_SHARE_FLAG_INHERIT_OWNER		(1 << 11)
 #define KSMBD_SHARE_FLAG_STREAMS		(1 << 12)
 #define KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS	(1 << 13)
+#define KSMBD_SHARE_FLAG_ACL_XATTR		(1 << 14)
 
 /*
  * Tree connect request flags.
