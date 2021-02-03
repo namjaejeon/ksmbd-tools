@@ -57,6 +57,7 @@ char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"inherit owner",
 	"streams",
 	"follow symlinks",
+	"vfs objects",
 };
 
 static GHashTable	*shares_table;
@@ -574,6 +575,14 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 			clear_share_flag(share,
 				KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS);
 	}
+
+	if (shm_share_config(k, KSMBD_SHARE_CONF_ACL_XATTR)) {
+		if (!strcmp(cp_get_group_kv_string(v), "acl_xattr"))
+			set_share_flag(share, KSMBD_SHARE_FLAG_ACL_XATTR);
+		else
+			clear_share_flag(share, KSMBD_SHARE_FLAG_ACL_XATTR);
+	}
+
 }
 
 static void fixup_missing_fields(struct ksmbd_share *share)

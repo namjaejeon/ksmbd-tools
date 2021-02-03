@@ -9,6 +9,7 @@
 #include <smbacl.h>
 #include <ksmbdtools.h>
 #include <glib.h>
+#include <glib/gprintf.h>
 
 static const struct smb_sid sid_domain = {1, 1, {0, 0, 0, 0, 0, 5},
 	{21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
@@ -16,6 +17,14 @@ static const struct smb_sid sid_domain = {1, 1, {0, 0, 0, 0, 0, 5},
 /* security id for everyone/world system group */
 static const struct smb_sid sid_everyone = {
 	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
+
+/* S-1-22-1 Unmapped Unix users */
+static const struct smb_sid sid_unix_users = {1, 1, {0, 0, 0, 0, 0, 22},
+	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
+/* S-1-22-2 Unmapped Unix groups */
+static const struct smb_sid sid_unix_groups = { 1, 1, {0, 0, 0, 0, 0, 22},
+	{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
 
 /* security id for local group */
 static const struct smb_sid sid_local_group = {
@@ -115,25 +124,59 @@ int smb_compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid)
 	return 0; /* sids compare/match */
 }
 
-int set_domain_name(struct smb_sid *sid, char *domain, int sid_type)
+static void smb_sid_to_string(char *domain, struct smb_sid *sid)
+{
+	char str[PATH_MAX];
+	int i, domain_len = 0, len;
+
+	strncpy(domain, "S-", 2);
+	domain_len += 2;
+	len = g_sprintf(str, "%i", (int)sid->revision);
+	strncpy(&domain[domain_len], str, len);
+	domain_len += len;
+	domain[domain_len++] = '-';
+	len = g_sprintf(str, "%i", (int)sid->authority[5]);
+	strncpy(&domain[domain_len], str, len);
+	domain_len += len;
+
+	for (i = 0; i < sid->num_subauth; i++) {
+		domain[domain_len++] = '-';
+		len = g_sprintf(str, "%u", sid->sub_auth[i]);
+		strncpy(&domain[domain_len], str, len);
+		domain_len += len;
+	}
+}
+
+int set_domain_name(struct smb_sid *sid, char *domain, int *type)
 {
 	int ret = 0;
+	char domain_string[NAME_MAX] = {0};
+	gchar *domain_name;
 
-	if (!smb_compare_sids(sid, &sid_domain)) {
-		char domain_string[NAME_MAX];
-		gchar *domain_name;
-
+	if (!smb_compare_sids(sid, &sid_domain) &&
+	    !memcmp(&sid->sub_auth[1], global_conf.gen_subauth,
+		    sizeof(__u32) * 3)) {
 		gethostname(domain_string, NAME_MAX);
 		domain_name = g_ascii_strup(domain_string,
 				strlen(domain_string));
 		strcpy(domain, domain_name);
 		g_free(domain_name);
-	} else if (sid_type == SID_TYPE_USER)
+		*type = SID_TYPE_USER;
+	} else if (!smb_compare_sids(sid, &sid_unix_users)) {
 		strcpy(domain, "Unix User");
-	else if (sid_type == SID_TYPE_GROUP)
+		*type = SID_TYPE_USER;
+	} else if (!smb_compare_sids(sid, &sid_unix_groups)) {
 		strcpy(domain, "Unix Group");
-	else
+		*type = SID_TYPE_GROUP;
+	} else {
+		smb_sid_to_string(domain_string, sid);
+		domain_name = g_ascii_strup(domain_string,
+				strlen(domain_string));
+		strcpy(domain, domain_name);
+		g_free(domain_name);
+		*type = SID_TYPE_UNKNOWN;
 		ret = -ENOENT;
+	}
 	return ret;
 }
 
