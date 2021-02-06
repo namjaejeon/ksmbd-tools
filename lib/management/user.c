@@ -99,7 +99,7 @@ static struct ksmbd_user *new_ksmbd_user(char *name, char *pwd)
 	if (!user)
 		return NULL;
 
-	g_rw_lock_clear(&user->update_lock);
+	g_rw_lock_init(&user->update_lock);
 	user->name = name;
 	user->pass_b64 = pwd;
 	user->ref_count = 1;
