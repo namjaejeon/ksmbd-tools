@@ -204,13 +204,12 @@ Define ksmbd configuration parameters list.
 	- force directory mode (default: 0)
 		This parameter specifies a set of UNIX mode bit permissions
 		that will always be set on a directory created by ksmbd.
-	- streams (default: no)
-		Alternate Data Streams support.
 	- follow symlinks (default: yes)
 		This parameter allows to stop ksmbd from following symbolic
 		links in a particular share.
 	- vfs objects (default: no)
 		This parameter specifies the backend names which are used for
 		ksmbd VFS I/O operations. Since ksmbd is a server for Linux
-		Kernel, It supports only acl_xattr input.
-		(ex. vfs objects = acl_xattr)
+		Kernel, It supports acl_xattr and streams_xattr input.
+		(ex. vfs objects = acl_xattr, vfs objects = streams_xattr or
+		 vfs objects = acl_xattr streams_xattr)
