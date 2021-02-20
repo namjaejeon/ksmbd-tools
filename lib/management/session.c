@@ -170,9 +170,13 @@ retry:
 int sm_check_sessions_capacity(unsigned long long id)
 {
 	int ret = 0;
+	struct ksmbd_session *sess;
 
-	if (sm_lookup_session(id))
+	sess = sm_lookup_session(id);
+	if (sess) {
+		__put_session(sess);
 		return ret;
+	}
 
 	if (g_atomic_int_add(&global_conf.sessions_cap, -1) < 1) {
 		ret = -EINVAL;

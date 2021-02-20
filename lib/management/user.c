@@ -47,11 +47,13 @@ static int __usm_remove_user(struct ksmbd_user *user)
 struct ksmbd_user *get_ksmbd_user(struct ksmbd_user *user)
 {
 	g_rw_lock_writer_lock(&user->update_lock);
-	if (user->ref_count != 0)
+	if (user->ref_count != 0) {
 		user->ref_count++;
-	else
+		g_rw_lock_writer_unlock(&user->update_lock);
+	} else {
+		g_rw_lock_writer_unlock(&user->update_lock);
 		user = NULL;
-	g_rw_lock_writer_unlock(&user->update_lock);
+	}
 	return user;
 }
 
@@ -99,7 +101,7 @@ static struct ksmbd_user *new_ksmbd_user(char *name, char *pwd)
 	if (!user)
 		return NULL;
 
-	g_rw_lock_clear(&user->update_lock);
+	g_rw_lock_init(&user->update_lock);
 	user->name = name;
 	user->pass_b64 = pwd;
 	user->ref_count = 1;
