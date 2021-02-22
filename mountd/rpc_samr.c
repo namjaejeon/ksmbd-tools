@@ -358,8 +358,10 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	strcat(home_dir, ch->user->name);
 
 	profile_path = calloc(1, home_dir_len + strlen("profile"));
-	if (!profile_path)
+	if (!profile_path) {
+		free(home_dir);
 		return KSMBD_RPC_ENOMEM;
+	}
 
 	/* Make Profile path string */
 	strcat(profile_path, "\\\\");
