@@ -348,7 +348,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	for (i = 0; i < num_names; i++) {
 		struct lsarpc_names_info *ni;
-		char *name;
+		char *name = NULL;
 
 		ni = malloc(sizeof(struct lsarpc_names_info));
 		if (!ni)
