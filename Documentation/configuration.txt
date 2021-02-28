@@ -82,7 +82,7 @@ Define ksmbd configuration parameters list.
 	- smb3 encryption (default: no)
 		This parameter controls whether a remote client is allowed or
 		required to use SMB encryption.
-	- smb2 leases (default: no)
+	- smb2 leases (default: yes)
 		This boolean option tells ksmbd whether to globally negotiate
 		SMB2 leases on file open requests. Leasing is an SMB2-only
 		feature which allows clients to aggressively cache files
