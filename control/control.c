@@ -33,6 +33,8 @@ static int ksmbd_control_shutdown(void)
 {
 	int fd, ret;
 
+	terminate_ksmbd_daemon();
+
 	fd = open("/sys/class/ksmbd-control/kill_server", O_WRONLY);
 	if (fd < 0) {
 		pr_err("open failed: %d\n", errno);
