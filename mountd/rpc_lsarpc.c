@@ -348,7 +348,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	for (i = 0; i < num_names; i++) {
 		struct lsarpc_names_info *ni;
-		char *name;
+		char *name = NULL;
 
 		ni = malloc(sizeof(struct lsarpc_names_info));
 		if (!ni)
@@ -560,6 +560,7 @@ int rpc_lsarpc_init(void)
 	ph_table = g_hash_table_new(g_str_hash, g_str_equal);
 	if (!ph_table)
 		return -ENOMEM;
+	g_rw_lock_init(&ph_table_lock);
 	return 0;
 }
 

@@ -159,6 +159,8 @@ int set_domain_name(struct smb_sid *sid, char *domain, int *type)
 		gethostname(domain_string, NAME_MAX);
 		domain_name = g_ascii_strup(domain_string,
 				strlen(domain_string));
+		if (!domain_name)
+			return -ENOMEM;
 		strcpy(domain, domain_name);
 		g_free(domain_name);
 		*type = SID_TYPE_USER;
@@ -172,6 +174,8 @@ int set_domain_name(struct smb_sid *sid, char *domain, int *type)
 		smb_sid_to_string(domain_string, sid);
 		domain_name = g_ascii_strup(domain_string,
 				strlen(domain_string));
+		if (!domain_name)
+			return -ENOMEM;
 		strcpy(domain, domain_name);
 		g_free(domain_name);
 		*type = SID_TYPE_UNKNOWN;
