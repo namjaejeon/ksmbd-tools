@@ -42,9 +42,7 @@ RESTART KSMBD
 _____________________
 
 steps:
-	- kill user space daemon
-		killall ksmbd.mountd
-	- kill kernel space daemon
+	- kill user and kernel space daemon
 		sudo ksmbd.control -s
 	- restart user space daemon
 		ksmbd.mountd
@@ -54,9 +52,7 @@ Shutdown KSMBD
 _____________________
 
 steps:
-	- kill user space daemon
-		killall ksmbd.mountd
-	- kill kernel space daemon
+	- kill user and kernel space daemon
 		sudo ksmbd.control -s
 	- unload ksmbd module
 		rmmod ksmbd

@@ -53,7 +53,6 @@ char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"hosts deny",
 	"max connections",
 	"veto files",				/* 25 */
-	"inherit smack",
 	"inherit owner",
 	"follow symlinks",
 	"vfs objects",
@@ -546,13 +545,6 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return;
 	}
 
-	if (shm_share_config(k, KSMBD_SHARE_CONF_INHERIT_SMACK)) {
-		if (cp_get_group_kv_bool(v))
-			set_share_flag(share, KSMBD_SHARE_FLAG_INHERIT_SMACK);
-		else
-			clear_share_flag(share,	KSMBD_SHARE_FLAG_INHERIT_SMACK);
-	}
-
 	if (shm_share_config(k, KSMBD_SHARE_CONF_INHERIT_OWNER)) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, KSMBD_SHARE_FLAG_INHERIT_OWNER);
@@ -614,7 +606,6 @@ static void init_share_from_group(struct ksmbd_share *share,
 	set_share_flag(share, KSMBD_SHARE_FLAG_READONLY);
 	set_share_flag(share, KSMBD_SHARE_FLAG_HIDE_DOT_FILES);
 	set_share_flag(share, KSMBD_SHARE_FLAG_OPLOCKS);
-	set_share_flag(share, KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS);
 	set_share_flag(share, KSMBD_SHARE_FLAG_STORE_DOS_ATTRS);
 
 	if (!cp_key_cmp(share->name, "IPC$"))
