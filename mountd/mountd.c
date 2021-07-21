@@ -207,11 +207,14 @@ retry:
 
 	if (rc < 0) {
 		rc = create_subauth_file(path_subauth);
-		if (rc)
+		if (rc) {
+			free(path_subauth);
 			return -1;
+		}
 		goto retry;
 	}
 
+	free(path_subauth);
 	return 0;
 }
 
