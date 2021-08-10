@@ -91,8 +91,7 @@ out:
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
-	int c, cmd = 0;
-	char *section;
+	int c;
 
 	set_logger_app_name("ksmbd.control");
 

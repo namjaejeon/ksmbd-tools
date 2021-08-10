@@ -153,9 +153,10 @@ static int write_file_safe(char *path, char *buff, size_t length, int mode)
 		unlink(path_tmp);
 
 	fd = open(path_tmp, O_CREAT | O_EXCL | O_WRONLY, mode);
-	if (fd < 0)
+	if (fd < 0) {
 		pr_err("Unable to create %s: %s\n", path_tmp, strerr(errno));
 		goto err_out;
+	}
 
 	if (write(fd, buff, length) == -1) {
 		pr_err("Unable to write to %s: %s\n", path_tmp, strerr(errno));
@@ -166,9 +167,10 @@ static int write_file_safe(char *path, char *buff, size_t length, int mode)
 	fsync(fd);
 	close(fd);
 
-	if (rename(path_tmp, path))
+	if (rename(path_tmp, path)) {
 		pr_err("Unable to rename to %s: %s\n", path, strerr(errno));
 		goto err_out;
+	}
 	ret = 0;
 
 err_out:
@@ -205,11 +207,14 @@ retry:
 
 	if (rc < 0) {
 		rc = create_subauth_file(path_subauth);
-		if (rc)
+		if (rc) {
+			free(path_subauth);
 			return -1;
+		}
 		goto retry;
 	}
 
+	free(path_subauth);
 	return 0;
 }
 
