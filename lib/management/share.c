@@ -56,6 +56,7 @@ char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"inherit owner",
 	"follow symlinks",
 	"vfs objects",
+	"writable",
 };
 
 static GHashTable	*shares_table;
@@ -405,7 +406,8 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (shm_share_config(k, KSMBD_SHARE_CONF_WRITE_OK) ||
-			shm_share_config(k, KSMBD_SHARE_CONF_WRITEABLE)) {
+			shm_share_config(k, KSMBD_SHARE_CONF_WRITEABLE) ||
+			shm_share_config(k, KSMBD_SHARE_CONF_WRITABLE)) {
 		if (cp_get_group_kv_bool(v))
 			set_share_flag(share, KSMBD_SHARE_FLAG_WRITEABLE);
 		else
