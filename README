@@ -8,7 +8,7 @@ Install preprequisite packages:
 	libnl-genl-3-dev libglib2.0-dev
 
 	For Fedora, RHEL:
-	sudo yum install autoconf automake libtool glib2-devl libnl3-devl
+	sudo yum install autoconf automake libtool glib2-devel libnl3-devel
 
 	For CentOS:
 	sudo yum install glib2-devel libnl3-devel
