@@ -77,25 +77,26 @@ static char *__prompt_password_stdin(size_t *sz)
 	}
 
 again:
-	printf("New password:\n");
+	printf("New password: ");
 	term_toggle_echo(0);
 	if (fgets(pswd1, MAX_NT_PWD_LEN, stdin) == NULL) {
 		term_toggle_echo(1);
-		pr_err("Fatal error: %s\n", strerr(errno));
+		pr_err("\nFatal error: %s\n", strerr(errno));
 		free(pswd1);
 		free(pswd2);
 		return NULL;
 	}
 
-	printf("Retype new password:\n");
+	printf("\nRetype new password: ");
 	if (fgets(pswd2, MAX_NT_PWD_LEN, stdin) == NULL) {
 		term_toggle_echo(1);
-		pr_err("Fatal error: %s\n", strerr(errno));
+		pr_err("\nFatal error: %s\n", strerr(errno));
 		free(pswd1);
 		free(pswd2);
 		return NULL;
 	}
 	term_toggle_echo(1);
+	printf("\n");
 
 	len = strlen(pswd1);
 	for (i = 0; i < len; i++)
