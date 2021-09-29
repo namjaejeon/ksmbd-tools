@@ -12,11 +12,23 @@
 #include "ksmbdtools.h"
 #include "version.h"
 
+/* From linux/fs/ksmbd/server.c */
+static const char *const debug_types[] = {
+	"smb", "auth", "vfs",
+	"oplock", "ipc", "conn",
+	"rdma"
+};
+
 static void usage(void)
 {
+	int i;
+
 	fprintf(stderr, "Usage: ksmbd.control\n");
 	fprintf(stderr, "\t-s | --shutdown\n");
-	fprintf(stderr, "\t-d | --debug=all or [smb, auth, etc...]\n");
+	fprintf(stderr, "\t-d | --debug=all or [");
+	for (i = 0; i < sizeof(debug_types) / sizeof(debug_types[0]); i++)
+		fprintf(stderr, "%s ", debug_types[i]);
+	fprintf(stderr, "]\n");
 	fprintf(stderr, "\t-c | --ksmbd-version\n");
 	fprintf(stderr, "\t-V | --version\n");
 
