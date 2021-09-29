@@ -33,6 +33,8 @@ static int syslog_level(int level)
 {
 	if (level == PR_ERROR)
 		return LOG_ERR;
+	if (level == PR_WARN)
+		return LOG_WARNING;
 	if (level == PR_INFO)
 		return LOG_INFO;
 	if (level == PR_DEBUG)

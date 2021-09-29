@@ -100,14 +100,16 @@ extern int ksmbd_health_status;
 //---------------------------------------------------------------//
 #define LOGAPP		"[%s/%d]:"
 #define PRERR		LOGAPP" ERROR: "
+#define PRWARN		LOGAPP" WARN: "
 #define PRINF		LOGAPP" INFO: "
 #define PRDEBUG		LOGAPP" DEBUG: "
 
 #define PR_ERROR	0
-#define PR_INFO		1
-#define PR_DEBUG	2
+#define PR_WARN		1
+#define PR_INFO		2
+#define PR_DEBUG	3
 
-static int log_level = PR_INFO;
+static int log_level = PR_WARN;
 
 #define PR_LOGGER_STDIO         0
 #define PR_LOGGER_SYSLOG        1
@@ -133,11 +135,13 @@ extern void pr_logger_init(int flags);
 					##__VA_ARGS__);			\
 	} while (0)
 
-#define pr_debug(f, ...)	\
+#define pr_debug(f, ...) \
 	pr_log(PR_DEBUG, PRDEBUG f, ##__VA_ARGS__)
-#define pr_info(f, ...)	\
+#define pr_info(f, ...) \
 	pr_log(PR_INFO, PRINF f, ##__VA_ARGS__)
-#define pr_err(f, ...)	\
+#define pr_warn(f, ...) \
+	pr_log(PR_WARN, PRWARN f, ##__VA_ARGS__)
+#define pr_err(f, ...) \
 	pr_log(PR_ERROR, PRERR f, ##__VA_ARGS__)
 
 //---------------------------------------------------------------//
