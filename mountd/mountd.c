@@ -235,7 +235,7 @@ static int wait_group_kill(int signo)
 	int status;
 
 	if (kill(worker_pid, signo) != 0)
-		pr_err("can't execute kill %d: %s\n",
+		pr_warn("can't execute kill %d: %s\n",
 			worker_pid,
 			strerr(errno));
 
@@ -294,7 +294,7 @@ static int parse_configs(char *pwddb, char *smbconf)
 
 	ret = cp_parse_pwddb(pwddb);
 	if (ret == -ENOENT) {
-		pr_err("User database file does not exist. %s\n",
+		pr_warn("User database file does not exist. %s\n",
 			"Only guest sessions (if permitted) will work.");
 	} else if (ret) {
 		pr_err("Unable to parse user database\n");
@@ -506,8 +506,7 @@ static int manager_process_init(void)
 			continue;
 		}
 
-		pr_err("WARNING: child process exited abnormally: %d\n",
-				child);
+		pr_warn("child process exited abnormally: %d\n", child);
 		if (child == -1) {
 			pr_err("waitpid() returned error code: %s\n",
 				strerr(errno));

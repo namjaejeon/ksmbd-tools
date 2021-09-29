@@ -311,9 +311,9 @@ static void force_group(struct ksmbd_share *share, char *name)
 	if (grp) {
 		share->force_gid = grp->gr_gid;
 		if (share->force_gid == KSMBD_SHARE_INVALID_GID)
-			pr_err("Invalid force gid: %u\n", share->force_gid);
+			pr_warn("Invalid force gid: %u\n", share->force_gid);
 	} else
-		pr_err("Unable to lookup up /etc/group entry: %s\n", name);
+		pr_warn("Unable to lookup up /etc/group entry: %s\n", name);
 }
 
 static void force_user(struct ksmbd_share *share, char *name)
@@ -331,10 +331,10 @@ static void force_user(struct ksmbd_share *share, char *name)
 			share->force_gid = passwd->pw_gid;
 		if (share->force_uid == KSMBD_SHARE_INVALID_UID ||
 				share->force_gid == KSMBD_SHARE_INVALID_GID)
-			pr_err("Invalid force uid / gid: %u / %u\n",
+			pr_warn("Invalid force uid / gid: %u / %u\n",
 					share->force_uid, share->force_gid);
 	} else {
-		pr_err("Unable to lookup up /etc/passwd entry: %s\n", name);
+		pr_warn("Unable to lookup up /etc/passwd entry: %s\n", name);
 	}
 }
 
@@ -627,7 +627,7 @@ int shm_add_new_share(struct smbconf_group *group)
 	g_rw_lock_writer_lock(&shares_table_lock);
 	if (__shm_lookup_share(share->name)) {
 		g_rw_lock_writer_unlock(&shares_table_lock);
-		pr_info("share exists %s\n", share->name);
+		pr_warn("share exists %s\n", share->name);
 		kill_ksmbd_share(share);
 		return 0;
 	}
@@ -647,7 +647,7 @@ int shm_lookup_users_map(struct ksmbd_share *share,
 	int ret = -ENOENT;
 
 	if (map >= KSMBD_SHARE_USERS_MAX) {
-		pr_err("Invalid users map index: %d\n", map);
+		pr_warn("Invalid users map index: %d\n", map);
 		return 0;
 	}
 

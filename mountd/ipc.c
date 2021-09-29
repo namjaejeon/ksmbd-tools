@@ -31,6 +31,7 @@ struct ksmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 	struct ksmbd_ipc_msg *msg;
 	size_t msg_sz = sz + sizeof(struct ksmbd_ipc_msg) + 1;
 
+	/* FIXME: shouldn't we fail here? */
 	if (msg_sz > KSMBD_IPC_MAX_MESSAGE_SIZE)
 		pr_err("IPC message is too large: %zu\n", msg_sz);
 
@@ -71,7 +72,7 @@ static int parse_reload_configs(const char *pwddb, const char *smbconf)
 	usm_remove_all_users();
 	ret = cp_parse_pwddb(pwddb);
 	if (ret == -ENOENT) {
-		pr_err("User database file does not exist. %s\n",
+		pr_warn("User database file does not exist. %s\n",
 		       "Only guest sessions (if permitted) will work.");
 	} else if (ret) {
 		pr_err("Unable to parse user database\n");
@@ -108,7 +109,7 @@ static int nlink_msg_cb(struct nl_msg *msg, void *arg)
 	struct genlmsghdr *gnlh = genlmsg_hdr(nlmsg_hdr(msg));
 
 	if (gnlh->version != KSMBD_GENL_VERSION) {
-		pr_err("IPC message version mistamtch: %d\n", gnlh->version);
+		pr_err("IPC message version mismatch: %d\n", gnlh->version);
 		return NL_SKIP;
 	}
 
@@ -124,7 +125,7 @@ static int handle_unsupported_event(struct nl_cache_ops *unused,
 				    struct genl_info *info,
 				    void *arg)
 {
-	pr_err("Unsupported IPC event %d, ignore.\n", cmd->c_id);
+	pr_warn("Unsupported IPC event %d, ignore.\n", cmd->c_id);
 	return NL_SKIP;
 }
 

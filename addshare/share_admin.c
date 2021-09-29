@@ -152,7 +152,7 @@ int command_add_share(char *smbconf, char *name, char *opts)
 	char *new_name = NULL;
 
 	if (g_hash_table_lookup(parser.groups, name)) {
-		pr_err("Share already exists: %s\n", name);
+		pr_warn("Share already exists: %s\n", name);
 		return -EEXIST;
 	}
 
