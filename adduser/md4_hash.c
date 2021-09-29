@@ -19,8 +19,8 @@
 
 #include <stdlib.h>
 #include <memory.h>
-#include <md4_hash.h>
 #include <asm/byteorder.h>
+#include "md4_hash.h"
 
 #define u8 unsigned char
 #define u32 unsigned int

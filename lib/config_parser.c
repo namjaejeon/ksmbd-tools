@@ -12,12 +12,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <config_parser.h>
-#include <ksmbdtools.h>
-#include <management/user.h>
-#include <management/share.h>
+#include "config_parser.h"
+#include "ksmbdtools.h"
+#include "management/user.h"
+#include "management/share.h"
 
 struct smbconf_global global_conf;
 struct smbconf_parser parser;

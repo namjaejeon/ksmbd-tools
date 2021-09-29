@@ -10,13 +10,13 @@
 #include <glib.h>
 #include <pwd.h>
 #include <errno.h>
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <management/user.h>
-#include <rpc.h>
-#include <rpc_lsarpc.h>
-#include <smbacl.h>
-#include <ksmbdtools.h>
+#include "management/user.h"
+#include "rpc.h"
+#include "rpc_lsarpc.h"
+#include "smbacl.h"
+#include "ksmbdtools.h"
 
 #define LSARPC_OPNUM_DS_ROLE_GET_PRIMARY_DOMAIN_INFO	0
 #define LSARPC_OPNUM_OPEN_POLICY2			44

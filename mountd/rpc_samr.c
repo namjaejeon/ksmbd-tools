@@ -9,13 +9,13 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <management/user.h>
-#include <rpc.h>
-#include <rpc_samr.h>
-#include <smbacl.h>
-#include <ksmbdtools.h>
+#include "management/user.h"
+#include "rpc.h"
+#include "rpc_samr.h"
+#include "smbacl.h"
+#include "ksmbdtools.h"
 
 #define SAMR_OPNUM_CONNECT5		64
 #define SAMR_OPNUM_ENUM_DOMAIN		6

@@ -15,14 +15,14 @@
 #include <linux/genetlink.h>
 #include <netlink/genl/mngt.h>
 
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <ksmbdtools.h>
-#include <ipc.h>
-#include <worker.h>
-#include <config_parser.h>
-#include <management/user.h>
-#include <management/share.h>
+#include "ksmbdtools.h"
+#include "ipc.h"
+#include "worker.h"
+#include "config_parser.h"
+#include "management/user.h"
+#include "management/share.h"
 
 static struct nl_sock *sk;
 

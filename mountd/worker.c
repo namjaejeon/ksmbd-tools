@@ -7,17 +7,17 @@
 #include <memory.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <ksmbdtools.h>
-#include <worker.h>
-#include <ipc.h>
-#include <rpc.h>
+#include "ksmbdtools.h"
+#include "worker.h"
+#include "ipc.h"
+#include "rpc.h"
 
-#include <management/user.h>
-#include <management/share.h>
-#include <management/tree_conn.h>
-#include <management/spnego.h>
+#include "management/user.h"
+#include "management/share.h"
+#include "management/tree_conn.h"
+#include "management/spnego.h"
 
 #define MAX_WORKER_THREADS	4
 static GThreadPool *pool;

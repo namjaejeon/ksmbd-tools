@@ -9,13 +9,13 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <management/share.h>
+#include "management/share.h"
 
-#include <rpc.h>
-#include <rpc_wkssvc.h>
-#include <ksmbdtools.h>
+#include "rpc.h"
+#include "rpc_wkssvc.h"
+#include "ksmbdtools.h"
 
 #define WKSSVC_NETWKSTA_GET_INFO	(0)
 

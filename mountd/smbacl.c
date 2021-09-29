@@ -6,8 +6,8 @@
  *   Author(s): Namjae Jeon (linkinjeon@kernel.org)
  */
 
-#include <smbacl.h>
-#include <ksmbdtools.h>
+#include "smbacl.h"
+#include "ksmbdtools.h"
 #include <glib.h>
 #include <glib/gprintf.h>
 

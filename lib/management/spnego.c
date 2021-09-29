@@ -19,9 +19,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <linux/ksmbd_server.h>
-#include <management/spnego.h>
-#include <asn1.h>
+#include "linux/ksmbd_server.h"
+#include "management/spnego.h"
+#include "asn1.h"
 #include "spnego_mech.h"
 
 static struct spnego_mech_ctx mech_ctxs[SPNEGO_MAX_MECHS];

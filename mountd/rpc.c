@@ -9,14 +9,14 @@
 #include <endian.h>
 #include <glib.h>
 #include <errno.h>
-#include <linux/ksmbd_server.h>
+#include "linux/ksmbd_server.h"
 
-#include <rpc.h>
-#include <rpc_srvsvc.h>
-#include <rpc_wkssvc.h>
-#include <rpc_samr.h>
-#include <rpc_lsarpc.h>
-#include <ksmbdtools.h>
+#include "rpc.h"
+#include "rpc_srvsvc.h"
+#include "rpc_wkssvc.h"
+#include "rpc_samr.h"
+#include "rpc_lsarpc.h"
+#include "ksmbdtools.h"
 
 static GHashTable	*pipes_table;
 static GRWLock		pipes_table_lock;
