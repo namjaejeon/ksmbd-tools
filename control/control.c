@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
-	set_logger_app_name("ksmbd.control");
+	set_logger_app_name("ksmbd-control");
 
 	if (getuid() != 0) {
 		pr_err("Please try running as root.\n");
