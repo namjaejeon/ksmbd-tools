@@ -59,7 +59,7 @@ static int ksmbd_control_shutdown(void)
 	if (ret != 4)
 		pr_err("failed to send shutdown to ksmbd module\n");
 
-	return ret;
+	return ret != 4;
 }
 
 static void ksmbd_control_show_version(void)
@@ -107,7 +107,7 @@ out:
 		pr_info("%s\n", buf);
 
 	close(fd);
-	return ret;
+	return ret > 0 ? 0 : ret;
 }
 
 int main(int argc, char *argv[])
