@@ -13,6 +13,8 @@ Install preprequisite packages:
 	For CentOS:
 	sudo yum install glib2-devel libnl3-devel
 
+ksmbd-tools.spec should serve as a base template for RPM packagers.
+
 Build steps:
         - cd into the ksmbd-tools directory
         - ./autogen.sh
