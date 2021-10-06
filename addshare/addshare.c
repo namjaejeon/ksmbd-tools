@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	char *smbconf = PATH_SMBCONF;
 	int c, cmd = 0;
 
-	set_logger_app_name("smbshareadd");
+	set_logger_app_name("ksmbd.addshare");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:a:d:u:p:o:Vvh")) != EOF)

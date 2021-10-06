@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 	char *pwddb = PATH_PWDDB;
 	int c, cmd = 0;
 
-	set_logger_app_name("smbuseradd");
+	set_logger_app_name("ksmbd.adduser");
 
 	opterr = 0;
 	while ((c = getopt(argc, argv, "c:i:a:d:u:p:Vvh")) != EOF)

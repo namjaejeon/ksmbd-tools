@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
 	int systemd_service = 0;
 	int c;
 
-	set_logger_app_name("ksmbd-manager");
+	set_logger_app_name("ksmbd.mountd");
 	memset(&global_conf, 0x00, sizeof(struct smbconf_global));
 	global_conf.pwddb = PATH_PWDDB;
 	global_conf.smbconf = PATH_SMBCONF;
