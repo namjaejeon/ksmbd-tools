@@ -6,4 +6,8 @@ SUBDIRS = lib mountd adduser addshare control
 
 # other stuff
 EXTRA_DIST =			\
-	include
+	include			\
+	Documentation		\
+	smb.conf.example	\
+	ksmbd-tools.spec	\
+	ksmbd.service
