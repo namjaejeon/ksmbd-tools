@@ -90,7 +90,7 @@ static int sanity_check_share_name_simple(char *name)
 	if (!cp_key_cmp(name, "global"))
 		return -EINVAL;
 
-	return -EINVAL;
+	return 0;
 }
 
 int main(int argc, char *argv[])
