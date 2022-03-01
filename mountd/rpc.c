@@ -294,9 +294,9 @@ static __u8 noop_int8(__u8 v)
 #define NDR_WRITE_INT(name, type, be, le)				\
 int ndr_write_##name(struct ksmbd_dcerpc *dce, type value)		\
 {									\
+	align_offset(dce, sizeof(type));				\
 	if (try_realloc_payload(dce, sizeof(value)))			\
 		return -ENOMEM;						\
-	align_offset(dce, sizeof(type));				\
 	if (dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN)			\
 		*(type *)PAYLOAD_HEAD(dce) = le(value);			\
 	else								\
@@ -377,10 +377,10 @@ NDR_READ_UNION(int32, __u32);
 
 int ndr_write_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz)
 {
+	align_offset(dce, 2);
 	if (try_realloc_payload(dce, sizeof(short)))
 		return -ENOMEM;
 
-	align_offset(dce, 2);
 	memcpy(PAYLOAD_HEAD(dce), value, sz);
 	dce->offset += sz;
 	return 0;
