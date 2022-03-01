@@ -30,16 +30,20 @@ static const struct smb_sid sid_unix_groups = { 1, 1, {0, 0, 0, 0, 0, 22},
 static const struct smb_sid sid_local_group = {
 	1, 1, {0, 0, 0, 0, 0, 5}, {32} };
 
-void smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid)
+int smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid)
 {
 	int i;
 
-	sid->revision = ndr_read_int8(dce);
-	sid->num_subauth = ndr_read_int8(dce);
+	if (ndr_read_int8(dce, &sid->revision))
+		return -EINVAL;
+	if (ndr_read_int8(dce, &sid->num_subauth))
+		return -EINVAL;
 	for (i = 0; i < NUM_AUTHS; ++i)
-		sid->authority[i] = ndr_read_int8(dce);
+		if (ndr_read_int8(dce, &sid->authority[i]))
+			return -EINVAL;
 	for (i = 0; i < sid->num_subauth; ++i)
-		sid->sub_auth[i] = ndr_read_int32(dce);
+		if (ndr_read_int32(dce, &sid->sub_auth[i]))
+			return -EINVAL;
 }
 
 void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src)

@@ -311,17 +311,22 @@ NDR_WRITE_INT(int32, __u32, htobe32, htole32);
 NDR_WRITE_INT(int64, __u64, htobe64, htole64);
 
 #define NDR_READ_INT(name, type, be, le)				\
-type ndr_read_##name(struct ksmbd_dcerpc *dce)				\
+int ndr_read_##name(struct ksmbd_dcerpc *dce, type *value)		\
 {									\
 	type ret;							\
 									\
 	align_offset(dce, sizeof(type));				\
+	if (dce->offset + sizeof(type) > dce->payload_sz)		\
+		return -EINVAL;						\
+									\
 	if (dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN)			\
 		ret = le(*(type *)PAYLOAD_HEAD(dce));			\
 	else								\
 		ret = be(*(type *)PAYLOAD_HEAD(dce));			\
 	dce->offset += sizeof(type);					\
-	return ret;							\
+	if (value)							\
+		*value = ret;						\
+	return 0;							\
 }
 
 NDR_READ_INT(int8,  __u8, betoh_n, letoh_n);
@@ -350,15 +355,22 @@ NDR_WRITE_UNION(int16, __u16);
 NDR_WRITE_UNION(int32, __u32);
 
 #define NDR_READ_UNION(name, type)					\
-type ndr_read_union_##name(struct ksmbd_dcerpc *dce)			\
+int ndr_read_union_##name(struct ksmbd_dcerpc *dce, type *value)	\
 {									\
-	type ret = ndr_read_##name(dce);				\
-	if (ndr_read_##name(dce) != ret) {				\
+	type val1, val2;						\
+									\
+	if (ndr_read_##name(dce, &val1))				\
+		return -EINVAL;						\
+	if (ndr_read_##name(dce, &val2))				\
+		return -EINVAL;						\
+	if (val1 != val2) {						\
 		pr_err("NDR: union representation mismatch %lu\n",	\
-				(unsigned long)ret);			\
-		ret = -EINVAL;						\
+				(unsigned long)val1);			\
+		return -EINVAL;						\
 	}								\
-	return ret;							\
+	if (value)							\
+		*value = val1;						\
+	return 0;							\
 }
 
 NDR_READ_UNION(int32, __u32);
@@ -377,6 +389,8 @@ int ndr_write_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz)
 int ndr_read_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz)
 {
 	align_offset(dce, 2);
+	if (dce->offset + sz > dce->payload_sz)
+		return -EINVAL;
 	memcpy(value, PAYLOAD_HEAD(dce), sz);
 	dce->offset += sz;
 	return 0;
@@ -503,12 +517,16 @@ char *ndr_read_vstring(struct ksmbd_dcerpc *dce)
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
 
-	size_t raw_len;
+	int raw_len;
 	int charset = KSMBD_CHARSET_UTF16LE;
 
-	raw_len = ndr_read_int32(dce);
-	ndr_read_int32(dce); /* read in offset */
-	ndr_read_int32(dce);
+	if (ndr_read_int32(dce, &raw_len))
+		return NULL;
+	/* read in offset */
+	if (ndr_read_int32(dce, NULL))
+		return NULL;
+	if (ndr_read_int32(dce, NULL))
+		return NULL;
 
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
@@ -520,6 +538,9 @@ char *ndr_read_vstring(struct ksmbd_dcerpc *dce)
 		out = strdup("");
 		return out;
 	}
+
+	if (dce->offset + 2 * raw_len > dce->payload_sz)
+		return NULL;
 
 	out = ksmbd_gconvert(PAYLOAD_HEAD(dce),
 			     raw_len * 2,
@@ -535,20 +556,28 @@ char *ndr_read_vstring(struct ksmbd_dcerpc *dce)
 	return out;
 }
 
-void ndr_read_vstring_ptr(struct ksmbd_dcerpc *dce, struct ndr_char_ptr *ctr)
+int ndr_read_vstring_ptr(struct ksmbd_dcerpc *dce, struct ndr_char_ptr *ctr)
 {
 	ctr->ptr = ndr_read_vstring(dce);
+	if (!ctr->ptr)
+		return -EINVAL;
+	return 0;
 }
 
-void ndr_read_uniq_vstring_ptr(struct ksmbd_dcerpc *dce,
+int ndr_read_uniq_vstring_ptr(struct ksmbd_dcerpc *dce,
 			      struct ndr_uniq_char_ptr *ctr)
 {
-	ctr->ref_id = ndr_read_int32(dce);
+	if (ndr_read_int32(dce, &ctr->ref_id))
+		return -EINVAL;
+
 	if (ctr->ref_id == 0) {
-		ctr->ptr = 0;
-		return;
+		ctr->ptr = NULL;
+		return 0;
 	}
 	ctr->ptr = ndr_read_vstring(dce);
+	if (!ctr->ptr)
+		return -EINVAL;
+	return 0;
 }
 
 void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr)
@@ -564,19 +593,24 @@ void ndr_free_uniq_vstring_ptr(struct ndr_uniq_char_ptr *ctr)
 	ctr->ptr = NULL;
 }
 
-void ndr_read_ptr(struct ksmbd_dcerpc *dce, struct ndr_ptr *ctr)
+int ndr_read_ptr(struct ksmbd_dcerpc *dce, struct ndr_ptr *ctr)
 {
-	ctr->ptr = ndr_read_int32(dce);
+	if (ndr_read_int32(dce, &ctr->ptr))
+		return -EINVAL;
+	return 0;
 }
 
-void ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr)
+int ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr)
 {
-	ctr->ref_id = ndr_read_int32(dce);
+	if (ndr_read_int32(dce, &ctr->ref_id))
+		return -EINVAL;
 	if (ctr->ref_id == 0) {
 		ctr->ptr = 0;
-		return;
+		return 0;
 	}
-	ctr->ptr = ndr_read_int32(dce);
+	if (ndr_read_int32(dce, &ctr->ptr))
+		return -EINVAL;
+	return 0;
 }
 
 static int __max_entries(struct ksmbd_dcerpc *dce, struct ksmbd_rpc_pipe *pipe)
@@ -731,10 +765,14 @@ static int dcerpc_hdr_read(struct ksmbd_dcerpc *dce,
 {
 	/* Common Type Header for the Serialization Stream */
 
-	hdr->rpc_vers = ndr_read_int8(dce);
-	hdr->rpc_vers_minor = ndr_read_int8(dce);
-	hdr->ptype = ndr_read_int8(dce);
-	hdr->pfc_flags = ndr_read_int8(dce);
+	if (ndr_read_int8(dce, &hdr->rpc_vers))
+		return -EINVAL;
+	if (ndr_read_int8(dce, &hdr->rpc_vers_minor))
+		return -EINVAL;
+	if (ndr_read_int8(dce, &hdr->ptype))
+		return -EINVAL;
+	if (ndr_read_int8(dce, &hdr->pfc_flags))
+		return -EINVAL;
 	/*
 	 * This common type header MUST be presented by using
 	 * little-endian format in the octet stream. The first
@@ -746,16 +784,20 @@ static int dcerpc_hdr_read(struct ksmbd_dcerpc *dce,
 	 * MUST use the IEEE floating-point format representation and
 	 * ASCII character format.
 	 */
-	ndr_read_bytes(dce, &hdr->packed_drep, sizeof(hdr->packed_drep));
+	if (ndr_read_bytes(dce, &hdr->packed_drep, sizeof(hdr->packed_drep)))
+		return -EINVAL;
 
 	dce->flags |= KSMBD_DCERPC_ALIGN4;
 	dce->flags |= KSMBD_DCERPC_LITTLE_ENDIAN;
 	if (hdr->packed_drep[0] != DCERPC_SERIALIZATION_LITTLE_ENDIAN)
 		dce->flags &= ~KSMBD_DCERPC_LITTLE_ENDIAN;
 
-	hdr->frag_length = ndr_read_int16(dce);
-	hdr->auth_length = ndr_read_int16(dce);
-	hdr->call_id = ndr_read_int32(dce);
+	if (ndr_read_int16(dce, &hdr->frag_length))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &hdr->auth_length))
+		return -EINVAL;
+	if (ndr_read_int32(dce, &hdr->call_id))
+		return -EINVAL;
 	return 0;
 }
 
@@ -772,9 +814,12 @@ static int dcerpc_response_hdr_write(struct ksmbd_dcerpc *dce,
 static int dcerpc_request_hdr_read(struct ksmbd_dcerpc *dce,
 				   struct dcerpc_request_header *hdr)
 {
-	hdr->alloc_hint = ndr_read_int32(dce);
-	hdr->context_id = ndr_read_int16(dce);
-	hdr->opnum = ndr_read_int16(dce);
+	if (ndr_read_int32(dce, &hdr->alloc_hint))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &hdr->context_id))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &hdr->opnum))
+		return -EINVAL;
 	return 0;
 }
 
@@ -805,13 +850,21 @@ int dcerpc_write_headers(struct ksmbd_dcerpc *dce, int method_status)
 static int __dcerpc_read_syntax(struct ksmbd_dcerpc *dce,
 				struct dcerpc_syntax *syn)
 {
-	syn->uuid.time_low = ndr_read_int32(dce);
-	syn->uuid.time_mid = ndr_read_int16(dce);
-	syn->uuid.time_hi_and_version = ndr_read_int16(dce);
-	ndr_read_bytes(dce, syn->uuid.clock_seq, sizeof(syn->uuid.clock_seq));
-	ndr_read_bytes(dce, syn->uuid.node, sizeof(syn->uuid.node));
-	syn->ver_major = ndr_read_int16(dce);
-	syn->ver_minor = ndr_read_int16(dce);
+	if (ndr_read_int32(dce, &syn->uuid.time_low))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &syn->uuid.time_mid))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &syn->uuid.time_hi_and_version))
+		return -EINVAL;
+	if (ndr_read_bytes(dce, syn->uuid.clock_seq,
+			   sizeof(syn->uuid.clock_seq)))
+		return -EINVAL;
+	if (ndr_read_bytes(dce, syn->uuid.node, sizeof(syn->uuid.node)))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &syn->ver_major))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &syn->ver_minor))
+		return -EINVAL;
 	return 0;
 }
 
@@ -843,13 +896,18 @@ static int dcerpc_parse_bind_req(struct ksmbd_dcerpc *dce,
 				 struct dcerpc_bind_request *hdr)
 {
 	int i, j;
+	int ret = -EINVAL;
 
 	hdr->flags = dce->rpc_req->flags;
-	hdr->max_xmit_frag_sz = ndr_read_int16(dce);
-	hdr->max_recv_frag_sz = ndr_read_int16(dce);
-	hdr->assoc_group_id = ndr_read_int32(dce);
+	if (ndr_read_int16(dce, &hdr->max_xmit_frag_sz))
+		return -EINVAL;
+	if (ndr_read_int16(dce, &hdr->max_recv_frag_sz))
+		return -EINVAL;
+	if (ndr_read_int32(dce, &hdr->assoc_group_id))
+		return -EINVAL;
+	if (ndr_read_int8(dce, &hdr->num_contexts))
+		return -EINVAL;
 	hdr->list = NULL;
-	hdr->num_contexts = ndr_read_int8(dce);
 	auto_align_offset(dce);
 
 	if (!hdr->num_contexts)
@@ -862,24 +920,32 @@ static int dcerpc_parse_bind_req(struct ksmbd_dcerpc *dce,
 	for (i = 0; i < hdr->num_contexts; i++) {
 		struct dcerpc_context *ctx = &hdr->list[i];
 
-		ctx->id = ndr_read_int16(dce);
-		ctx->num_syntaxes = ndr_read_int8(dce);
+		if (ndr_read_int16(dce, &ctx->id))
+			goto fail;
+		if (ndr_read_int8(dce, &ctx->num_syntaxes))
+			goto fail;
 		if (!ctx->num_syntaxes) {
 			pr_err("BIND: zero syntaxes provided\n");
-			return -EINVAL;
+			goto fail;
 		}
 
 		__dcerpc_read_syntax(dce, &ctx->abstract_syntax);
 
 		ctx->transfer_syntaxes = calloc(ctx->num_syntaxes,
 						sizeof(struct dcerpc_syntax));
-		if (!ctx->transfer_syntaxes)
-			return -ENOMEM;
+		if (!ctx->transfer_syntaxes) {
+			ret = -ENOMEM;
+			goto fail;
+		}
 
 		for (j = 0; j < ctx->num_syntaxes; j++)
 			__dcerpc_read_syntax(dce, &ctx->transfer_syntaxes[j]);
 	}
 	return KSMBD_RPC_OK;
+
+fail:
+	free(hdr->list);
+	return ret;
 }
 
 static int dcerpc_bind_invoke(struct ksmbd_rpc_pipe *pipe)

@@ -141,8 +141,13 @@ static int
 wkssvc_parse_netwksta_info_req(struct ksmbd_dcerpc *dce,
 			       struct wkssvc_netwksta_info_request *hdr)
 {
-	ndr_read_uniq_vstring_ptr(dce, &hdr->server_name);
-	hdr->level = ndr_read_int32(dce);
+	int val;
+
+	if (ndr_read_uniq_vstring_ptr(dce, &hdr->server_name))
+		return -EINVAL;
+	if (ndr_read_int32(dce, &val))
+		return -EINVAL;
+	hdr->level = val;
 	return 0;
 }
 
