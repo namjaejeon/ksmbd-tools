@@ -357,8 +357,10 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 		}
 
 		ni->user = usm_lookup_user(name);
-		if (!ni->user)
+		if (!ni->user) {
+			free(ni);
 			break;
+		}
 		pipe->entries = g_array_append_val(pipe->entries, ni);
 		pipe->num_entries++;
 		smb_init_domain_sid(&ni->sid);
