@@ -84,7 +84,7 @@ static int samr_connect5_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct ndr_uniq_char_ptr server_name;
 
-	ndr_read_uniq_vsting_ptr(dce, &server_name);
+	ndr_read_uniq_vstring_ptr(dce, &server_name);
 	ndr_read_int32(dce); // Access mask
 	dce->sm_req.level = ndr_read_int32(dce); // level in
 	ndr_read_int32(dce); // Info in
@@ -184,7 +184,7 @@ static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE);
 	ndr_read_int16(dce); // name len
 	ndr_read_int16(dce); // name size
-	ndr_read_uniq_vsting_ptr(dce, &dce->sm_req.name); // domain name
+	ndr_read_uniq_vstring_ptr(dce, &dce->sm_req.name); // domain name
 
 	return KSMBD_RPC_OK;
 }
@@ -254,7 +254,7 @@ static int samr_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 	ndr_read_int16(dce); // name len
 	ndr_read_int16(dce); // name size
 
-	ndr_read_uniq_vsting_ptr(dce, &dce->sm_req.name); // names
+	ndr_read_uniq_vstring_ptr(dce, &dce->sm_req.name); // names
 
 	return KSMBD_RPC_OK;
 }

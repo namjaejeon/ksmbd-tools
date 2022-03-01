@@ -319,10 +319,10 @@ int ndr_write_string(struct ksmbd_dcerpc *dce, char *str);
 int ndr_write_lsa_string(struct ksmbd_dcerpc *dce, char *str);
 char *ndr_read_vstring(struct ksmbd_dcerpc *dce);
 void ndr_read_vstring_ptr(struct ksmbd_dcerpc *dce, struct ndr_char_ptr *ctr);
-void ndr_read_uniq_vsting_ptr(struct ksmbd_dcerpc *dce,
+void ndr_read_uniq_vstring_ptr(struct ksmbd_dcerpc *dce,
 			      struct ndr_uniq_char_ptr *ctr);
 void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr);
-void ndr_free_uniq_vsting_ptr(struct ndr_uniq_char_ptr *ctr);
+void ndr_free_uniq_vstring_ptr(struct ndr_uniq_char_ptr *ctr);
 void ndr_read_ptr(struct ksmbd_dcerpc *dce, struct ndr_ptr *ctr);
 void ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
 int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr);

@@ -272,7 +272,7 @@ static int srvsvc_share_get_info_return(struct ksmbd_rpc_pipe *pipe)
 static int srvsvc_parse_share_info_req(struct ksmbd_dcerpc *dce,
 				       struct srvsvc_share_info_request *hdr)
 {
-	ndr_read_uniq_vsting_ptr(dce, &hdr->server_name);
+	ndr_read_uniq_vstring_ptr(dce, &hdr->server_name);
 
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_SHARE_ENUM_ALL) {
 		int ptr;
@@ -330,7 +330,7 @@ static int srvsvc_clear_headers(struct ksmbd_rpc_pipe *pipe,
 	if (status == KSMBD_RPC_EMORE_DATA)
 		return 0;
 
-	ndr_free_uniq_vsting_ptr(&pipe->dce->si_req.server_name);
+	ndr_free_uniq_vstring_ptr(&pipe->dce->si_req.server_name);
 	if (pipe->dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
 		ndr_free_vstring_ptr(&pipe->dce->si_req.share_name);
 

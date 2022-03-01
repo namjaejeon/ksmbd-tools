@@ -540,7 +540,7 @@ void ndr_read_vstring_ptr(struct ksmbd_dcerpc *dce, struct ndr_char_ptr *ctr)
 	ctr->ptr = ndr_read_vstring(dce);
 }
 
-void ndr_read_uniq_vsting_ptr(struct ksmbd_dcerpc *dce,
+void ndr_read_uniq_vstring_ptr(struct ksmbd_dcerpc *dce,
 			      struct ndr_uniq_char_ptr *ctr)
 {
 	ctr->ref_id = ndr_read_int32(dce);
@@ -557,7 +557,7 @@ void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr)
 	ctr->ptr = NULL;
 }
 
-void ndr_free_uniq_vsting_ptr(struct ndr_uniq_char_ptr *ctr)
+void ndr_free_uniq_vstring_ptr(struct ndr_uniq_char_ptr *ctr)
 {
 	ctr->ref_id = 0;
 	free(ctr->ptr);

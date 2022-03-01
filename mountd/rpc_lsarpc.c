@@ -350,7 +350,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 			break;
 		ndr_read_int16(dce); // length
 		ndr_read_int16(dce); // size
-		ndr_read_uniq_vsting_ptr(dce, &username);
+		ndr_read_uniq_vstring_ptr(dce, &username);
 		if (strstr(STR_VAL(username), "\\")) {
 			strtok(STR_VAL(username), "\\");
 			name = strtok(NULL, "\\");
