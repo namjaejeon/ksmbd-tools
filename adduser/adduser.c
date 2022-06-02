@@ -50,6 +50,17 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static const struct option opts[] = {
+	{"add-user",		required_argument,	NULL,	'a' },
+	{"del-user",		required_argument,	NULL,	'd' },
+	{"update-user",		required_argument,	NULL,	'u' },
+	{"password",		required_argument,	NULL,	'p' },
+	{"import-users",	required_argument,	NULL,	'i' },
+	{"version",		no_argument,		NULL,	'V' },
+	{"verbose",		no_argument,		NULL,	'v' },
+	{NULL,			0,			NULL,	 0  }
+};
+
 static void show_version(void)
 {
 	printf("ksmbd-tools version : %s\n", KSMBD_TOOLS_VERSION);
@@ -102,7 +113,7 @@ int main(int argc, char *argv[])
 	set_logger_app_name("ksmbd.adduser");
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "c:i:a:d:u:p:Vvh")) != EOF)
+	while ((c = getopt_long(argc, argv, "c:i:a:d:u:p:Vvh", opts, NULL)) != EOF)
 		switch (c) {
 		case 'a':
 			arg_account = g_strdup(optarg);

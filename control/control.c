@@ -23,6 +23,14 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static const struct option opts[] = {
+	{"shutdown",		no_argument,		NULL,	's' },
+	{"debug",		required_argument,	NULL,	'd' },
+	{"ksmbd-version",	no_argument,		NULL,	'c' },
+	{"version",		no_argument,		NULL,	'V' },
+	{NULL,			0,			NULL,	 0  }
+};
+
 static void show_version(void)
 {
 	printf("ksmbd-tools version : %s\n", KSMBD_TOOLS_VERSION);
@@ -101,7 +109,7 @@ int main(int argc, char *argv[])
 	}
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "sd:cVh")) != EOF)
+	while ((c = getopt_long(argc, argv, "sd:cVh", opts, NULL)) != EOF)
 		switch (c) {
 		case 's':
 			ret = ksmbd_control_shutdown();
