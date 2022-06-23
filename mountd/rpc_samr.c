@@ -823,5 +823,6 @@ void rpc_samr_destroy(void)
 	g_rw_lock_clear(&ch_table_lock);
 	num_domain_entries = 0;
 	g_free(domain_name);
-	g_array_free(domain_entries, 1);
+	if (domain_entries)
+		g_array_free(domain_entries, 1);
 }
