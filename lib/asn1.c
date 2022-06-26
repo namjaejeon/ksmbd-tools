@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <string.h>
 #include <errno.h>
+#include <glib.h>
 
 #include "asn1.h"
 
