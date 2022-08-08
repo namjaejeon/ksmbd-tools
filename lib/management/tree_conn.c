@@ -73,6 +73,8 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 		set_conn_flag(conn, KSMBD_TREE_CONN_FLAG_WRITABLE);
 	if (test_share_flag(share, KSMBD_SHARE_FLAG_READONLY))
 		set_conn_flag(conn, KSMBD_TREE_CONN_FLAG_READ_ONLY);
+	if (test_share_flag(share, KSMBD_SHARE_FLAG_UPDATE))
+		set_conn_flag(conn, KSMBD_TREE_CONN_FLAG_UPDATE);
 
 	if (shm_open_connection(share)) {
 		resp->status = KSMBD_TREE_CONN_STATUS_TOO_MANY_CONNS;
@@ -207,8 +209,12 @@ bind:
 		tcm_tree_conn_free(conn);
 		put_ksmbd_user(user);
 	}
-	return 0;
 
+	g_rw_lock_writer_lock(&share->update_lock);
+	clear_share_flag(share, KSMBD_SHARE_FLAG_UPDATE);
+	g_rw_lock_writer_unlock(&share->update_lock);
+
+	return 0;
 out_error:
 	tcm_tree_conn_free(conn);
 	shm_close_connection(share);

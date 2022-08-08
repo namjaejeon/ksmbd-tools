@@ -235,6 +235,7 @@ enum KSMBD_TREE_CONN_STATUS {
 #define KSMBD_SHARE_FLAG_STREAMS		(1 << 11)
 #define KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS	(1 << 12)
 #define KSMBD_SHARE_FLAG_ACL_XATTR		(1 << 13)
+#define KSMBD_SHARE_FLAG_UPDATE		(1 << 14)
 
 /*
  * Tree connect request flags.
@@ -250,6 +251,7 @@ enum KSMBD_TREE_CONN_STATUS {
 #define KSMBD_TREE_CONN_FLAG_READ_ONLY		(1 << 1)
 #define KSMBD_TREE_CONN_FLAG_WRITABLE		(1 << 2)
 #define KSMBD_TREE_CONN_FLAG_ADMIN_ACCOUNT	(1 << 3)
+#define KSMBD_TREE_CONN_FLAG_UPDATE		(1 << 4)
 
 /*
  * RPC over IPC.

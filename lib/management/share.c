@@ -605,6 +605,9 @@ static void init_share_from_group(struct ksmbd_share *share,
 	if (!g_ascii_strcasecmp(share->name, "ipc$"))
 		set_share_flag(share, KSMBD_SHARE_FLAG_PIPE);
 
+	if (group->cb_mode == GROUPS_CALLBACK_REINIT)
+		set_share_flag(share, KSMBD_SHARE_FLAG_UPDATE);
+
 	g_hash_table_foreach(group->kv, process_group_kv, share);
 
 	fixup_missing_fields(share);
