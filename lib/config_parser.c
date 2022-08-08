@@ -21,7 +21,7 @@
 
 struct smbconf_global global_conf;
 struct smbconf_parser parser;
-struct smbconf_group *global_group;
+struct smbconf_group *global_group, *ipc_group;
 
 unsigned long long memparse(const char *v)
 {
@@ -107,6 +107,7 @@ static int add_new_group(char *line)
 	}
 
 	group = g_malloc(sizeof(struct smbconf_group));
+	group->cb_mode = GROUPS_CALLBACK_NONE;
 	group->name = name;
 	group->kv = g_hash_table_new_full(g_str_hash,
 					  g_str_equal,
@@ -561,12 +562,32 @@ static void global_conf_default(void)
 
 static void global_conf_create(void)
 {
+	if (!global_group || global_group->cb_mode != GROUPS_CALLBACK_INIT)
+		return;
+
 	/*
 	 * This will transfer server options to global_conf, and leave behind
 	 * in the global parser group, the options that must be applied to every
 	 * share
 	 */
 	g_hash_table_foreach_remove(global_group->kv, global_group_kv, NULL);
+}
+
+static void append_key_value(gpointer _k, gpointer _v, gpointer user_data)
+{
+	GHashTable *receiver = (GHashTable *)user_data;
+
+	/* Don't override local share options */
+	if (!g_hash_table_lookup(receiver, _k))
+		g_hash_table_insert(receiver, g_strdup(_k), g_strdup(_v));
+}
+
+static void global_conf_update(struct smbconf_group *group)
+{
+	if (!global_group)
+		return;
+
+	g_hash_table_foreach(global_group->kv, append_key_value, group->kv);
 }
 
 static void global_conf_fixup_missing(void)
@@ -607,39 +628,29 @@ static void global_conf_fixup_missing(void)
 			ret);
 }
 
-static void append_key_value(gpointer _k, gpointer _v, gpointer user_data)
-{
-	GHashTable *receiver = (GHashTable *) user_data;
-
-	/* Don't override local share options */
-	if (!g_hash_table_lookup(receiver, _k))
-		g_hash_table_insert(receiver, g_strdup(_k), g_strdup(_v));
-}
-
-#define GROUPS_CALLBACK_STARTUP_INIT	0x1
-#define GROUPS_CALLBACK_REINIT		0x2
-
 static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
 {
 	struct smbconf_group *group = (struct smbconf_group *)_v;
+	unsigned short cb_mode = *(unsigned short *)user_data;
 
-	if (group != global_group) {
-		if (global_group && g_ascii_strcasecmp(_k, "ipc$"))
-			g_hash_table_foreach(global_group->kv,
-					     append_key_value,
-					     group->kv);
+	if (group == global_group)
+		return;
 
-		shm_add_new_share(group);
-	}
+	group->cb_mode = cb_mode;
+
+	if (group != ipc_group)
+		global_conf_update(group);
+
+	shm_add_new_share(group);
 }
 
-static int cp_add_ipc_share(void)
+static int cp_add_ipc_group(void)
 {
 	char *comment = NULL, *guest = NULL;
 	int ret = 0;
 
-	if (g_hash_table_lookup(parser.groups, "ipc$"))
-		return 0;
+	if (ipc_group)
+		return ret;
 
 	comment = g_strdup("comment = IPC share");
 	guest = g_strdup("guest ok = yes");
@@ -649,13 +660,18 @@ static int cp_add_ipc_share(void)
 	if (ret) {
 		pr_err("Unable to add IPC$ share\n");
 		ret = -EINVAL;
+		goto out;
 	}
+
+	ipc_group = g_hash_table_lookup(parser.groups, "ipc$");
+out:
 	g_free(comment);
 	g_free(guest);
 	return ret;
 }
 
-static int __cp_parse_smbconfig(const char *smbconf, GHFunc cb, long flags)
+static int __cp_parse_smbconfig(const char *smbconf, GHFunc cb,
+				unsigned short cb_mode)
 {
 	int ret;
 
@@ -665,35 +681,32 @@ static int __cp_parse_smbconfig(const char *smbconf, GHFunc cb, long flags)
 	if (ret)
 		return ret;
 
-	ret = cp_add_ipc_share();
-	if (!ret) {
-		global_group = g_hash_table_lookup(parser.groups, "global");
+	ret = cp_add_ipc_group();
+	if (ret)
+		goto out;
 
-		if (global_group && (flags == GROUPS_CALLBACK_STARTUP_INIT))
-			global_conf_create();
+	global_group = g_hash_table_lookup(parser.groups, "global");
+	if (global_group)
+		global_group->cb_mode = cb_mode;
 
-		g_hash_table_foreach(parser.groups,
-				     groups_callback,
-				     NULL);
-
-		global_conf_fixup_missing();
-	}
+	global_conf_create();
+	g_hash_table_foreach(parser.groups, groups_callback, &cb_mode);
+	global_conf_fixup_missing();
+out:
 	cp_smbconfig_destroy();
 	return ret;
 }
 
 int cp_parse_reload_smbconf(const char *smbconf)
 {
-	return __cp_parse_smbconfig(smbconf,
-				    groups_callback,
+	return __cp_parse_smbconfig(smbconf, groups_callback,
 				    GROUPS_CALLBACK_REINIT);
 }
 
 int cp_parse_smbconf(const char *smbconf)
 {
-	return __cp_parse_smbconfig(smbconf,
-				    groups_callback,
-				    GROUPS_CALLBACK_STARTUP_INIT);
+	return __cp_parse_smbconfig(smbconf, groups_callback,
+				    GROUPS_CALLBACK_INIT);
 }
 
 int cp_parse_pwddb(const char *pwddb)

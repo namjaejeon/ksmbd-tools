@@ -10,7 +10,12 @@
 
 #include <glib.h>
 
+#define GROUPS_CALLBACK_NONE	(0)
+#define GROUPS_CALLBACK_INIT	(1 << 0)
+#define GROUPS_CALLBACK_REINIT	(1 << 1)
+
 struct smbconf_group {
+	unsigned short		cb_mode;
 	char			*name;
 	GHashTable		*kv;
 };
