@@ -12,10 +12,7 @@ merged to mainline in the Linux 5.15 release.
 
 - [Building and Installing](#building-and-installing)
 - [Example Usage](#example-usage)
-
-## Prebuilt binaries
-
-You can find them at https://repology.org/project/ksmbd-tools/versions
+- [Prebuilt binaries](#prebuilt-binaries)
 
 ## Building and Installing
 
@@ -182,3 +179,7 @@ sudo ksmbd.control --shutdown
 # remove the kernel module
 sudo modprobe -r ksmbd
 ```
+
+## Prebuilt binaries
+
+You can find them at https://repology.org/project/ksmbd-tools/versions
