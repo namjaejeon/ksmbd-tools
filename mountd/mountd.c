@@ -41,7 +41,7 @@ typedef int (*worker_fn)(void);
 static void usage(int status)
 {
 	g_printerr(
-		"Usage: ksmbd.mountd [-p NUMBER] [-c SMBCONF] [-u PWDDB] [-n[WAY]] [-v]\n"
+		"Usage: ksmbd.mountd [-v] [-p NUMBER] [-c SMBCONF] [-u PWDDB] [-n[WAY]]\n"
 		"       ksmbd.mountd {-V | -h}\n");
 
 	if (status != EXIT_SUCCESS)

@@ -37,8 +37,8 @@ enum {
 static void usage(int status)
 {
 	g_printerr(
-		"Usage: ksmbd.adduser {-a USER | -u USER} [-p PWD] [-i PWDDB] [-c SMBCONF] [-v]\n"
-		"       ksmbd.adduser {-d USER} [-i PWDDB] [-c SMBCONF] [-v]\n"
+		"Usage: ksmbd.adduser [-v] {-a USER | -u USER} [-p PWD] [-i PWDDB] [-c SMBCONF]\n"
+		"       ksmbd.adduser [-v] {-d USER} [-i PWDDB] [-c SMBCONF]\n"
 		"       ksmbd.adduser {-V | -h}\n");
 
 	if (status != EXIT_SUCCESS)

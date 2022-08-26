@@ -38,8 +38,8 @@ static void usage(int status)
 	int i;
 
 	g_printerr(
-		"Usage: ksmbd.addshare {-a SHARE | -u SHARE} {-o OPTIONS} [-c SMBCONF] [-v]\n"
-		"       ksmbd.addshare {-d SHARE} [-c SMBCONF] [-v]\n"
+		"Usage: ksmbd.addshare [-v] {-a SHARE | -u SHARE} {-o OPTIONS} [-c SMBCONF]\n"
+		"       ksmbd.addshare [-v] {-d SHARE} [-c SMBCONF]\n"
 		"       ksmbd.addshare {-V | -h}\n");
 
 	if (status != EXIT_SUCCESS)

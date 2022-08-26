@@ -15,7 +15,7 @@
 static void usage(int status)
 {
 	g_printerr(
-		"Usage: ksmbd.control {-s | -r | -d COMPONENT | -c} [-v]\n"
+		"Usage: ksmbd.control [-v] {-s | -r | -d COMPONENT | -c}\n"
 		"       ksmbd.control {-V | -h}\n");
 
 	if (status != EXIT_SUCCESS)
