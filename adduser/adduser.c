@@ -50,8 +50,7 @@ static void usage(int status)
 			"Mandatory arguments to long options are mandatory for short options too.\n"
 			"  -a, --add-user=USER         add USER to user database;\n"
 			"                              USER is 1 to " STR(KSMBD_REQ_MAX_ACCOUNT_NAME_SZ) " characters;\n"
-			"                              USER cannot contain `:' or newline;\n"
-			"                              USER cannot be `root'\n"
+			"                              USER cannot contain `:' or newline\n"
 			"  -d, --del-user=USER         delete USER from user database\n"
 			"  -u, --update-user=USER      update USER in user database\n"
 			"  -p, --password=PWD          provide PWD for user;\n"
@@ -125,10 +124,6 @@ static int sanity_check_user_name_simple(char *uname)
 	if (sz < 1)
 		return -EINVAL;
 	if (sz >= KSMBD_REQ_MAX_ACCOUNT_NAME_SZ)
-		return -EINVAL;
-
-	/* 1'; Drop table users -- */
-	if (!strcmp(uname, "root"))
 		return -EINVAL;
 
 	if (strpbrk(uname, ":\n"))
