@@ -592,8 +592,6 @@ static void global_conf_update(struct smbconf_group *group)
 
 static void global_conf_fixup_missing(void)
 {
-	int ret;
-
 	/*
 	 * Set default global parameters which were not specified
 	 * in smb.conf
@@ -616,16 +614,9 @@ static void global_conf_fixup_missing(void)
 	if (global_conf.sessions_cap <= 0)
 		global_conf.sessions_cap = KSMBD_CONF_DEFAULT_SESS_CAP;
 
-	if (global_conf.guest_account)
-		return;
-
-	ret = cp_add_global_guest_account(KSMBD_CONF_DEFAULT_GUEST_ACCOUNT);
-	if (!ret)
-		return;
-	ret = cp_add_global_guest_account(KSMBD_CONF_FALLBACK_GUEST_ACCOUNT);
-	if (ret)
-		pr_err("Fatal error: Cannot set a global guest account %d\n",
-			ret);
+	if (!global_conf.guest_account &&
+	    cp_add_global_guest_account(KSMBD_CONF_DEFAULT_GUEST_ACCOUNT))
+		pr_err("Unable to add guest account\n");
 }
 
 static void groups_callback(gpointer _k, gpointer _v, gpointer user_data)
