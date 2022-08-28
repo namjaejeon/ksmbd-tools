@@ -14,3 +14,10 @@ control = executable(
     '-DRUNSTATEDIR="@0@"'.format(runstatedir),
   ],
 )
+
+configure_file(
+  input: 'ksmbd.control.1.in',
+  output: 'ksmbd.control.1',
+  install_dir: get_option('mandir') / 'man1',
+  configuration: in_data,
+)

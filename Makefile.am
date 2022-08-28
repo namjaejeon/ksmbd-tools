@@ -4,20 +4,19 @@ SUBDIRS = lib mountd adduser addshare control
 
 EXTRA_DIST = include \
              README.md \
-             Documentation \
              ksmbd-tools.spec \
+             smb.conf.5ksmbd.in \
+             ksmbdpwd.db.5.in \
              ksmbd.service.in
 
 pkgsysconfdir = $(sysconfdir)/ksmbd
 dist_pkgsysconf_DATA = smb.conf.example
 
+man_MANS = smb.conf.5ksmbd ksmbdpwd.db.5
 systemdsystemunit_DATA = ksmbd.service
-$(systemdsystemunit_DATA): %: %.in
-	@$(SED) -e 's,[@]sbindir[@],$(sbindir),g' \
-	        -e 's,[@]runstatedir[@],$(runstatedir),g' \
-	        $< >$@
+$(man_MANS) $(systemdsystemunit_DATA): %: %.in; @$(in_script) $< >$@
 
-CLEANFILES = $(systemdsystemunit_DATA)
+CLEANFILES = $(man_MANS) $(systemdsystemunit_DATA)
 
 AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--with-systemdsystemunitdir=$${dc_install_base}/$(systemdsystemunitdir)

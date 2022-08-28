@@ -16,3 +16,10 @@ addshare = executable(
     '-DRUNSTATEDIR="@0@"'.format(runstatedir),
   ],
 )
+
+configure_file(
+  input: 'ksmbd.addshare.1.in',
+  output: 'ksmbd.addshare.1',
+  install_dir: get_option('mandir') / 'man1',
+  configuration: in_data,
+)

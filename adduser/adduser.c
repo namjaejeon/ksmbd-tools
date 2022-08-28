@@ -45,29 +45,26 @@ static void usage(int status)
 		g_printerr("Try `ksmbd.adduser --help' for more information.\n");
 	else
 		g_printerr(
-			"Configure users for user database of ksmbd.mountd user mode daemon.\n"
 			"\n"
-			"Mandatory arguments to long options are mandatory for short options too.\n"
 			"  -a, --add-user=USER         add USER to user database;\n"
-			"                              USER is 1 to " STR(KSMBD_REQ_MAX_ACCOUNT_NAME_SZ) " characters;\n"
-			"                              USER cannot contain `:' or newline\n"
+			"                              USER is 1 to " STR(KSMBD_REQ_MAX_ACCOUNT_NAME_SZ) " ASCII characters;\n"
+			"                              USER cannot contain colon (`:') or newline\n"
 			"  -d, --del-user=USER         delete USER from user database\n"
 			"  -u, --update-user=USER      update USER in user database\n"
-			"  -p, --password=PWD          provide PWD for user;\n"
-			"                              PWD is 0 to " STR(MAX_NT_PWD_LEN) " characters;\n"
+			"  -p, --password=PWD          use PWD as user password instead of prompting;\n"
+			"                              PWD is assumed to be UTF-8 encoded;\n"
+			"                              PWD is 0 to " STR(MAX_NT_PWD_LEN) " bytes;\n"
 			"                              PWD cannot contain newline\n"
 			"  -i, --import-users=PWDDB    use PWDDB as user database instead of\n"
-			"                              `" PATH_PWDDB "';\n"
+			"                              `" PATH_PWDDB "'\n"
 			"                              this option does nothing by itself\n"
-			"  -c, --config=SMBCONF        use SMBCONF as config file instead of\n"
+			"  -c, --config=SMBCONF        use SMBCONF as configuration file instead of\n"
 			"                              `" PATH_SMBCONF "'\n"
 			"  -v, --verbose               be verbose\n"
 			"  -V, --version               output version information and exit\n"
 			"  -h, --help                  display this help and exit\n"
 			"\n"
-			"ksmbd.adduser notifies ksmbd.mountd of any made changes.\n"
-			"\n"
-			"ksmbd-tools home page: <https://github.com/cifsd-team/ksmbd-tools>\n");
+			"See ksmbd.adduser(1), ksmbdpwd.db(5), and smb.conf(5ksmbd) for more details.\n");
 }
 
 static const struct option opts[] = {

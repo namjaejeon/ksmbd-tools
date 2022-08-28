@@ -7,3 +7,10 @@ sbin_PROGRAMS = ksmbd.adduser
 
 ksmbd_adduser_SOURCES = md4_hash.c user_admin.c adduser.c md4_hash.h \
                         user_admin.h
+
+EXTRA_DIST = ksmbd.adduser.1.in
+
+man_MANS = ksmbd.adduser.1
+$(man_MANS): %: %.in; @$(in_script) $< >$@
+
+CLEANFILES = $(man_MANS)

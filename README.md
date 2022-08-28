@@ -43,9 +43,6 @@ sudo make install
 
 # meson build
 
-git clone https://github.com/cifsd-team/ksmbd-tools.git
-cd ksmbd-tools
-
 mkdir build
 cd build
 meson -Drundir=/run ..
@@ -112,10 +109,10 @@ read only = no
 #         path = /home/tester/MyShare
 #         read only = no
 #
-# the `[global]' section contains options that are not share specific
-# you can set the default options for all shares by adding them to `[global]'
-# `ksmbd.addshare' cannot edit `[global]', so do it with a text editor
-# see `Documentation/configuration.txt' for more details
+# the `[global]' section contains parameters that are not share specific
+# you can set default parameters for all shares by adding them to `[global]'
+# `ksmbd.addshare' cannot edit `[global]' so do it with a text editor
+# see smb.conf(5ksmbd) for more details
 
 # add a user to the default user database
 # you will be prompted for a password
@@ -124,7 +121,7 @@ sudo ksmbd.adduser --add-user=MyUser
 # there is no UNIX user called `MyUser' so it has to be mapped to one
 # we can force all users accessing the share to map to a UNIX user and group
 
-# update the options of a share in the default config file
+# update the parameters of a share in the default config file
 sudo ksmbd.addshare --update-share=MyShare --options="
 force user = $USER
 force group = $USER
@@ -163,11 +160,11 @@ sudo ksmbd.adduser --update-user=MyUser --password=MyNewPassword
 # delete a user from the default user database
 sudo ksmbd.adduser --del-user=MyUser
 
-# utilities notify ksmbd.mountd of changes by sending it the SIGHUP signal
+# the utilities notify ksmbd.mountd of changes by sending it the SIGHUP signal
 # you can do this manually as well when you have e.g. edited the config file
 sudo ksmbd.control --reload
 
-# toggle debug printing of the `all' component
+# toggle ksmbd debug printing of the `all' component
 sudo ksmbd.control --debug=all
 
 # some config file changes require restarting the user and kernel mode daemons

@@ -6,3 +6,10 @@ ksmbd_addshare_LDADD = $(top_builddir)/lib/libksmbdtools.a
 sbin_PROGRAMS = ksmbd.addshare
 
 ksmbd_addshare_SOURCES = share_admin.c addshare.c share_admin.h
+
+EXTRA_DIST = ksmbd.addshare.1.in
+
+man_MANS = ksmbd.addshare.1
+$(man_MANS): %: %.in; @$(in_script) $< >$@
+
+CLEANFILES = $(man_MANS)

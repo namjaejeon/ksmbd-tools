@@ -78,7 +78,7 @@ again:
 	memset(pswd1, 0, MAX_NT_PWD_LEN + 1);
 	memset(pswd2, 0, MAX_NT_PWD_LEN + 1);
 
-	g_print("New password: ");
+	g_print("New password (UTF-8): ");
 	term_toggle_echo(0);
 	if (fgets(pswd1, MAX_NT_PWD_LEN + 1, stdin) == NULL) {
 		char *fgets_m;
@@ -109,12 +109,12 @@ again:
 
 		term_toggle_echo(1);
 		g_print("\n");
-		pr_err("Password exceeds maximum length %d\n",
+		pr_err("Password exceeds maximum length of %d bytes\n",
 				MAX_NT_PWD_LEN - 1);
 		goto again;
 	}
 
-	g_print("\nRetype new password: ");
+	g_print("\nRetype new password (UTF-8): ");
 	if (fgets(pswd2, MAX_NT_PWD_LEN + 1, stdin) == NULL) {
 		char *fgets_m;
 
@@ -144,7 +144,7 @@ again:
 
 		term_toggle_echo(1);
 		g_print("\n");
-		pr_err("Password exceeds maximum length %d\n",
+		pr_err("Password exceeds maximum length of %d bytes\n",
 				MAX_NT_PWD_LEN - 1);
 		goto again;
 	}
@@ -186,7 +186,7 @@ static char *prompt_password(size_t *sz)
 	if (!*sz)
 		pr_info("Empty password was provided\n");
 	else if (*sz >= MAX_NT_PWD_LEN) {
-		pr_err("Password exceeds maximum length %d\n",
+		pr_err("Password exceeds maximum length of %d bytes\n",
 				MAX_NT_PWD_LEN - 1);
 		exit(EXIT_FAILURE);
 	}

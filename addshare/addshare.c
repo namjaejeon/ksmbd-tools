@@ -35,8 +35,6 @@ enum {
 
 static void usage(int status)
 {
-	int i;
-
 	g_printerr(
 		"Usage: ksmbd.addshare [-v] {-a SHARE | -u SHARE} {-o OPTIONS} [-c SMBCONF]\n"
 		"       ksmbd.addshare [-v] {-d SHARE} [-c SMBCONF]\n"
@@ -44,37 +42,28 @@ static void usage(int status)
 
 	if (status != EXIT_SUCCESS)
 		g_printerr("Try `ksmbd.addshare --help' for more information.\n");
-	else {
+	else
 		g_printerr(
-			"Configure shares for config file of ksmbd.mountd user mode daemon.\n"
 			"\n"
-			"Mandatory arguments to long options are mandatory for short options too.\n"
-			"  -a, --add-share=SHARE       add SHARE to config file;\n"
-			"                              SHARE is 1 to " STR(KSMBD_REQ_MAX_SHARE_NAME) " characters;\n"
+			"  -a, --add-share=SHARE       add SHARE to configuration file;\n"
+			"                              SHARE is 1 to " STR(KSMBD_REQ_MAX_SHARE_NAME) " ASCII characters;\n"
 			"                              SHARE cannot be `global';\n"
-			"                              you must also give option `options'\n"
-			"  -d, --del-share=SHARE       delete SHARE from config file\n"
-			"  -u, --update-share=SHARE    update SHARE in config file;\n"
-			"                              you must also give option `options'\n"
-			"  -o, --options=OPTIONS       provide OPTIONS for share;\n"
+			"                              initial parameters must be given with `--options'\n"
+			"  -d, --del-share=SHARE       delete SHARE from configuration file\n"
+			"  -u, --update-share=SHARE    update SHARE in configuration file;\n"
+			"                              updated parameters must be given with `--options'\n"
+			"  -o, --options=OPTIONS       use OPTIONS as share parameters;\n"
 			"                              OPTIONS is one argument and has format\n"
-			"                              `1st op = 1st val<newline>2nd op = 2nd val...';\n"
-			"                              separators other than newline create ambiguity\n"
-			"  -c, --config=SMBCONF        use SMBCONF as config file instead of\n"
+			"                              `1st nam = 1st val<newline>2nd nam = 2nd val...';\n"
+			"                              separators other than newline create ambiguity;\n"
+			"                              global section parameters cannot be given\n"
+			"  -c, --config=SMBCONF        use SMBCONF as configuration file instead of\n"
 			"                              `" PATH_SMBCONF "'\n"
 			"  -v, --verbose               be verbose\n"
 			"  -V, --version               output version information and exit\n"
 			"  -h, --help                  display this help and exit\n"
 			"\n"
-			"ksmbd.addshare notifies ksmbd.mountd of any made changes.\n"
-			"\n"
-			"Following options are supported for use in OPTIONS:\n");
-		for (i = 0; i < KSMBD_SHARE_CONF_MAX; i++)
-			g_printerr("  %s\n", KSMBD_SHARE_CONF[i]);
-		g_printerr(
-			"\n"
-			"ksmbd-tools home page: <https://github.com/cifsd-team/ksmbd-tools>\n");
-	}
+			"See ksmbd.addshare(1) and smb.conf(5ksmbd) for more details.\n");
 }
 
 static const struct option opts[] = {
@@ -184,7 +173,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (cmd != COMMAND_DEL_SHARE && !arg_opts) {
-		pr_err("No options for share given\n");
+		pr_err("No share parameters given\n");
 		goto out;
 	}
 

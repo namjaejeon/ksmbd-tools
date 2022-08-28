@@ -6,3 +6,10 @@ ksmbd_control_LDADD = $(top_builddir)/lib/libksmbdtools.a
 sbin_PROGRAMS = ksmbd.control
 
 ksmbd_control_SOURCES = control.c
+
+EXTRA_DIST = ksmbd.control.1.in
+
+man_MANS = ksmbd.control.1
+$(man_MANS): %: %.in; @$(in_script) $< >$@
+
+CLEANFILES = $(man_MANS)

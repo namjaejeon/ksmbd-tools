@@ -18,3 +18,10 @@ adduser = executable(
     '-DRUNSTATEDIR="@0@"'.format(runstatedir),
   ],
 )
+
+configure_file(
+  input: 'ksmbd.adduser.1.in',
+  output: 'ksmbd.adduser.1',
+  install_dir: get_option('mandir') / 'man1',
+  configuration: in_data,
+)

@@ -41,18 +41,16 @@ typedef int (*worker_fn)(void);
 static void usage(int status)
 {
 	g_printerr(
-		"Usage: ksmbd.mountd [-v] [-p NUMBER] [-c SMBCONF] [-u PWDDB] [-n[WAY]]\n"
+		"Usage: ksmbd.mountd [-v] [-p PORT] [-c SMBCONF] [-u PWDDB] [-n[WAY]]\n"
 		"       ksmbd.mountd {-V | -h}\n");
 
 	if (status != EXIT_SUCCESS)
 		g_printerr("Try `ksmbd.mountd --help' for more information.\n");
 	else
 		g_printerr(
-			"Run ksmbd.mountd user mode and ksmbd kernel mode daemons.\n"
 			"\n"
-			"Mandatory arguments to long options are mandatory for short options too.\n"
-			"  -p, --port=NUMBER       bind to TCP port NUMBER instead of " STR(KSMBD_CONF_DEFAULT_TCP_PORT) "\n"
-			"  -c, --config=SMBCONF    use SMBCONF as config file instead of\n"
+			"  -p, --port=PORT         bind to PORT instead of TCP port " STR(KSMBD_CONF_DEFAULT_TCP_PORT) "\n"
+			"  -c, --config=SMBCONF    use SMBCONF as configuration file instead of\n"
 			"                          `" PATH_SMBCONF "'\n"
 			"  -u, --users=PWDDB       use PWDDB as user database instead of\n"
 			"                          `" PATH_PWDDB "'\n"
@@ -63,7 +61,7 @@ static void usage(int status)
 			"  -V, --version           output version information and exit\n"
 			"  -h, --help              display this help and exit\n"
 			"\n"
-			"ksmbd-tools home page: <https://github.com/cifsd-team/ksmbd-tools>\n");
+			"See ksmbd.mountd(1), smb.conf(5ksmbd), and ksmbdpwd.db(5) for more details.\n");
 }
 
 static struct option opts[] = {

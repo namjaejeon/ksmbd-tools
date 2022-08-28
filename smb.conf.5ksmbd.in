@@ -1,0 +1,331 @@
+.TH SMB.CONF "5" "" "ksmbd-tools @ksmbd_tools_version@" "File Formats and Conventions"
+.SH NAME
+smb.conf \- the configuration file for ksmbd.mountd
+.SH DESCRIPTION
+\fBsmb.conf\fR is the configuration file for \fBksmbd.mountd\fP(1) user mode daemon.
+\fBksmbd.addshare\fP(1) may be used for configuring shares for \fBsmb.conf\fR.
+\fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes, if it had made any, by sending the \fBSIGHUP\fR signal to \fBksmbd.mountd\fR.
+\fBksmbd.control --reload\fR can be used for notifying \fBksmbd.mountd\fR of changes when not using \fBksmbd.addshare\fR.
+\fBsmb.conf\fR is expected to be at \fB@sysconfdir@/ksmbd/smb.conf\fR by default.
+.SH "FILE FORMAT"
+\fBsmb.conf\fR consists of sections with each new section marking the end of the previous one.
+A new section begins with the section name enclosed in square brackets (\fB[]\fR) followed by a newline.
+Each section may have parameter entries separated by newlines.
+A parameter entry consists of a parameter and a value, in that order, separated by an equal sign (\fB=\fR).
+The parameter may contain leading and trailing tabs and spaces.
+The value, which begins immediately after the equal sign, may contain leading tabs and spaces or be empty.
+Some parameter entries can be given a list of multiple values, in which case they are separated by commas, tabs, or spaces.
+A semicolon (\fB;\fR) or a hash (\fB#\fR) marks the beginning of a comment which continues until the end of the line.
+.SH SHARES
+Each section name, except that of the \fBglobal\fR section, defines a shared resource, commonly referred to as a share.
+Users that may be allowed to connect to a share are those that have user entries in \fBksmbdpwd.db\fP(5) user database.
+A share may limit which users are allowed to connect to a particular share.
+When connected to a share, the user is mapped to a system user and underlying filesystem permissions are enforced.
+By default, this mapping is done by name, but it may also be done by mapping all users connected to the share to a single system user and group.
+When connecting as a user not in the user database, only guest sessions may work.
+.SH PARAMETERS
+Share parameters, marked below with \fB(S)\fR, may be specified in any section.
+When a share parameter is specified in a section other than \fBglobal\fR, it is specific to that particular share.
+Under the \fBglobal\fR section, a share parameter sets its default value for all shares.
+Global parameters, marked below with \fB(G)\fR, can only be given in the \fBglobal\fR section and control functionality that applies to no specific share.
+.TP
+\fBbind interfaces only\fR (G)
+This controls whether to only bind to interfaces specified with \fBinterfaces\fR.
+
+Default: \fBbind interfaces only = no\fR
+.TP
+\fBbrowseable\fR (S)
+This controls whether the share is seen in the list of available shares in a net view and in the browse list.
+
+Default: \fBbrowseable = yes\fR
+.TP
+\fBcomment\fR (S)
+This controls what comment string to associate with the share.
+
+Default: \fBcomment = \fR
+.TP
+\fBcreate mask\fR (S)
+This controls what octal bitmask gets bitwise ANDed with DOS-to-UNIX-mapped permissions when creating a file.
+
+Default: \fBcreate mask = 0744\fR
+.TP
+\fBdeadtime\fR (G)
+This controls the number of minutes of inactivity before a connection is considered dead and is then terminated.
+The connection is not terminated if it has any open files.
+With \fBdeadtime = 0\fR, no connection is considered inactive.
+
+Default: \fBdeadtime = 0\fR
+.TP
+\fBdirectory mask\fR (S)
+This controls what octal bitmask gets bitwise ANDed with DOS-to-UNIX-mapped permissions when creating a directory.
+
+Default: \fBdirectory mask = 0755\fR
+.TP
+\fBforce create mode\fR (S)
+This controls what octal bitmask gets bitwise ORed after the bitmask specified with \fBcreate mask\fR is applied.
+
+Default: \fBforce create mode = 0000\fR
+.TP
+\fBforce directory mode\fR (S)
+This controls what octal bitmask gets bitwise ORed after the bitmask specified with \fBdirectory mask\fR is applied.
+
+Default: \fBforce directory mode = 0000\fR
+.TP
+\fBforce group\fR (S)
+This controls what system group all users connected to the share should be mapped to.
+
+Default: \fBforce group = \fR
+.TP
+\fBforce user\fR (S)
+This controls what system user all users connected to the share should be mapped to.
+
+Default: \fBforce user = \fR
+.TP
+\fBguest account\fR (G)
+This controls what system user all users connected to the share should be mapped to when the share specifies \fBguest ok = yes\fR.
+
+Default: \fBguest account = nobody\fR
+.TP
+\fBguest ok\fR (S)
+This controls whether no password is required when connecting to the share.
+
+Default: \fBguest ok = no\fR
+.TP
+\fBhide dot files\fR (S)
+This controls whether files starting with a dot appear as hidden files.
+
+Default: \fBhide dot files = yes\fR
+\" .TP
+\" \fBhosts allow\fR (S)
+\" 
+\" Default: \fBhosts allow = \fR
+\" .TP
+\" \fBhosts deny\fR (S)
+\" 
+\" Default: \fBhosts deny = \fR
+.TP
+\fBinherit owner\fR (S)
+This controls whether the ownership for new files and directories should be controlled by the ownership of the parent directory.
+
+Default: \fBinherit owner = no\fR
+.TP
+\fBinterfaces\fR (G)
+This controls the list of what interfaces should be listened to when \fBbind interfaces only = yes\fR is specified.
+
+Default: \fBinterfaces = \fR
+.TP
+\fBinvalid users\fR (S)
+This controls the list of what users should be disallowed to connect to the share.
+
+Default: \fBinvalid users = \fR
+.TP
+\fBipc timeout\fR (G)
+This controls the number of seconds user space has time to reply to a heartbeat frame.
+If exceeded, all sessions and TCP connections will be closed.
+With \fBipc timeout = 0\fR, user space can reply whenever.
+
+Default: \fBipc timeout = 0\fR
+.TP
+\fBkerberos keytab file (G)
+This controls the path of the keytab file for the service principal.
+If no value is given, it is the default keytab resolved with \fBkrb5_kt_default\fP(3).
+
+Default: \fBkerberos keytab file = 
+.TP
+\fBkerberos service name (G)
+This controls the service principal name.
+If no value is given, it is \fBcifs/\fR followed by the FQDN resolved with \fBgetaddrinfo\fP(3).
+
+Default: \fBkerberos service name = 
+.TP
+\fBmap to guest\fR (G)
+This controls what to do with users that cannot be mapped to a system user.
+With \fBmap to guest = never\fR, disallow connecting to all shares.
+With \fBmap to guest = bad user\fR, map to the guest account if user does not exist.
+\" With \fBmap to guest = bad password\fR, 
+\" With \fBmap to guest = bad uid\fR, 
+
+Default: \fBmap to guest = never\fR
+.TP
+\fBmax active sessions\fR (G)
+This controls the maximum number of simultaneous sessions to all shares.
+
+Default: \fBmax active sessions = 1024\fR
+.TP
+\fBmax connections\fR (S)
+This controls the maximum number of simultaneous connections to the share.
+With \fBmax connections = 0\fR, any number of connections may be made.
+
+Default: \fBmax connections = 0\fR
+.TP
+\fBmax open files\fR (G)
+This controls the maximum number of simultaneous open files for a client.
+
+Default: \fBmax open files = 10000\fR
+.TP
+\fBnetbios name\fR (G)
+This controls the NetBIOS name.
+
+Default: \fBnetbios name = KSMBD SERVER\fR
+.TP
+\fBoplocks\fR (S)
+This controls whether to issue oplocks to file open requests on the share.
+
+Default: \fBoplocks = yes\fR
+.TP
+\fBpath\fR (S)
+This controls the path of the directory users connected to the share are given access to.
+
+Default: \fBpath = \fR
+.TP
+\fBread list\fR (S)
+This controls the list of what users should be allowed read-only access to the share.
+
+Default: \fBread list = \fR
+.TP
+\fBread only\fR (S)
+Inverted synonym for \fBwriteable\fP.
+
+Default: \fBread only = yes\fR
+.TP
+\fBrestrict anonymous\fR (G)
+This controls what to do with anonymous connections.
+With \fBrestrict anonymous = 1\fR and \fBrestrict anonymous = 2\fR, disallow connections unless \fBguest ok = yes\fR is specified and the share is not the IPC$ share.
+
+Default: \fBrestrict anonymous = 0\fR
+.TP
+\fBroot directory\fR (G)
+This controls the path of the directory which is prepended to every share path.
+It is somewhat similar to \fBchroot\fP(2).
+
+Default: \fBroot directory = \fR
+.TP
+\fBserver max protocol\fR (G)
+This controls the maximum protocol version supported.
+
+Default: \fBserver max protocol = SMB3_11\fR
+.TP
+\fBserver min protocol\fR (G)
+This controls the minimum protocol version supported.
+
+Default: \fBserver min protocol = SMB2_10\fR
+.TP
+\fBserver multi channel support\fR (G)
+This controls whether to support SMB3 multi-channel.
+SMB3 multi-channel support is experimental and may corrupt data under race conditions.
+
+Default: \fBserver multi channel support = no\fR
+.TP
+\fBserver signing\fR (G)
+This controls whether the client is allowed or required to use SMB1 and SMB2 signing.
+With \fBserver signing = disabled\fR, SMB1 signing is not offered and \fBserver signing = auto\fR applies when negotiating SMB2.
+With \fBserver signing = auto\fR, SMB1 signing is offered and SMB2 signing is required.
+With \fBserver signing = mandatory\fR, both SMB1 and SMB2 signing is required.
+
+Default: \fBserver signing = disabled\fR
+.TP
+\fBserver string\fR (G)
+This controls what will appear in browse lists next to the machine name.
+
+Default: \fBserver string = SMB SERVER\fR
+.TP
+\fBshare:fake_fscaps\fR (G)
+This controls what decimal bitmask gets bitwise ORed with the filesystem capability flags so as to fake them.
+With \fBshare:fake_fscaps = 64\fR, the SPARSE_FILES flag is set.
+
+Default: \fBshare:fake_fscaps = 64\fR
+.TP
+\fBsmb2 leases\fR (G)
+This controls whether to globally negotiate SMB2 leases on file open requests.
+
+Default: \fBsmb2 leases = no\fR
+.TP
+\fBsmb2 max credits\fR (G)
+This controls the maximum number of outstanding simultaneous SMB2 operations.
+
+Default: \fBsmb2 max credits = 8192\fR
+.TP
+\fBsmb2 max read\fR (G)
+This controls the maximum length that may be used in a SMB2 READ request sent by a client.
+
+Default: \fBsmb2 max read = 4MB\fR
+.TP
+\fBsmb2 max trans\fR (G)
+This controls the maximum buffer size that may be used by a client in a sent SET_INFO request or a received QUERY_INFO, QUERY_DIRECTORY, or CHANGE_NOTIFY response.
+
+Default: \fBsmb2 max trans = 1MB\fR
+.TP
+\fBsmb2 max write\fR (G)
+This controls the maximum length that may be used in a SMB2 WRITE request sent by a client.
+
+Default: \fBsmb2 max write = 4MB\fR
+.TP
+\fBsmb3 encryption\fR (G)
+This controls whether SMB3 encryption is required instead of offered.
+
+Default: \fBsmb3 encryption = no\fR
+.TP
+\fBsmbd max io size\fR (G)
+This controls the maximum read/write size of SMB-Direct.
+
+Default: \fBsmbd max io size = 8MB\fR
+.TP
+\fBstore dos attributes\fR (S)
+This controls whether to store DOS attributes using xattr and then use them in the DOS-to-UNIX-mapping of permissions.
+
+Default: \fBstore dos attributes = yes\fR
+.TP
+\fBtcp port\fR (G)
+This controls what TCP port should be listened to.
+
+Default: \fBtcp port = 445\fR
+.TP
+\fBvalid users\fR (S)
+This controls the list of what users should be allowed to connect to the share.
+
+Default: \fBvalid users = \fR
+.TP
+\fBveto files\fR (S)
+This controls what files and directories should be made invisible and inaccessible.
+Files and directories are specified between forward slashes (\fB/\fR), e.g. \fBveto files = /foo/bar/\fR to make files and directories named \fBfoo\fR and \fBbar\fR invisible and inaccessible.
+An asterisk (\fB*\fR) and a question mark (\fB?\fR) may be used for matching any number of characters and a character, respectively.
+
+Default: \fBveto files = \fR
+.TP
+\fBvfs objects\fR (S)
+This controls the list of VFS modules to overload I/O operations with.
+Available VFS objects are \fBacl_xattr\fR and \fBstreams_xattr\fR.
+
+Default: \fBvfs objects = \fR
+.TP
+\fBworkgroup\fR (G)
+This controls what workgroup the server will appear to be in when queried by clients.
+
+Default: \fBworkgroup = WORKGROUP\fR
+.TP
+\fBwrite list\fR (S)
+This controls the list of what users should be allowed read-write access to the share.
+
+Default: \fBwrite list = \fR
+.TP
+\fBwrite ok\fR
+Synonym for \fBwriteable\fP.
+.TP
+\fBwriteable\fR (S)
+Inverted synonym for \fBread only\fP.
+
+Default: \fBwriteable = no\fR
+.SH COPYRIGHT
+Copyright \(co 2015-2022 ksmbd-tools contributors.
+License GPLv2: GNU GPL version 2 <https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+.SH "REPORTING BUGS"
+For bug reports, use the issue tracker at https://github.com/cifsd-team/ksmbd-tools/issues.
+.SH "SEE ALSO"
+.TP
+\fBUtilities\fR
+\fBksmbd.addshare\fP(1),
+\fBksmbd.adduser\fP(1),
+\fBksmbd.mountd\fP(1)

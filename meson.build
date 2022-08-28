@@ -37,22 +37,22 @@ krb5_dep = dependency(
 )
 asn1_lib = []
 
-cdata = configuration_data()
+config_h_data = configuration_data()
 cc = meson.get_compiler('c')
 
 if krb5_dep.found()
-  cdata.set(
+  config_h_data.set(
     'CONFIG_KRB5',
     krb5_dep.found(),
   )
-  cdata.set(
+  config_h_data.set(
     'HAVE_KRB5_AUTH_CON_GETRECVSUBKEY',
     cc.has_function(
       'krb5_auth_con_getrecvsubkey',
       dependencies: krb5_dep,
     ),
   )
-  cdata.set(
+  config_h_data.set(
     'HAVE_KRB5_KEYBLOCK_KEYVALUE',
     cc.has_member(
       'krb5_keyblock',
@@ -61,7 +61,7 @@ if krb5_dep.found()
       dependencies: krb5_dep,
     ),
   )
-  cdata.set(
+  config_h_data.set(
     'HAVE_KRB5_AUTHENTICATOR_CLIENT',
     cc.has_member(
       'krb5_authenticator',
@@ -70,7 +70,7 @@ if krb5_dep.found()
       dependencies: krb5_dep,
     ),
   )
-  cdata.set(
+  config_h_data.set(
     'HAVE_KRB5_AUTH_CON_GETAUTHENTICATOR_DOUBLE_POINTER',
     cc.compiles(
       '''
@@ -81,7 +81,7 @@ krb5_error_code krb5_auth_con_getauthenticator(krb5_context, krb5_auth_context, 
       name: 'krb5_auth_con_getauthenticator has krb5_authenticator** parameter',
     ),
   )
-  if not cdata.get('HAVE_KRB5_AUTHENTICATOR_CLIENT')
+  if not config_h_data.get('HAVE_KRB5_AUTHENTICATOR_CLIENT')
     asn1_lib = cc.find_library(
       'asn1',
       dirs: krb5_dep.get_variable(pkgconfig: 'libdir'),
@@ -89,9 +89,9 @@ krb5_error_code krb5_auth_con_getauthenticator(krb5_context, krb5_auth_context, 
   endif
 endif
 
-cfile = configure_file(
+configure_file(
   output: 'config.h',
-  configuration: cdata,
+  configuration: config_h_data,
 )
 
 add_project_arguments(
@@ -110,12 +110,6 @@ else
   runstatedir = rundir
 endif
 
-subdir('lib')
-subdir('addshare')
-subdir('adduser')
-subdir('control')
-subdir('mountd')
-
 install_data(
   sources: 'smb.conf.example',
   install_dir: get_option('sysconfdir') / 'ksmbd',
@@ -129,12 +123,36 @@ if systemdsystemunitdir == ''
   )
 endif
 
+in_data = configuration_data({
+  'sbindir': get_option('prefix') / get_option('sbindir'),
+  'sysconfdir': get_option('prefix') / get_option('sysconfdir'),
+  'runstatedir': runstatedir,
+  'ksmbd_tools_version': meson.project_version(),
+})
+
+configure_file(
+  input: 'smb.conf.5ksmbd.in',
+  output: 'smb.conf.5ksmbd',
+  install_dir: get_option('mandir') / 'man5',
+  configuration: in_data,
+)
+
+configure_file(
+  input: 'ksmbdpwd.db.5.in',
+  output: 'ksmbdpwd.db.5',
+  install_dir: get_option('mandir') / 'man5',
+  configuration: in_data,
+)
+
 configure_file(
   input: 'ksmbd.service.in',
   output: 'ksmbd.service',
   install_dir: systemdsystemunitdir,
-  configuration: {
-    'sbindir': get_option('prefix') / get_option('sbindir'),
-    'runstatedir': runstatedir,
-  },
+  configuration: in_data,
 )
+
+subdir('lib')
+subdir('addshare')
+subdir('adduser')
+subdir('control')
+subdir('mountd')

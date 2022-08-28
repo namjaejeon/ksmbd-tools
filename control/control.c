@@ -22,22 +22,20 @@ static void usage(int status)
 		g_printerr("Try `ksmbd.control --help' for more information.\n");
 	else
 		g_printerr(
-			"Control ksmbd.mountd user mode and ksmbd kernel mode daemons.\n"
 			"\n"
-			"Mandatory arguments to long options are mandatory for short options too.\n"
-			"  -s, --shutdown           shutdown daemons and exit\n"
+			"  -s, --shutdown           shutdown both ksmbd.mountd and ksmbd and exit\n"
 			"  -r, --reload             notify ksmbd.mountd of changes and exit\n"
-			"  -d, --debug=COMPONENT    toggle debug printing for COMPONENT and exit;\n"
-			"                           COMPONENT is `all', `smb', `auth', `vfs',\n"
-			"                           `oplock', `ipc', `conn', or `rdma';\n"
-			"                           output also status of all components;\n"
-			"                           enabled components are enclosed in brackets\n"
+			"  -d, --debug=COMPONENT    toggle ksmbd debug printing for COMPONENT and exit;\n"
+			"                           COMPONENT is `all', `smb', `auth', `vfs', `oplock',\n"
+			"                           `ipc', `conn', or `rdma';\n"
+			"                           output also status of all components with enabled\n"
+			"                           ones enclosed in brackets\n"
 			"  -c, --ksmbd-version      output ksmbd version information and exit\n"
 			"  -v, --verbose            be verbose\n"
 			"  -V, --version            output version information and exit\n"
 			"  -h, --help               display this help and exit\n"
 			"\n"
-			"ksmbd-tools home page: <https://github.com/cifsd-team/ksmbd-tools>\n");
+			"See ksmbd.control(1) and ksmbd.mountd(1) for more details.\n");
 }
 
 static const struct option opts[] = {

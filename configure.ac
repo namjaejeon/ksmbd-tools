@@ -16,12 +16,21 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign tar-pax subdir-objects])
 
+AC_SUBST([ksmbd_tools_version], ksmbd_tools_version)
+
 AC_LANG([C])
 AC_PROG_CC
 AC_PROG_CC_STDC
 AM_SILENT_RULES([yes])
 AC_PROG_LIBTOOL
 AC_PROG_SED
+
+AC_SUBST([in_script], [[\
+'$(SED) -e "s,[@]sbindir[@],$(sbindir),g" \
+        -e "s,[@]sysconfdir[@],$(sysconfdir),g" \
+        -e "s,[@]runstatedir[@],$(runstatedir),g" \
+        -e "s,[@]ksmbd_tools_version[@],$(ksmbd_tools_version),g"'
+                       ]])
 
 AC_ARG_ENABLE([krb5],
               [AC_HELP_STRING([--enable-krb5], [Enable Kerberos 5 authentication @<:@default=no@:>@])],
