@@ -44,12 +44,12 @@ static int __open_smbconf(char *smbconf)
 {
 	conf_fd = open(smbconf, O_WRONLY);
 	if (conf_fd == -1) {
-		pr_err("%m %s\n", smbconf);
+		pr_err("Can't open `%s': %m\n", smbconf);
 		return -EINVAL;
 	}
 
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%m %s\n", smbconf);
+	if (ftruncate(conf_fd, 0) == -1) {
+		pr_err("Can't truncate `%s': %m\n", smbconf);
 		close(conf_fd);
 		return -EINVAL;
 	}
@@ -66,7 +66,7 @@ static void __write(void)
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
-			pr_err("%m\n");
+			pr_err("Failed to write share entry: %m\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -82,9 +82,8 @@ static void __write_share(gpointer key, gpointer value, gpointer buf)
 
 	wsz = snprintf(wbuf, sizeof(wbuf), "\t%s = %s\n", k, v);
 	if (wsz > sizeof(wbuf)) {
-		pr_err("smb.conf entry size is above the limit: %zu > %zu\n",
-			wsz,
-			sizeof(wbuf));
+		pr_err("Share entry size is above limit: %zu > %zu\n",
+		       wsz, sizeof(wbuf));
 		exit(EXIT_FAILURE);
 	}
 	__write();
@@ -115,7 +114,7 @@ static void write_remove_share_cb(gpointer key,
 	struct smbconf_group *g = (struct smbconf_group *)value;
 
 	if (!g_ascii_strcasecmp(g->name, name)) {
-		pr_info("share '%s' removed\n", g->name);
+		pr_info("Share `%s' removed\n", g->name);
 		return;
 	}
 
@@ -142,7 +141,7 @@ int command_add_share(char *smbconf, char *name, char *opts)
 	char *new_name = NULL;
 
 	if (g_hash_table_lookup(parser.groups, name)) {
-		pr_err("Share already exists: %s\n", name);
+		pr_err("Share `%s' already exists\n", name);
 		return -EEXIST;
 	}
 
@@ -152,6 +151,8 @@ int command_add_share(char *smbconf, char *name, char *opts)
 
 	if (__open_smbconf(smbconf))
 		goto error;
+
+	pr_info("Adding share `%s'\n", name);
 	g_hash_table_foreach(parser.groups, write_share_cb, NULL);
 	close(conf_fd);
 	g_free(new_name);
@@ -170,7 +171,7 @@ int command_update_share(char *smbconf, char *name, char *opts)
 
 	existing_group = g_hash_table_lookup(parser.groups, name);
 	if (!existing_group) {
-		pr_err("Unknown share: %s\n", name);
+		pr_err("Share `%s' does not exist\n", name);
 		goto error;
 	}
 
@@ -182,7 +183,7 @@ int command_update_share(char *smbconf, char *name, char *opts)
 	sprintf(aux_name, "%s%s", AUX_GROUP_PREFIX, name);
 	update_group = g_hash_table_lookup(parser.groups, aux_name);
 	if (!update_group) {
-		pr_err("Cannot find the external group\n");
+		pr_err("External group `%s' does not exist\n", aux_name);
 		goto error;
 	}
 
@@ -193,6 +194,7 @@ int command_update_share(char *smbconf, char *name, char *opts)
 	if (__open_smbconf(smbconf))
 		goto error;
 
+	pr_info("Updating share `%s'\n", name);
 	g_hash_table_foreach(parser.groups, write_share_cb, NULL);
 	close(conf_fd);
 	g_free(aux_name);

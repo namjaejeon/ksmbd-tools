@@ -106,7 +106,7 @@ static int spnego_authen_request(struct ksmbd_ipc_msg *msg)
 			sizeof(login_req.account));
 	usm_handle_login_request(&login_req, &resp->login_response);
 	if (!(resp->login_response.status & KSMBD_USER_FLAG_OK)) {
-		pr_info("failed to login %s\n", login_req.account);
+		pr_info("Unable to login user `%s'\n", login_req.account);
 		goto out_free_auth;
 	}
 

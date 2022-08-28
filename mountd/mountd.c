@@ -103,7 +103,8 @@ retry:
 				goto out;
 			}
 		} else {
-			pr_err("Can't create `%s': %s\n", KSMBD_LOCK_FILE, open_m);
+			pr_debug("Can't create `%s': %s\n", KSMBD_LOCK_FILE,
+				 open_m ? open_m : "Out of memory");
 			goto out;
 		}
 
@@ -113,13 +114,13 @@ retry:
 	}
 
 	if (flock(lock_fd, LOCK_EX | LOCK_NB) == -1) {
-		pr_err("Unable to place exclusive lock: %m\n");
+		pr_err("Can't apply exclusive lock: %m\n");
 		goto out;
 	}
 
 	sz = snprintf(pid_buf, sizeof(pid_buf), "%d", getpid());
 	if (write(lock_fd, pid_buf, sz) == -1) {
-		pr_err("Unable to write manager PID: %m\n");
+		pr_err("Can't write manager PID: %m\n");
 		goto out;
 	}
 
@@ -144,12 +145,12 @@ static int write_file_safe(char *path, char *buff, size_t length, int mode)
 
 	fd = open(path_tmp, O_CREAT | O_EXCL | O_WRONLY, mode);
 	if (fd < 0) {
-		pr_err("Unable to create %s: %m\n", path_tmp);
+		pr_err("Can't create `%s': %m\n", path_tmp);
 		goto err_out;
 	}
 
 	if (write(fd, buff, length) == -1) {
-		pr_err("Unable to write to %s: %m\n", path_tmp);
+		pr_err("Can't write `%s': %m\n", path_tmp);
 		close(fd);
 		goto err_out;
 	}
@@ -157,8 +158,8 @@ static int write_file_safe(char *path, char *buff, size_t length, int mode)
 	fsync(fd);
 	close(fd);
 
-	if (rename(path_tmp, path)) {
-		pr_err("Unable to rename to %s: %m\n", path);
+	if (rename(path_tmp, path) == -1) {
+		pr_err("Can't rename `%s' to `%s': %m\n", path_tmp, path);
 		goto err_out;
 	}
 	ret = 0;
@@ -217,16 +218,20 @@ static void delete_lock_file(void)
 
 static int wait_group_kill(int signo)
 {
-	pid_t pid;
+	pid_t child;
 	int status;
 
-	if (kill(worker_pid, signo) != 0)
-		pr_err("can't execute kill %d: %m\n", worker_pid);
+	if (kill(worker_pid, signo) == -1)
+		pr_err("Unable to send signal %d (%s) to PID %d: %m\n",
+				signo, strsignal(signo), worker_pid);
 
 	while (1) {
-		pid = waitpid(-1, &status, 0);
-		if (pid != 0) {
-			pr_debug("detected pid %d termination\n", pid);
+		child = waitpid(-1, &status, 0);
+		if (child == -1) {
+			pr_debug("waitpid() returned an error: %m\n");
+			break;
+		} else if (child != 0) {
+			pr_debug("Detected state change of PID %d\n", child);
 			break;
 		}
 		sleep(1);
@@ -247,8 +252,8 @@ static int setup_signal_handler(int signo, sighandler_t handler)
 
 	status = sigaction(signo, &act, NULL);
 	if (status != 0)
-		pr_err("Unable to register %s signal handler: %m",
-				strsignal(signo));
+		pr_err("Unable to register handler for signal %d (%s): %m",
+				signo, strsignal(signo));
 	return status;
 }
 
@@ -274,23 +279,21 @@ static int setup_signals(sighandler_t handler)
 
 static int parse_configs(char *pwddb, char *smbconf)
 {
-	int ret, old_level;
+	int ret;
 
-	old_level = set_log_level(PR_NONE);
 	ret = cp_parse_pwddb(pwddb);
-	set_log_level(old_level);
 	if (ret == -ENOENT) {
-		pr_info("User database `%s' does not exist; "
-			"only guest sessions may work\n",
-			pwddb);
+		pr_info("User database does not exist, "
+			"only guest sessions may work\n");
+		ret = 0;
 	} else if (ret) {
-		pr_err("Unable to parse user database\n");
+		pr_err("Failed to parse user database\n");
 		return ret;
 	}
 
 	ret = cp_parse_smbconf(smbconf);
 	if (ret)
-		pr_err("Unable to parse config file\n");
+		pr_err("Failed to parse configuration file\n");
 	return ret;
 }
 
@@ -309,7 +312,7 @@ static void worker_process_free(void)
 	usm_destroy();
 }
 
-static void child_sig_handler(int signo)
+static void worker_sig_handler(int signo)
 {
 	static volatile int fatal_delivered = 0;
 
@@ -320,12 +323,11 @@ static void child_sig_handler(int signo)
 		 * the configs.
 		 */
 		ksmbd_health_status |= KSMBD_SHOULD_RELOAD_CONFIG;
-		pr_debug("Scheduled a config reload action.\n");
+		pr_debug("Scheduled a config reload action\n");
 		return;
 	}
 
-	pr_info("Child received signal: %d (%s)\n",
-		signo, strsignal(signo));
+	pr_info("Worker received signal %d (%s)\n", signo, strsignal(signo));
 
 	if (!g_atomic_int_compare_and_exchange(&fatal_delivered, 0, 1))
 		return;
@@ -345,15 +347,15 @@ static void manager_sig_handler(int signo)
 			return;
 
 		ksmbd_health_status |= KSMBD_SHOULD_RELOAD_CONFIG;
-		if (kill(worker_pid, signo))
-			pr_err("Unable to send SIGHUP to %d: %m\n",
-				worker_pid);
+		if (kill(worker_pid, signo) == -1)
+			pr_err("Unable to send signal %d (%s) to PID %d: %m\n",
+					signo, strsignal(signo), worker_pid);
 		return;
 	}
 
 	setup_signals(SIG_DFL);
 	wait_group_kill(signo);
-	pr_info("Exiting. Bye!\n");
+	pr_info("Exiting, bye!\n");
 	delete_lock_file();
 	kill(0, SIGINT);
 }
@@ -362,7 +364,7 @@ static int worker_process_init(void)
 {
 	int ret;
 
-	setup_signals(child_sig_handler);
+	setup_signals(worker_sig_handler);
 	set_logger_app_name("ksmbd-worker");
 
 	ret = usm_init();
@@ -378,10 +380,8 @@ static int worker_process_init(void)
 	}
 
 	ret = parse_configs(global_conf.pwddb, global_conf.smbconf);
-	if (ret) {
-		pr_err("Failed to parse configuration files\n");
+	if (ret)
 		goto out;
-	}
 
 	ret = sm_init();
 	if (ret) {
@@ -409,7 +409,7 @@ static int worker_process_init(void)
 
 	ret = spnego_init();
 	if (ret) {
-		pr_err("Failed to init spnego subsystem\n");
+		pr_err("Failed to init SPNEGO subsystem\n");
 		ret = KSMBD_STATUS_IPC_FATAL_ERROR;
 		goto out;
 	}
@@ -433,7 +433,7 @@ static pid_t start_worker_process(worker_fn fn)
 
 	__pid = fork();
 	if (__pid < 0) {
-		pr_err("Can't fork child process: `%m'\n");
+		pr_err("Can't fork worker process: %m\n");
 		return -EINVAL;
 	}
 	if (__pid == 0) {
@@ -466,7 +466,7 @@ static int manager_process_init(void)
 	}
 
 	if (generate_sub_auth())
-		pr_debug("Failed to generate subauth for domain sid: %m\n");
+		pr_debug("Unable to generate subauth for domain SID: %m\n");
 
 	worker_pid = start_worker_process(worker_process_init);
 	if (worker_pid < 0)
@@ -488,16 +488,15 @@ static int manager_process_init(void)
 				}
 				/* Fall through */
 			default:
-				pr_err("waitpid() returned error code: %m\n");
+				pr_err("waitpid() returned an error: %m\n");
 				goto out;
 			}
-
-		pr_err("WARNING: child process exited abnormally: %d\n",
-				child);
+		else if (child != 0)
+			pr_info("Worker PID %d changed state\n", child);
 
 		if (WIFEXITED(status) &&
 			WEXITSTATUS(status) == KSMBD_STATUS_IPC_FATAL_ERROR) {
-			pr_err("Fatal IPC error. Terminating. Check dmesg.\n");
+			pr_err("Fatal IPC error, terminating, check dmesg!\n");
 			goto out;
 		}
 

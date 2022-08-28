@@ -91,25 +91,27 @@ static int show_version(void)
 
 static int parse_configs(char *pwddb, char *smbconf)
 {
-	int ret, old_level;
+	int ret;
 
 	ret = test_file_access(pwddb);
-	if (ret)
+	if (ret) {
+		pr_err("Failed to access user database\n");
 		return ret;
+	}
 
 	ret = cp_parse_pwddb(pwddb);
-	if (ret)
+	if (ret) {
+		pr_err("Failed to parse user database\n");
 		return ret;
-
-	old_level = set_log_level(PR_NONE);
-	ret = cp_parse_smbconf(smbconf);
-	set_log_level(old_level);
-	if (ret == -ENOENT) {
-		pr_info("Config file `%s' does not exist; "
-			"global guest account is unknown\n",
-			smbconf);
-		return 0;
 	}
+
+	ret = cp_parse_smbconf(smbconf);
+	if (ret == -ENOENT) {
+		pr_info("Configuration file does not exist, "
+			"guest account is unknown\n");
+		ret = 0;
+	} else if (ret)
+		pr_err("Failed to parse configuration file\n");
 	return ret;
 }
 
@@ -212,10 +214,8 @@ int main(int argc, char *argv[])
 	}
 
 	ret = parse_configs(pwddb, smbconf);
-	if (ret) {
-		pr_err("Unable to parse configuration files\n");
+	if (ret)
 		goto out;
-	}
 
 	if (cmd == COMMAND_ADD_USER)
 		ret = command_add_user(pwddb, arg_account, arg_password);
@@ -224,14 +224,8 @@ int main(int argc, char *argv[])
 	if (cmd == COMMAND_UPDATE_USER)
 		ret = command_update_user(pwddb, arg_account, arg_password);
 
-	if (cmd && !ret) {
-		int old_level;
-
-		old_level = set_log_level(PR_NONE);
-		if (send_signal_to_ksmbd_mountd(SIGHUP))
-			pr_err("Failed to notify ksmbd.mountd of changes\n");
-		set_log_level(old_level);
-	}
+	if (cmd && !ret && send_signal_to_ksmbd_mountd(SIGHUP))
+		pr_debug("Unable to notify ksmbd.mountd of changes\n");
 out:
 	shm_destroy();
 	usm_destroy();

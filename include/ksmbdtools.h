@@ -107,10 +107,9 @@ extern int ksmbd_health_status;
 #define PRINF		LOGAPP" INFO: "
 #define PRDEBUG		LOGAPP" DEBUG: "
 
-#define PR_NONE		0
-#define PR_ERROR	1
-#define PR_INFO		2
-#define PR_DEBUG	3
+#define PR_ERROR	0
+#define PR_INFO		1
+#define PR_DEBUG	2
 
 extern int log_level;
 

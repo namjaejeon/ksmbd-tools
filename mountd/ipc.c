@@ -65,27 +65,25 @@ static int generic_event(int type, void *payload, size_t sz)
 
 static int parse_reload_configs(const char *pwddb, const char *smbconf)
 {
-	int ret, old_level;
+	int ret;
 
 	pr_debug("Reload config\n");
 
 	usm_remove_all_users();
-	old_level = set_log_level(PR_NONE);
 	ret = cp_parse_pwddb(pwddb);
-	set_log_level(old_level);
 	if (ret == -ENOENT) {
-		pr_info("User database `%s' does not exist; "
-			"only guest sessions may work\n",
-			pwddb);
+		pr_info("User database does not exist, "
+			"only guest sessions may work\n");
+		ret = 0;
 	} else if (ret) {
-		pr_err("Unable to parse user database\n");
+		pr_err("Failed to parse user database\n");
 		return ret;
 	}
 
 	shm_remove_all_shares();
 	ret = cp_parse_reload_smbconf(smbconf);
 	if (ret)
-		pr_err("Unable to parse config file\n");
+		pr_err("Failed to parse configuration file\n");
 	return ret;
 }
 
@@ -128,7 +126,7 @@ static int handle_unsupported_event(struct nl_cache_ops *unused,
 				    struct genl_info *info,
 				    void *arg)
 {
-	pr_err("Unsupported IPC event %d, ignore.\n", cmd->c_id);
+	pr_err("Unsupported IPC event %d, ignore\n", cmd->c_id);
 	return NL_SKIP;
 }
 
@@ -244,7 +242,8 @@ int ipc_process_event(void)
 
 	ret = nl_recvmsgs_default(sk);
 	if (ret < 0) {
-		pr_err("Recv() error %s [%d]\n", nl_geterror(ret), ret);
+		pr_err("nl_recv() returned error code %d: %s\n",
+		       ret, nl_geterror(ret));
 		return -KSMBD_STATUS_IPC_FATAL_ERROR;
 	}
 	return ret;
@@ -492,7 +491,7 @@ int ipc_init(void)
 		goto out_error;
 
 	if (nl_connect(sk, NETLINK_GENERIC)) {
-		pr_err("Cannot connect to generic netlink.\n");
+		pr_err("Cannot connect to generic netlink\n");
 		goto out_error;
 	}
 

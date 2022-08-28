@@ -33,12 +33,12 @@ static int __opendb_file(char *pwddb)
 {
 	conf_fd = open(pwddb, O_WRONLY);
 	if (conf_fd == -1) {
-		pr_err("%m %s\n", pwddb);
+		pr_err("Can't open `%s': %m\n", pwddb);
 		return -EINVAL;
 	}
 
-	if (ftruncate(conf_fd, 0)) {
-		pr_err("%m %s\n", pwddb);
+	if (ftruncate(conf_fd, 0) == -1) {
+		pr_err("Can't truncate `%s': %m\n", pwddb);
 		close(conf_fd);
 		return -EINVAL;
 	}
@@ -81,14 +81,19 @@ again:
 	g_print("New password: ");
 	term_toggle_echo(0);
 	if (fgets(pswd1, MAX_NT_PWD_LEN + 1, stdin) == NULL) {
+		char *fgets_m;
+
 		if (feof(stdin)) {
 			clearerr(stdin);
 			goto skip;
 		}
 
+		fgets_m = g_strdup_printf("%m");
 		term_toggle_echo(1);
 		g_print("\n");
-		pr_err("Fatal error: %m\n");
+		pr_err("fgets() returned an error: %s\n",
+		       fgets_m ? fgets_m : "Out of memory");
+		g_free(fgets_m);
 		free(pswd1);
 		free(pswd2);
 		return NULL;
@@ -111,14 +116,19 @@ again:
 
 	g_print("\nRetype new password: ");
 	if (fgets(pswd2, MAX_NT_PWD_LEN + 1, stdin) == NULL) {
+		char *fgets_m;
+
 		if (feof(stdin)) {
 			clearerr(stdin);
 			goto skip;
 		}
 
+		fgets_m = g_strdup_printf("%m");
 		term_toggle_echo(1);
 		g_print("\n");
-		pr_err("Fatal error: %m\n");
+		pr_err("fgets() returned an error: %s\n",
+		       fgets_m ? fgets_m : "Out of memory");
+		g_free(fgets_m);
 		free(pswd1);
 		free(pswd2);
 		return NULL;
@@ -268,9 +278,8 @@ static void write_user(struct ksmbd_user *user)
 	wsz = snprintf(wbuf, sizeof(wbuf), "%s:%s\n", user->name,
 			user->pass_b64);
 	if (wsz > sizeof(wbuf)) {
-		pr_err("Entry size is above the limit: %zu > %zu\n",
-			wsz,
-			sizeof(wbuf));
+		pr_err("User entry size is above limit: %zu > %zu\n",
+		       wsz, sizeof(wbuf));
 		exit(EXIT_FAILURE);
 	}
 
@@ -278,7 +287,7 @@ static void write_user(struct ksmbd_user *user)
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
-			pr_err("%m\n");
+			pr_err("Failed to write user entry: %m\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -301,7 +310,7 @@ static void write_remove_user_cb(gpointer key,
 	struct ksmbd_user *user = (struct ksmbd_user *)value;
 
 	if (!g_ascii_strcasecmp(user->name, arg_account)) {
-		pr_info("User '%s' removed\n", user->name);
+		pr_info("User `%s' removed\n", user->name);
 		return;
 	}
 
@@ -341,7 +350,7 @@ static void lookup_can_del_user(gpointer key,
 	return;
 
 conflict:
-	pr_err("Share %s requires user %s to exist\n",
+	pr_err("Share `%s' requires user `%s' to exist\n",
 		share->name, arg_account);
 	*abort_del_user = 1;
 }
@@ -357,7 +366,7 @@ int command_add_user(char *pwddb, char *account, char *password)
 	user = usm_lookup_user(arg_account);
 	if (user) {
 		put_ksmbd_user(user);
-		pr_err("Account `%s' already exists\n", arg_account);
+		pr_err("User `%s' already exists\n", arg_account);
 		return -EEXIST;
 	}
 
@@ -369,14 +378,14 @@ int command_add_user(char *pwddb, char *account, char *password)
 
 	/* pswd is already g_strdup-ed */
 	if (usm_add_new_user(arg_account, pswd)) {
-		pr_err("Could not add new account\n");
+		pr_err("Could not add new user `%s'\n", arg_account);
 		return -EINVAL;
 	}
 
-	pr_info("User '%s' added\n", arg_account);
 	if (__opendb_file(pwddb))
 		return -EINVAL;
 
+	pr_info("Adding user `%s'\n", arg_account);
 	for_each_ksmbd_user(write_user_cb, NULL);
 	close(conf_fd);
 	return 0;
@@ -392,7 +401,7 @@ int command_update_user(char *pwddb, char *account, char *password)
 
 	user = usm_lookup_user(arg_account);
 	if (!user) {
-		pr_err("Unknown account\n");
+		pr_err("User `%s' does not exist\n", arg_account);
 		return -EINVAL;
 	}
 
@@ -409,13 +418,13 @@ int command_update_user(char *pwddb, char *account, char *password)
 		return -ENOMEM;
 	}
 
-	pr_info("User '%s' updated\n", account);
 	put_ksmbd_user(user);
 	free(pswd);
 
 	if (__opendb_file(pwddb))
 		return -EINVAL;
 
+	pr_info("Updating user `%s'\n", arg_account);
 	for_each_ksmbd_user(write_user_cb, NULL);
 	close(conf_fd);
 	return 0;
@@ -428,7 +437,7 @@ int command_del_user(char *pwddb, char *account)
 	arg_account = account;
 	if (global_conf.guest_account &&
 		!strcmp(global_conf.guest_account, arg_account)) {
-		pr_err("User %s is a global guest account, "
+		pr_err("User `%s' is the guest account, "
 		       "aborting user deletion\n", arg_account);
 		return -EINVAL;
 	}
@@ -436,7 +445,7 @@ int command_del_user(char *pwddb, char *account)
 	for_each_ksmbd_share(lookup_can_del_user, &abort_del_user);
 
 	if (abort_del_user) {
-		pr_err("Aborting user deletion\n");
+		pr_err("Aborting deletion of user `%s'\n", arg_account);
 		return -EINVAL;
 	}
 

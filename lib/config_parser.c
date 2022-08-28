@@ -100,8 +100,7 @@ static int add_new_group(char *line)
 	lookup = g_hash_table_lookup(parser.groups, name);
 	if (lookup) {
 		parser.current = lookup;
-		pr_info("SMB conf: multiple group definitions `%s'\n",
-				name);
+		pr_info("Multiple definitions for group `%s'\n", name);
 		g_free(name);
 		return 0;
 	}
@@ -150,7 +149,7 @@ static int add_group_key_value(char *line)
 		return 0;
 
 	if (g_hash_table_lookup(parser.current->kv, key)) {
-		pr_info("SMB conf: multuple key-value [%s] %s\n",
+		pr_info("Multiple key-value definitions [%s] %s\n",
 				parser.current->name, key);
 		return 0;
 	}
@@ -193,14 +192,14 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 
 	fd = g_open(fname, O_RDONLY, 0);
 	if (fd == -1) {
-		ret = errno;
-		pr_err("Can't open `%s': %m\n", fname);
-		return -ret;
+		ret = -errno;
+		pr_debug("Can't open `%s': %m\n", fname);
+		return ret;
 	}
 
 	file = g_mapped_file_new_from_fd(fd, FALSE, &err);
 	if (err) {
-		pr_err("%s: `%s'\n", err->message, fname);
+		pr_err("Can't map `%s' to memory: %s\n", fname, err->message);
 		g_error_free(err);
 		ret = -EINVAL;
 		goto out;
@@ -250,7 +249,7 @@ out:
 	if (fd) {
 		g_close(fd, &err);
 		if (err) {
-			pr_err("%s: %s\n", err->message, fname);
+			pr_err("Can't close `%s': %s\n", fname, err->message);
 			g_error_free(err);
 		}
 	}
@@ -369,8 +368,7 @@ static int cp_add_global_guest_account(gpointer _v)
 
 	user = usm_lookup_user(_v);
 	if (!user) {
-		pr_err("Fatal error: unable to find `%s' account.\n",
-			(const char *) _v);
+		pr_err("Unable to find user `%s'\n", (char *) _v);
 		return -EINVAL;
 	}
 

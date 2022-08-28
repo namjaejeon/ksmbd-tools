@@ -183,7 +183,7 @@ int usm_add_new_user(char *name, char *pwd)
 	g_rw_lock_writer_lock(&users_table_lock);
 	if (__usm_lookup_user(name)) {
 		g_rw_lock_writer_unlock(&users_table_lock);
-		pr_info("User already exists %s\n", name);
+		pr_info("User `%s' already exists\n", name);
 		kill_ksmbd_user(user);
 		return 0;
 	}
@@ -206,7 +206,7 @@ int usm_add_update_user_from_pwdentry(char *data)
 	int ret;
 
 	if (!pos) {
-		pr_err("Invalid pwd entry %s\n", data);
+		pr_err("Invalid pwd entry: %s\n", data);
 		return -EINVAL;
 	}
 
@@ -242,7 +242,7 @@ int usm_add_subauth_global_conf(char *data)
 
 	spos = strchr(pos, ':');
 	if (!spos) {
-		pr_err("Invalid subauth entry %s\n", data);
+		pr_err("Invalid subauth entry: %s\n", data);
 		return -EINVAL;
 	}
 
@@ -252,7 +252,7 @@ int usm_add_subauth_global_conf(char *data)
 
 	spos = strchr(pos, ':');
 	if (!spos) {
-		pr_err("Invalid subauth entry %s\n", data);
+		pr_err("Invalid subauth entry: %s\n", data);
 		return -EINVAL;
 	}
 	*spos = 0x00;
@@ -278,7 +278,7 @@ int usm_update_user_password(struct ksmbd_user *user, char *pswd)
 	if (!pass_b64 || !pass) {
 		free(pass_b64);
 		free(pass);
-		pr_err("Cannot allocate new user entry: out of memory\n");
+		pr_err("Out of memory\n");
 		return -ENOMEM;
 	}
 

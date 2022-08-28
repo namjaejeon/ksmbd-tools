@@ -69,7 +69,7 @@ static int ksmbd_control_shutdown(void)
 	fd = open(path, O_WRONLY);
 	if (fd < 0) {
 		ret = -EINVAL;
-		pr_err("Can't open `%s': %m\n", path);
+		pr_debug("Can't open `%s': %m\n", path);
 		goto kill_err;
 	}
 

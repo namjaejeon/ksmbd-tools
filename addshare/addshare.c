@@ -100,10 +100,14 @@ static int parse_configs(char *smbconf)
 	int ret;
 
 	ret = test_file_access(smbconf);
-	if (ret)
+	if (ret) {
+		pr_err("Unable to access configuration file\n");
 		return ret;
+	}
 
 	ret = cp_smbconfig_hash_create(smbconf);
+	if (ret)
+		pr_err("Unable to parse configuration file\n");
 	return ret;
 }
 
@@ -195,10 +199,8 @@ int main(int argc, char *argv[])
 	}
 
 	ret = parse_configs(smbconf);
-	if (ret) {
-		pr_err("Unable to parse configuration files\n");
+	if (ret)
 		goto out;
-	}
 
 	if (cmd == COMMAND_ADD_SHARE)
 		ret = command_add_share(smbconf, arg_name, arg_opts);
@@ -207,14 +209,8 @@ int main(int argc, char *argv[])
 	if (cmd == COMMAND_UPDATE_SHARE)
 		ret = command_update_share(smbconf, arg_name, arg_opts);
 
-	if (cmd && !ret) {
-		int old_level;
-
-		old_level = set_log_level(PR_NONE);
-		if (send_signal_to_ksmbd_mountd(SIGHUP))
-			pr_err("Failed to notify ksmbd.mountd of changes\n");
-		set_log_level(old_level);
-	}
+	if (cmd && !ret && send_signal_to_ksmbd_mountd(SIGHUP))
+		pr_debug("Unable to notify ksmbd.mountd of changes\n");
 out:
 	cp_smbconfig_destroy();
 	return ret ? EXIT_FAILURE : EXIT_SUCCESS;

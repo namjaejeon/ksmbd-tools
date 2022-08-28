@@ -59,7 +59,7 @@ int spnego_init(void)
 	for (i = 0; i < SPNEGO_MAX_MECHS; i++) {
 		if (mech_ctxs[i].ops->setup &&
 				mech_ctxs[i].ops->setup(&mech_ctxs[i])) {
-			pr_err("Failed to init Kerberos\n");
+			pr_err("Failed to init Kerberos 5\n");
 			goto out_err;
 		}
 	}
@@ -147,7 +147,7 @@ static int decode_negTokenInit(unsigned char *negToken, int token_len,
 	if (decode_asn1_header(&ctx, &end, ASN1_UNI, ASN1_PRI, ASN1_OJI) ||
 			asn1_oid_decode(&ctx, end, &oid, &len) == 0 ||
 			compare_oid(oid, len, SPNEGO_OID, SPNEGO_OID_LEN)) {
-		pr_debug("Error decoding SPNEGO oid\n");
+		pr_debug("Error decoding SPNEGO OID\n");
 		free(oid);
 		return -EINVAL;
 	}
@@ -172,13 +172,13 @@ static int decode_negTokenInit(unsigned char *negToken, int token_len,
 	mech_types_end = end;
 	if (decode_asn1_header(&ctx, &end, ASN1_UNI, ASN1_PRI, ASN1_OJI) ||
 			asn1_oid_decode(&ctx, end, &oid, &len) == 0) {
-		pr_debug("Error decoding Kerberos oids\n");
+		pr_debug("Error decoding Kerberos 5 OIDs\n");
 		return -EINVAL;
 	}
 
 	if (!is_supported_mech(oid, len, mech_type)) {
 		free(oid);
-		pr_debug("Not support mechanism\n");
+		pr_debug("Not a supported mechanism\n");
 		return -EINVAL;
 	}
 	free(oid);
@@ -199,14 +199,14 @@ static int decode_negTokenInit(unsigned char *negToken, int token_len,
 
 	/* Kerberos 5 oid */
 	if (decode_asn1_header(&ctx, &end, ASN1_UNI, ASN1_PRI, ASN1_OJI)) {
-		pr_debug("Error decoding Kerberos oid tag\n");
+		pr_debug("Error decoding Kerberos 5 OID tag\n");
 		return -EINVAL;
 	}
 
 	if (asn1_oid_decode(&ctx, end, &oid, &len) == 0 ||
 			compare_oid(oid, len, KRB5_OID,
 				ARRAY_SIZE(KRB5_OID))) {
-		pr_debug("not Kerberos OID\n");
+		pr_debug("Not a Kerberos 5 OID\n");
 		free(oid);
 		return -EINVAL;
 	}
@@ -216,7 +216,7 @@ static int decode_negTokenInit(unsigned char *negToken, int token_len,
 	if (asn1_read(&ctx, &id, 2) == 0 || id[0] != 1 || id[1] != 0) {
 		if (id)
 			free(id);
-		pr_debug("Error decoding AP_REQ id\n");
+		pr_debug("Error decoding AP_REQ ID\n");
 		return -EINVAL;
 	}
 	free(id);
@@ -332,7 +332,7 @@ int spnego_handle_authen_request(struct ksmbd_spnego_authen_request *req,
 	mech_ctx = get_mech(mech_type);
 	if (!mech_ctx) {
 		retval = -ENOTSUP;
-		pr_info("Not support Kerberos\n");
+		pr_info("No support for Kerberos 5\n");
 		goto out;
 	}
 
@@ -340,7 +340,7 @@ int spnego_handle_authen_request(struct ksmbd_spnego_authen_request *req,
 				mech_token, token_len,
 				auth_out, encode_negTokenTarg)) {
 		retval = -EPERM;
-		pr_info("Error authenticate\n");
+		pr_info("Error authenticating\n");
 		goto out;
 	}
 out:

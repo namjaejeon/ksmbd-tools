@@ -212,7 +212,7 @@ retry:
 		g_error_free(err);
 
 		if (has_altname) {
-			pr_info("Will try '%s' and '%s'\n",
+			pr_info("Will try `%s' and `%s'\n",
 				ksmbd_conv_charsets[to_codeset],
 				ksmbd_conv_charsets[from_codeset]);
 			goto retry;
@@ -234,18 +234,19 @@ int send_signal_to_ksmbd_mountd(int signo)
 
 	fd = open(KSMBD_LOCK_FILE, O_RDONLY);
 	if (fd < 0) {
-		pr_err("Can't open `%s': %m\n", KSMBD_LOCK_FILE);
+		pr_debug("Can't open `%s': %m\n", KSMBD_LOCK_FILE);
 		return ret;
 	}
 
 	if (read(fd, &pid_buf, sizeof(pid_buf)) == -1) {
-		pr_err("Unable to read manager PID: %m\n");
+		pr_err("Can't read manager PID: %m\n");
 		goto out;
 	}
 
 	pid = strtol(pid_buf, NULL, 10);
-	pr_debug("Send signal %d (%s) to PID %d\n",
-		 signo, strsignal(signo), pid);
+	if (signo)
+		pr_debug("Send signal %d (%s) to PID %d\n",
+			 signo, strsignal(signo), pid);
 	if (kill(pid, signo) == -1) {
 		ret = -errno;
 		if (signo)
@@ -266,7 +267,7 @@ int test_file_access(char *conf)
 
 	fd = open(conf, O_RDWR | O_CREAT, S_IRWXU | S_IRGRP);
 	if (fd < 0) {
-		pr_err("Can't open `%s': %m\n", conf);
+		pr_debug("Can't open `%s': %m\n", conf);
 		return -EINVAL;
 	}
 

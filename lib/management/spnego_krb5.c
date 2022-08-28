@@ -166,7 +166,7 @@ static krb5_error_code acquire_creds_from_keytab(krb5_context context,
 
 		krb5_unparse_name(context, sprinc, &name);
 		pr_krb5_err(context, retval,
-			"while getting credentails for %s\n", name);
+			"while getting credentials for %s\n", name);
 		krb5_free_unparsed_name(context, name);
 		goto out_err;
 	}
@@ -213,7 +213,7 @@ static int handle_krb5_authen(struct spnego_mech_ctx *mech_ctx,
 	krb_retval = krb5_auth_con_init(krb5_ctx->context, &auth_context);
 	if (krb_retval) {
 		pr_krb5_err(krb5_ctx->context, krb_retval,
-				"while initailzing auth context\n");
+				"while initializing auth context\n");
 		return -EINVAL;
 	}
 
@@ -310,7 +310,7 @@ static int handle_krb5_authen(struct spnego_mech_ctx *mech_ctx,
 		goto out_free_client;
 	}
 
-	pr_info("Succeeded to authenticate %s\n", auth_out->user_name);
+	pr_info("Authenticated user `%s'\n", auth_out->user_name);
 	retval = 0;
 
 out_free_client:
@@ -345,7 +345,7 @@ static int setup_krb5_ctx(struct spnego_mech_ctx *mech_ctx)
 	krb_retval = krb5_init_context(&krb5_ctx->context);
 	if (krb_retval) {
 		free(krb5_ctx);
-		pr_err("while initializing krb5 context");
+		pr_err("while initializing krb5 context\n");
 		return -EINVAL;
 	}
 

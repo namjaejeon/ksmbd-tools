@@ -65,7 +65,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 	share = shm_lookup_share(req->share);
 	if (!share) {
 		resp->status = KSMBD_TREE_CONN_STATUS_NO_SHARE;
-		pr_err("treecon: unknown net share: %s\n", req->share);
+		pr_err("treecon: Unknown net share: %s\n", req->share);
 		goto out_error;
 	}
 
@@ -78,7 +78,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 
 	if (shm_open_connection(share)) {
 		resp->status = KSMBD_TREE_CONN_STATUS_TOO_MANY_CONNS;
-		pr_debug("treecon: Too many connections to a net share\n");
+		pr_debug("treecon: Too many connections to net share\n");
 		goto out_error;
 	}
 
@@ -87,7 +87,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 				   req->peer_addr);
 	if (ret == -ENOENT) {
 		resp->status = KSMBD_TREE_CONN_STATUS_HOST_DENIED;
-		pr_debug("treecon: host denied: %s\n", req->peer_addr);
+		pr_debug("treecon: Host denied: %s\n", req->peer_addr);
 		goto out_error;
 	}
 
@@ -97,7 +97,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 					   req->peer_addr);
 		if (ret == 0) {
 			resp->status = KSMBD_TREE_CONN_STATUS_HOST_DENIED;
-			pr_err("treecon: host denied: %s\n", req->peer_addr);
+			pr_err("treecon: Host denied: %s\n", req->peer_addr);
 			goto out_error;
 		}
 	}
@@ -110,7 +110,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 
 		if (req->account_flags & KSMBD_USER_FLAG_GUEST_ACCOUNT &&
 				deny) {
-			pr_debug("treecon: deny. Restricted session\n");
+			pr_debug("treecon: Deny, restricted session\n");
 			resp->status = KSMBD_TREE_CONN_STATUS_ERROR;
 			goto out_error;
 		}
@@ -119,14 +119,14 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 	if ((req->account_flags & KSMBD_USER_FLAG_GUEST_ACCOUNT) &&
 	    !test_share_flag(share, KSMBD_SHARE_FLAG_PIPE) &&
 	    !test_share_flag(share, KSMBD_SHARE_FLAG_GUEST_OK)) {
-		pr_debug("treecon: deny. Not allow guest\n");
+		pr_debug("treecon: Deny, guest not allowed\n");
 		resp->status = KSMBD_TREE_CONN_STATUS_ERROR;
 		goto out_error;
 	}
 
 	if ((req->account_flags & KSMBD_USER_FLAG_GUEST_ACCOUNT) &&
 	     test_share_flag(share, KSMBD_SHARE_FLAG_GUEST_OK)) {
-		pr_debug("treecon: net share permits guest login\n");
+		pr_debug("treecon: Net share permits guest login\n");
 		user = usm_lookup_user(share->guest_account);
 		if (user) {
 			set_conn_flag(conn, KSMBD_TREE_CONN_FLAG_GUEST_ACCOUNT);
@@ -143,7 +143,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 	user = usm_lookup_user(req->account);
 	if (!user) {
 		resp->status = KSMBD_TREE_CONN_STATUS_NO_USER;
-		pr_err("treecon: user account not found: %s\n", req->account);
+		pr_err("treecon: User `%s' not found\n", req->account);
 		goto out_error;
 	}
 
@@ -166,7 +166,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 				   req->account);
 	if (ret == 0) {
 		resp->status = KSMBD_TREE_CONN_STATUS_INVALID_USER;
-		pr_err("treecon: user is on invalid list\n");
+		pr_err("treecon: User is on invalid users list\n");
 		goto out_error;
 	}
 
@@ -194,7 +194,7 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 		goto bind;
 	if (ret == -ENOENT) {
 		resp->status = KSMBD_TREE_CONN_STATUS_INVALID_USER;
-		pr_err("treecon: user is not on the valid list\n");
+		pr_err("treecon: User is not on valid users list\n");
 		goto out_error;
 	}
 
@@ -205,7 +205,7 @@ bind:
 	resp->connection_flags = conn->flags;
 
 	if (sm_handle_tree_connect(req->session_id, user, conn)) {
-		pr_err("ERROR: we were unable to bind tree connection\n");
+		pr_err("treecon: Unable to bind tree connection\n");
 		tcm_tree_conn_free(conn);
 		put_ksmbd_user(user);
 	}
