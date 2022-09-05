@@ -379,7 +379,7 @@ NDR_READ_UNION(int32, __u32);
 int ndr_write_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz)
 {
 	align_offset(dce, 2);
-	if (try_realloc_payload(dce, sizeof(short)))
+	if (try_realloc_payload(dce, sz))
 		return -ENOMEM;
 
 	memcpy(PAYLOAD_HEAD(dce), value, sz);
