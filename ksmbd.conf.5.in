@@ -229,10 +229,9 @@ SMB3 multi-channel support is experimental and may corrupt data under race condi
 Default: \fBserver multi channel support = no\fR
 .TP
 \fBserver signing\fR (G)
-This controls whether the client is allowed or required to use SMB1 and SMB2 signing.
-With \fBserver signing = disabled\fR, SMB1 signing is not allowed and SMB2 signing is allowed.
-With \fBserver signing = auto\fR, both SMB1 and SMB2 signing are allowed.
-With \fBserver signing = mandatory\fR, both SMB1 and SMB2 signing are required.
+This controls whether the client is allowed or required to use SMB2 signing.
+With \fBserver signing = disabled\fR or \fBserver signing = auto\fR, SMB2 signing is allowed if it is required by the client.
+With \fBserver signing = mandatory\fR, SMB2 signing is required.
 
 Default: \fBserver signing = disabled\fR
 .TP
