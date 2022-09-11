@@ -93,7 +93,7 @@ static int add_new_group(char *line)
 	while (*end && *end != ']')
 		end = g_utf8_find_next_char(end, NULL);
 
-	name = g_ascii_strdown(begin + 1, end - begin - 1);
+	name = shm_casefold_share_name(begin + 1, end - begin - 1);
 	if (!name)
 		goto out_free;
 

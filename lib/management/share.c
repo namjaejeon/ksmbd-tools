@@ -236,6 +236,25 @@ int shm_init(void)
 	return 0;
 }
 
+char *shm_casefold_share_name(char *name, size_t len)
+{
+	char *nfdi_name, *nfdicf_name;
+
+	nfdi_name = g_utf8_normalize(name, len, G_NORMALIZE_NFD);
+	if (!nfdi_name)
+		goto out_ascii;
+
+	nfdicf_name = g_utf8_casefold(nfdi_name, strlen(nfdi_name));
+	if (!nfdicf_name)
+		goto out_ascii;
+
+	g_free(nfdi_name);
+	return nfdicf_name;
+out_ascii:
+	g_free(nfdi_name);
+	return g_ascii_strdown(name, len);
+}
+
 static struct ksmbd_share *__shm_lookup_share(char *name)
 {
 	return g_hash_table_lookup(shares_table, name);

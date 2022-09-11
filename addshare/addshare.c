@@ -123,17 +123,17 @@ int main(int argc, char *argv[])
 		switch (c) {
 		case 'a':
 			g_free(share);
-			share = g_ascii_strdown(optarg, strlen(optarg));
+			share = shm_casefold_share_name(optarg, strlen(optarg));
 			command = command_add_share;
 			break;
 		case 'd':
 			g_free(share);
-			share = g_ascii_strdown(optarg, strlen(optarg));
+			share = shm_casefold_share_name(optarg, strlen(optarg));
 			command = command_del_share;
 			break;
 		case 'u':
 			g_free(share);
-			share = g_ascii_strdown(optarg, strlen(optarg));
+			share = shm_casefold_share_name(optarg, strlen(optarg));
 			command = command_update_share;
 			break;
 		case 'o':
