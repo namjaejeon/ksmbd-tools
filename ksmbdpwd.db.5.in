@@ -10,8 +10,8 @@ ksmbdpwd.db \- the user database for ksmbd.mountd
 .SH "FILE FORMAT"
 \fBksmbdpwd.db\fR consists of user entries separated by newlines.
 Each user entry consists of a user and a password, in that order, separated by a colon (\fB:\fR).
-The user is [1, 48) ASCII characters and cannot contain newline or colon. \" KSMBD_REQ_MAX_ACCOUNT_NAME_SZ
-The password is created from the user-input UTF-8-encoded password by converting it to UTF-16LE, then MD4-hashing it, and finally Base64-encoding and padding it.
+The user must be UTF-8, [1, 48) bytes, and cannot contain newline or colon. \" KSMBD_REQ_MAX_ACCOUNT_NAME_SZ
+The password is created from the user-input UTF-8 password, [0, 129) bytes, by converting it to UTF-16LE, then MD4-hashing it, and finally Base64-encoding and padding it. \" MAX_NT_PWD_LEN
 .SH COPYRIGHT
 Copyright \(co 2015-2022 ksmbd-tools contributors.
 License GPLv2: GNU GPL version 2 <https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html>.

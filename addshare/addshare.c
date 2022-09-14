@@ -37,7 +37,8 @@ static void usage(int status)
 		g_printerr(
 			"\n"
 			"  -a, --add-share=SHARE       add SHARE to configuration file;\n"
-			"                              SHARE is [1, " STR(KSMBD_REQ_MAX_SHARE_NAME) ") ASCII characters;\n"
+			"                              SHARE must be UTF-8 and [1, " STR(KSMBD_REQ_MAX_SHARE_NAME) ") bytes;\n"
+			"                              SHARE is case-insensitive;\n"
 			"                              SHARE cannot be `global';\n"
 			"                              initial parameters must be given with `--options'\n"
 			"  -d, --del-share=SHARE       delete SHARE from configuration file\n"

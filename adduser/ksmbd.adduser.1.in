@@ -18,7 +18,7 @@ ksmbd.adduser \- configure users for ksmbdpwd.db of ksmbd.mountd
 .TP
 \fB\-a\fR, \fB\-\-add-user\fR=\fI\,USER\/\fR
 Add \fI\,USER\/\fR to user database.
-\fI\,USER\/\fR is [1, 48) ASCII characters. \" KSMBD_REQ_MAX_ACCOUNT_NAME_SZ
+\fI\,USER\/\fR must be UTF-8 and [1, 48) bytes. \" KSMBD_REQ_MAX_ACCOUNT_NAME_SZ
 \fI\,USER\/\fR cannot contain colon (\fB:\fR) or newline.
 .TP
 \fB\-d\fR, \fB\-\-del-user\fR=\fI\,USER\/\fR
@@ -29,8 +29,7 @@ Update \fI\,USER\/\fR in user database.
 .TP
 \fB\-p\fR, \fB\-\-password\fR=\fI\,PWD\/\fR
 Use \fI\,PWD\/\fR as user password instead of prompting.
-\fI\,PWD\/\fR is assumed to be UTF-8 encoded.
-\fI\,PWD\/\fR is [0, 129) bytes. \" MAX_NT_PWD_LEN
+\fI\,PWD\/\fR must be UTF-8 and [0, 129) bytes. \" MAX_NT_PWD_LEN
 \fI\,PWD\/\fR cannot contain newline.
 .TP
 \fB\-i\fR, \fB\-\-import-users\fR=\fI\,PWDDB\/\fR
@@ -49,7 +48,8 @@ Output version information and exit.
 \fB\-h\fR, \fB\-\-help\fR
 Display this help and exit.
 .SH "EXIT STATUS"
-The exit status is 0 on success and 1 on failure. Failure to notify \fBksmbd.mountd\fR of changes has no effect on exit status.
+The exit status is 0 on success and 1 on failure.
+Failure to notify \fBksmbd.mountd\fR of changes has no effect on exit status.
 .SH COPYRIGHT
 Copyright \(co 2015-2022 ksmbd-tools contributors.
 License GPLv2: GNU GPL version 2 <https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html>.

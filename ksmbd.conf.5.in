@@ -7,6 +7,7 @@ ksmbd.conf \- the configuration file for ksmbd.mountd
 \fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes, if it had made any, by sending the \fBSIGHUP\fR signal to \fBksmbd.mountd\fR.
 \fBksmbd.control --reload\fR can be used for notifying \fBksmbd.mountd\fR of changes when not using \fBksmbd.addshare\fR.
 \fBksmbd.conf\fR is expected to be at \fB@sysconfdir@/ksmbd/ksmbd.conf\fR by default. \" PATH_SMBCONF
+A configuration file that may serve as an example can be found at \fB@sysconfdir@/ksmbd/ksmbd.conf.example\fR.
 .SH "FILE FORMAT"
 \fBksmbd.conf\fR consists of sections with each new section marking the end of the previous one.
 A new section begins with the section name enclosed in brackets (\fB[]\fR) followed by a newline.
@@ -18,7 +19,7 @@ Some parameter entries can be given a list of multiple values, in which case the
 A semicolon (\fB;\fR) or a hash (\fB#\fR) marks the beginning of a comment which continues until the end of the line.
 .SH SHARES
 Each section name, except that of the \fBglobal\fR section, defines a shared resource, commonly referred to as a share.
-A section name, which is the share name, is [1, 64) ASCII characters. \" KSMBD_REQ_MAX_SHARE_NAME
+A section name, which is the share name, must be UTF-8, [1, 64) bytes, and is case-insensitive. \" KSMBD_REQ_MAX_SHARE_NAME
 Users that may be allowed to connect to a share are those that have user entries in \fBksmbdpwd.db\fP(5) user database.
 A share may limit which users are allowed to connect to a particular share.
 When connected to a share, the user is mapped to a system user and underlying filesystem permissions are enforced.
@@ -29,6 +30,7 @@ Share parameters, marked below with \fB(S)\fR, may be specified in any section.
 When a share parameter is specified in a section other than \fBglobal\fR, it is specific to that particular share.
 Under the \fBglobal\fR section, a share parameter sets its default value for all shares.
 Global parameters, marked below with \fB(G)\fR, can only be given in the \fBglobal\fR section and control functionality that applies to no specific share.
+Changes to global parameters apply only after restarting \fBksmbd.mountd\fR and \fBksmbd\fR.
 \" .TP
 \" \fBadmin users\fR (S)
 \" 
@@ -207,7 +209,7 @@ With \fBrestrict anonymous = 1\fR or \fBrestrict anonymous = 2\fR, disallow conn
 Default: \fBrestrict anonymous = 0\fR
 .TP
 \fBroot directory\fR (G)
-Path of the directory prepended to every share path.
+Path of the directory prepended to \fBpath\fR of every share.
 Somewhat similar to \fBchroot\fP(2).
 
 Default: \fBroot directory = \fR

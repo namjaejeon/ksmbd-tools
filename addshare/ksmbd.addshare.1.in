@@ -17,7 +17,8 @@ ksmbd.addshare \- configure shares for ksmbd.conf of ksmbd.mountd
 .TP
 \fB\-a\fR, \fB\-\-add-share\fR=\fI\,SHARE\/\fR
 Add \fI\,SHARE\/\fR to configuration file.
-\fI\,SHARE\/\fR is [1, 64) ASCII characters. \" KSMBD_REQ_MAX_SHARE_NAME
+\fI\,SHARE\/\fR must be UTF-8 and [1, 64) bytes. \" KSMBD_REQ_MAX_SHARE_NAME
+\fI\,SHARE\/\fR is case-insensitive.
 \fI\,SHARE\/\fR cannot be \fBglobal\fR.
 Initial parameters must be given with \fB\-\-options\fR.
 .TP
@@ -46,7 +47,8 @@ Output version information and exit.
 \fB\-h\fR, \fB\-\-help\fR
 Display this help and exit.
 .SH "EXIT STATUS"
-The exit status is 0 on success and 1 on failure. Failure to notify \fBksmbd.mountd\fR of changes has no effect on exit status.
+The exit status is 0 on success and 1 on failure.
+Failure to notify \fBksmbd.mountd\fR of changes has no effect on exit status.
 .SH COPYRIGHT
 Copyright \(co 2015-2022 ksmbd-tools contributors.
 License GPLv2: GNU GPL version 2 <https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html>.
