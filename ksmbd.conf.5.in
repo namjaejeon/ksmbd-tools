@@ -4,6 +4,7 @@ ksmbd.conf \- the configuration file for ksmbd.mountd
 .SH DESCRIPTION
 \fBksmbd.conf\fR is the configuration file for \fBksmbd.mountd\fP(1) user mode daemon.
 \fBksmbd.addshare\fP(1) may be used for configuring shares for \fBksmbd.conf\fR.
+\fBksmbd.addshare\fR modifies \fBksmbd.conf\fR such that its existing formatting is not retained.
 \fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes, if it had made any, by sending the \fBSIGHUP\fR signal to \fBksmbd.mountd\fR.
 \fBksmbd.control --reload\fR can be used for notifying \fBksmbd.mountd\fR of changes when not using \fBksmbd.addshare\fR.
 \fBksmbd.conf\fR is expected to be at \fB@sysconfdir@/ksmbd/ksmbd.conf\fR by default. \" PATH_SMBCONF
@@ -11,11 +12,11 @@ A configuration file that may serve as an example can be found at \fB@sysconfdir
 .SH "FILE FORMAT"
 \fBksmbd.conf\fR consists of sections with each new section marking the end of the previous one.
 A new section begins with the section name enclosed in brackets (\fB[]\fR) followed by a newline.
-Each section may have parameter entries separated by newlines.
+Each section may contain parameter entries separated by newlines.
 A parameter entry consists of a parameter and a value, in that order, separated by an equal sign (\fB=\fR).
 The parameter may contain leading and trailing tabs and spaces.
 The value, which begins immediately after the equal sign, may contain leading tabs and spaces or be empty.
-Some parameter entries can be given a list of multiple values, in which case they are separated by commas, tabs, or spaces.
+Some parameter entries can be given a list of multiple values, in which case the values are separated by commas, tabs, or spaces.
 A semicolon (\fB;\fR) or a hash (\fB#\fR) marks the beginning of a comment which continues until the end of the line.
 .SH SHARES
 Each section name, except that of the \fBglobal\fR section, defines a shared resource, commonly referred to as a share.

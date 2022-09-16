@@ -12,6 +12,7 @@ ksmbd.addshare \- configure shares for ksmbd.conf of ksmbd.mountd
 {-V | -h}
 .SH DESCRIPTION
 \fBksmbd.addshare\fR configures shares for \fBksmbd.conf\fP(5) configuration file of \fBksmbd.mountd\fP(1) user mode daemon.
+\fBksmbd.addshare\fR modifies \fBksmbd.conf\fR such that its existing formatting is not retained.
 \fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes if it had made any.
 .SH OPTIONS
 .TP
