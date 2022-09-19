@@ -95,7 +95,7 @@ static int parse_configs(char *pwddb, char *smbconf)
 	ret = cp_parse_smbconf(smbconf);
 	if (ret == -ENOENT) {
 		pr_info("Configuration file does not exist, "
-			"guest account is unknown\n");
+			"cannot guard against user deletion\n");
 		ret = 0;
 	} else if (ret)
 		pr_err("Failed to parse configuration file\n");
