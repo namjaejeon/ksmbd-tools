@@ -34,7 +34,7 @@ static void usage(int status)
 			"  -V, --version            output version information and exit\n"
 			"  -h, --help               display this help and exit\n"
 			"\n"
-			"See ksmbd.control(1) for more details.\n");
+			"See ksmbd.control(8) for more details.\n");
 }
 
 static const struct option opts[] = {

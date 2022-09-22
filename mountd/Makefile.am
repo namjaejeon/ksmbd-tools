@@ -8,9 +8,9 @@ sbin_PROGRAMS = ksmbd.mountd
 ksmbd_mountd_SOURCES = worker.c ipc.c rpc.c rpc_srvsvc.c rpc_wkssvc.c \
                        mountd.c smbacl.c rpc_samr.c rpc_lsarpc.c
 
-EXTRA_DIST = ksmbd.mountd.1.in
+EXTRA_DIST = ksmbd.mountd.8.in
 
-man_MANS = ksmbd.mountd.1
+man_MANS = ksmbd.mountd.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@
 
 CLEANFILES = $(man_MANS)

@@ -7,9 +7,9 @@ sbin_PROGRAMS = ksmbd.control
 
 ksmbd_control_SOURCES = control.c
 
-EXTRA_DIST = ksmbd.control.1.in
+EXTRA_DIST = ksmbd.control.8.in
 
-man_MANS = ksmbd.control.1
+man_MANS = ksmbd.control.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@
 
 CLEANFILES = $(man_MANS)

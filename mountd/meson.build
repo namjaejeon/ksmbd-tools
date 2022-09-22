@@ -24,8 +24,8 @@ mountd = executable(
 )
 
 configure_file(
-  input: 'ksmbd.mountd.1.in',
-  output: 'ksmbd.mountd.1',
-  install_dir: get_option('mandir') / 'man1',
+  input: 'ksmbd.mountd.8.in',
+  output: 'ksmbd.mountd.8',
+  install_dir: get_option('mandir') / 'man8',
   configuration: in_data,
 )

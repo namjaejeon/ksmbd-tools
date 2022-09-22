@@ -82,10 +82,10 @@ respectively.
 
 Manual pages:
 ```sh
-man 1 ksmbd.addshare
-man 1 ksmbd.adduser
-man 1 ksmbd.control
-man 1 ksmbd.mountd
+man 8 ksmbd.addshare
+man 8 ksmbd.adduser
+man 8 ksmbd.control
+man 8 ksmbd.mountd
 man 5 ksmbd.conf
 man 5 ksmbdpwd.db
 ```

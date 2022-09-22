@@ -18,8 +18,8 @@ addshare = executable(
 )
 
 configure_file(
-  input: 'ksmbd.addshare.1.in',
-  output: 'ksmbd.addshare.1',
-  install_dir: get_option('mandir') / 'man1',
+  input: 'ksmbd.addshare.8.in',
+  output: 'ksmbd.addshare.8',
+  install_dir: get_option('mandir') / 'man8',
   configuration: in_data,
 )

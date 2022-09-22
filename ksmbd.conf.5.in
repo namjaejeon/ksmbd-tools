@@ -2,8 +2,8 @@
 .SH NAME
 ksmbd.conf \- the configuration file for ksmbd.mountd
 .SH DESCRIPTION
-\fBksmbd.conf\fR is the configuration file for \fBksmbd.mountd\fP(1) user mode daemon.
-\fBksmbd.addshare\fP(1) may be used for configuring shares for \fBksmbd.conf\fR.
+\fBksmbd.conf\fR is the configuration file for \fBksmbd.mountd\fP(8) user mode daemon.
+\fBksmbd.addshare\fP(8) may be used for configuring shares for \fBksmbd.conf\fR.
 \fBksmbd.addshare\fR modifies \fBksmbd.conf\fR such that its existing formatting is not retained.
 \fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes, if it had made any, by sending the \fBSIGHUP\fR signal to \fBksmbd.mountd\fR.
 \fBksmbd.control --reload\fR can be used for notifying \fBksmbd.mountd\fR of changes when not using \fBksmbd.addshare\fR.
@@ -17,7 +17,7 @@ A parameter entry consists of a parameter and a value, in that order, separated 
 The parameter may contain leading and trailing tabs and spaces.
 The value, which begins immediately after the equal sign, may contain leading tabs and spaces or be empty.
 Some parameter entries can be given a list of multiple values, in which case the values are separated by commas, tabs, or spaces.
-For a list of users, all users in a system group can be specified by giving the group name prefixed with \fB@\fR.
+For a list of users, all users in a system group can be specified by giving the group name prefixed with an at sign (\fB@\fR).
 A semicolon (\fB;\fR) or a hash (\fB#\fR) marks the beginning of a comment which continues until the end of the line.
 .SH SHARES
 Each section name, except that of the \fBglobal\fR section, defines a shared resource, commonly referred to as a share.
@@ -343,6 +343,6 @@ For bug reports, use the issue tracker at https://github.com/cifsd-team/ksmbd-to
 .SH "SEE ALSO"
 .TP
 \fBUtilities\fR
-\fBksmbd.addshare\fP(1),
-\fBksmbd.adduser\fP(1),
-\fBksmbd.mountd\fP(1)
+\fBksmbd.addshare\fP(8),
+\fBksmbd.adduser\fP(8),
+\fBksmbd.mountd\fP(8)

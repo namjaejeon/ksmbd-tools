@@ -1,4 +1,4 @@
-.TH KSMBD.ADDUSER "1" "" "ksmbd-tools @ksmbd_tools_version@" "User Commands"
+.TH KSMBD.ADDUSER "8" "" "ksmbd-tools @ksmbd_tools_version@" "System Administration"
 .SH NAME
 ksmbd.adduser \- configure users for ksmbdpwd.db of ksmbd.mountd
 .SH SYNOPSIS
@@ -11,7 +11,7 @@ ksmbd.adduser \- configure users for ksmbdpwd.db of ksmbd.mountd
 .B ksmbd.adduser
 {-V | -h}
 .SH DESCRIPTION
-\fBksmbd.adduser\fR configures users for \fBksmbdpwd.db\fP(5) user database of \fBksmbd.mountd\fP(1) user mode daemon.
+\fBksmbd.adduser\fR configures users for \fBksmbdpwd.db\fP(5) user database of \fBksmbd.mountd\fP(8) user mode daemon.
 \fBksmbd.adduser\fR can parse \fBksmbd.conf\fP(5) configuration file so as to guard against deletion of users that are depended on.
 \fBksmbd.adduser\fR notifies \fBksmbd.mountd\fR of changes if it had made any.
 .SH OPTIONS
@@ -67,6 +67,6 @@ For bug reports, use the issue tracker at https://github.com/cifsd-team/ksmbd-to
 \fBksmbd.conf\fP(5)
 .TP
 \fBUtilities\fR
-\fBksmbd.addshare\fP(1),
-\fBksmbd.control\fP(1),
-\fBksmbd.mountd\fP(1)
+\fBksmbd.addshare\fP(8),
+\fBksmbd.control\fP(8),
+\fBksmbd.mountd\fP(8)

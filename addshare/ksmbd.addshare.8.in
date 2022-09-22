@@ -1,4 +1,4 @@
-.TH KSMBD.ADDSHARE "1" "" "ksmbd-tools @ksmbd_tools_version@" "User Commands"
+.TH KSMBD.ADDSHARE "8" "" "ksmbd-tools @ksmbd_tools_version@" "System Administration"
 .SH NAME
 ksmbd.addshare \- configure shares for ksmbd.conf of ksmbd.mountd
 .SH SYNOPSIS
@@ -11,7 +11,7 @@ ksmbd.addshare \- configure shares for ksmbd.conf of ksmbd.mountd
 .B ksmbd.addshare
 {-V | -h}
 .SH DESCRIPTION
-\fBksmbd.addshare\fR configures shares for \fBksmbd.conf\fP(5) configuration file of \fBksmbd.mountd\fP(1) user mode daemon.
+\fBksmbd.addshare\fR configures shares for \fBksmbd.conf\fP(5) configuration file of \fBksmbd.mountd\fP(8) user mode daemon.
 \fBksmbd.addshare\fR modifies \fBksmbd.conf\fR such that its existing formatting is not retained.
 \fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes if it had made any.
 .SH OPTIONS
@@ -64,6 +64,6 @@ For bug reports, use the issue tracker at https://github.com/cifsd-team/ksmbd-to
 \fBksmbd.conf\fP(5)
 .TP
 \fBUtilities\fR
-\fBksmbd.adduser\fP(1),
-\fBksmbd.control\fP(1),
-\fBksmbd.mountd\fP(1)
+\fBksmbd.adduser\fP(8),
+\fBksmbd.control\fP(8),
+\fBksmbd.mountd\fP(8)

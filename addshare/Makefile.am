@@ -7,9 +7,9 @@ sbin_PROGRAMS = ksmbd.addshare
 
 ksmbd_addshare_SOURCES = share_admin.c addshare.c share_admin.h
 
-EXTRA_DIST = ksmbd.addshare.1.in
+EXTRA_DIST = ksmbd.addshare.8.in
 
-man_MANS = ksmbd.addshare.1
+man_MANS = ksmbd.addshare.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@
 
 CLEANFILES = $(man_MANS)
