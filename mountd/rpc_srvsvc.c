@@ -169,11 +169,8 @@ static int srvsvc_share_get_info_invoke(struct ksmbd_rpc_pipe *pipe,
 {
 	struct ksmbd_share *share;
 	int ret;
-	gchar *share_name;
 
-	share_name = shm_casefold_share_name(STR_VAL(hdr->share_name),
-			strlen(STR_VAL(hdr->share_name)));
-	share = shm_lookup_share(share_name);
+	share = shm_lookup_share(STR_VAL(hdr->share_name));
 	if (!share)
 		return 0;
 

@@ -227,16 +227,7 @@ void shm_destroy(void)
 	g_rw_lock_clear(&shares_table_lock);
 }
 
-int shm_init(void)
-{
-	shares_table = g_hash_table_new(g_str_hash, g_str_equal);
-	if (!shares_table)
-		return -ENOMEM;
-	g_rw_lock_init(&shares_table_lock);
-	return 0;
-}
-
-char *shm_casefold_share_name(char *name, size_t len)
+static char *shm_casefold_share_name(const char *name, size_t len)
 {
 	char *nfdi_name, *nfdicf_name;
 
@@ -245,14 +236,45 @@ char *shm_casefold_share_name(char *name, size_t len)
 		goto out_ascii;
 
 	nfdicf_name = g_utf8_casefold(nfdi_name, strlen(nfdi_name));
-	if (!nfdicf_name)
-		goto out_ascii;
-
 	g_free(nfdi_name);
 	return nfdicf_name;
 out_ascii:
 	g_free(nfdi_name);
 	return g_ascii_strdown(name, len);
+}
+
+guint shm_share_name_hash(gconstpointer name)
+{
+	char *cf_name;
+	guint hash;
+
+	cf_name = shm_casefold_share_name(name, strlen(name));
+	hash = g_str_hash(cf_name);
+	g_free(cf_name);
+	return hash;
+}
+
+gboolean shm_share_name_equal(gconstpointer lname, gconstpointer rname)
+{
+	char *cf_lname, *cf_rname;
+	gboolean equal;
+
+	cf_lname = shm_casefold_share_name(lname, strlen(lname));
+	cf_rname = shm_casefold_share_name(rname, strlen(rname));
+	equal = g_str_equal(cf_lname, cf_rname);
+	g_free(cf_lname);
+	g_free(cf_rname);
+	return equal;
+}
+
+int shm_init(void)
+{
+	shares_table = g_hash_table_new(shm_share_name_hash,
+					shm_share_name_equal);
+	if (!shares_table)
+		return -ENOMEM;
+	g_rw_lock_init(&shares_table_lock);
+	return 0;
 }
 
 static struct ksmbd_share *__shm_lookup_share(char *name)
@@ -818,6 +840,8 @@ int shm_handle_share_config_request(struct ksmbd_share *share,
 	resp->force_directory_mode = share->force_directory_mode;
 	resp->force_uid = share->force_uid;
 	resp->force_gid = share->force_gid;
+	*resp->share_name = 0x00;
+	strncat(resp->share_name, share->name, KSMBD_REQ_MAX_SHARE_NAME - 1);
 	resp->veto_list_sz = share->veto_list_sz;
 
 	if (test_share_flag(share, KSMBD_SHARE_FLAG_PIPE))

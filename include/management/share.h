@@ -141,7 +141,6 @@ static inline int test_share_flag(struct ksmbd_share *share, int flag)
 
 struct ksmbd_share *get_ksmbd_share(struct ksmbd_share *share);
 void put_ksmbd_share(struct ksmbd_share *share);
-char *shm_casefold_share_name(char *name, size_t len);
 struct ksmbd_share *shm_lookup_share(char *name);
 
 struct smbconf_group;
@@ -150,6 +149,8 @@ int shm_add_new_share(struct smbconf_group *group);
 void shm_remove_all_shares(void);
 
 void shm_destroy(void);
+guint shm_share_name_hash(gconstpointer name);
+gboolean shm_share_name_equal(gconstpointer lname, gconstpointer rname);
 int shm_init(void);
 
 int shm_lookup_users_map(struct ksmbd_share *share,

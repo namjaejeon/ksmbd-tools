@@ -93,7 +93,7 @@ static int add_new_group(char *line)
 	while (*end && *end != ']')
 		end = g_utf8_find_next_char(end, NULL);
 
-	name = shm_casefold_share_name(begin + 1, end - begin - 1);
+	name = g_strndup(begin + 1, end - begin - 1);
 	if (!name)
 		goto out_free;
 
@@ -261,7 +261,8 @@ static int init_smbconf_parser(void)
 	if (parser.groups)
 		return 0;
 
-	parser.groups = g_hash_table_new(g_str_hash, g_str_equal);
+	parser.groups = g_hash_table_new(shm_share_name_hash,
+					 shm_share_name_equal);
 	if (!parser.groups)
 		return -ENOMEM;
 	return 0;

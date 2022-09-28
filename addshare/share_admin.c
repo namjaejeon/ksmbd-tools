@@ -113,8 +113,8 @@ static void write_remove_share_cb(gpointer key,
 {
 	struct smbconf_group *g = (struct smbconf_group *)value;
 
-	if (!g_ascii_strcasecmp(g->name, name)) {
-		pr_info("Share `%s' removed\n", g->name);
+	if (shm_share_name_equal(g->name, name)) {
+		pr_info("Share `%s' removed\n", name);
 		return;
 	}
 
@@ -187,6 +187,9 @@ int command_update_share(char *smbconf, char *name, char *opts)
 		goto error;
 	}
 
+	g_free(existing_group->name);
+	existing_group->name = g_strdup(name);
+
 	g_hash_table_foreach(update_group->kv,
 			     update_share_cb,
 			     existing_group->kv);
@@ -199,7 +202,6 @@ int command_update_share(char *smbconf, char *name, char *opts)
 	close(conf_fd);
 	g_free(aux_name);
 	return 0;
-
 error:
 	g_free(aux_name);
 	return -EINVAL;
