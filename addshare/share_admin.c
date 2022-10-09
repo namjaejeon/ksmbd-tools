@@ -114,7 +114,7 @@ static void write_remove_share_cb(gpointer key,
 	struct smbconf_group *g = (struct smbconf_group *)value;
 
 	if (shm_share_name_equal(g->name, name)) {
-		pr_info("Share `%s' removed\n", name);
+		pr_info("Share `%s' removed\n", (char *)name);
 		return;
 	}
 
