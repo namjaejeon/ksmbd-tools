@@ -641,6 +641,7 @@ static int cp_add_ipc_group(void)
 	char *comment = NULL, *guest = NULL;
 	int ret = 0;
 
+	ipc_group = g_hash_table_lookup(parser.groups, "ipc$");
 	if (ipc_group)
 		return ret;
 
