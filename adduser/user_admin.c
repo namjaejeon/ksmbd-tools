@@ -341,7 +341,7 @@ int command_add_user(char *pwddb, char *account, char *password)
 
 	/* pswd is already g_strdup-ed */
 	if (usm_add_new_user(account, pswd)) {
-		pr_err("Could not add new user `%s'\n", account);
+		pr_err("Unable to add new user `%s'\n", account);
 		return -EINVAL;
 	}
 

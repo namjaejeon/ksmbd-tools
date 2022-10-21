@@ -365,7 +365,7 @@ static int cp_add_global_guest_account(gpointer _v)
 
 	if (usm_add_new_user(cp_get_group_kv_string(_v),
 			     g_strdup("NULL"))) {
-		pr_err("Unable to add guest account\n");
+		pr_err("Unable to add new user `%s'\n", (char *) _v);
 		return -ENOMEM;
 	}
 
@@ -593,6 +593,8 @@ static void global_conf_update(struct smbconf_group *group)
 
 static void global_conf_fixup_missing(void)
 {
+	struct ksmbd_user *user;
+
 	/*
 	 * Set default global parameters which were not specified
 	 * in smb.conf
@@ -615,8 +617,10 @@ static void global_conf_fixup_missing(void)
 	if (global_conf.sessions_cap <= 0)
 		global_conf.sessions_cap = KSMBD_CONF_DEFAULT_SESS_CAP;
 
-	if (!global_conf.guest_account &&
-	    cp_add_global_guest_account(KSMBD_CONF_DEFAULT_GUEST_ACCOUNT))
+	user = usm_lookup_user(global_conf.guest_account);
+	if (user)
+		put_ksmbd_user(user);
+	else if (cp_add_global_guest_account(KSMBD_CONF_DEFAULT_GUEST_ACCOUNT))
 		pr_err("Unable to add guest account\n");
 }
 
