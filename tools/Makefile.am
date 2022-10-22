@@ -2,6 +2,8 @@ AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
             -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBKRB5_CFLAGS) -fno-common
 LIBS = $(GLIB_LIBS) $(LIBNL_LIBS) $(LIBKRB5_LIBS)
 
+EXTRA_DIST = meson.build
+
 libexec_PROGRAMS = ksmbd.tools
 ksmbd_tools_SOURCES =     management/tree_conn.c \
                           management/user.c \

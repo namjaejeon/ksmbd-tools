@@ -4,7 +4,8 @@ AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
 noinst_LIBRARIES = libadduser.a
 libadduser_a_SOURCES = md4_hash.c user_admin.c adduser.c md4_hash.h user_admin.h
 
-EXTRA_DIST = ksmbd.adduser.8.in
+EXTRA_DIST = ksmbd.adduser.8.in \
+	     meson.build
 
 man_MANS = ksmbd.adduser.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@

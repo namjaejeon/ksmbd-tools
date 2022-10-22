@@ -4,7 +4,8 @@ AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
 noinst_LIBRARIES = libaddshare.a
 libaddshare_a_SOURCES = share_admin.c addshare.c share_admin.h
 
-EXTRA_DIST = ksmbd.addshare.8.in
+EXTRA_DIST = ksmbd.addshare.8.in \
+	     meson.build
 
 man_MANS = ksmbd.addshare.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@

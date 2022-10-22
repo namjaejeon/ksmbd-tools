@@ -7,7 +7,9 @@ EXTRA_DIST = include \
              ksmbd-tools.spec \
              ksmbd.conf.5.in \
              ksmbdpwd.db.5.in \
-             ksmbd.service.in
+             ksmbd.service.in \
+	     meson.build \
+	     meson_options.txt
 
 pkgsysconfdir = $(sysconfdir)/ksmbd
 dist_pkgsysconf_DATA = ksmbd.conf.example

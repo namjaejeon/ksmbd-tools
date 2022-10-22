@@ -4,7 +4,8 @@ AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
 noinst_LIBRARIES = libcontrol.a
 libcontrol_a_SOURCES = control.c
 
-EXTRA_DIST = ksmbd.control.8.in
+EXTRA_DIST = ksmbd.control.8.in \
+	     meson.build
 
 man_MANS = ksmbd.control.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@
