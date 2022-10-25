@@ -133,6 +133,7 @@ void usm_destroy(void)
 	if (users_table) {
 		usm_clear_users();
 		g_hash_table_destroy(users_table);
+		users_table = NULL;
 	}
 	g_rw_lock_clear(&users_table_lock);
 }

@@ -734,6 +734,7 @@ void rpc_destroy(void)
 	if (pipes_table) {
 		__clear_pipes_table();
 		g_hash_table_destroy(pipes_table);
+		pipes_table = NULL;
 	}
 	g_rw_lock_clear(&pipes_table_lock);
 	rpc_samr_destroy();
