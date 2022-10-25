@@ -221,6 +221,7 @@ void sm_destroy(void)
 	if (sessions_table) {
 		sm_clear_sessions();
 		g_hash_table_destroy(sessions_table);
+		sessions_table = NULL;
 	}
 	g_rw_lock_clear(&sessions_table_lock);
 }

@@ -818,11 +818,15 @@ int rpc_samr_init(void)
 
 void rpc_samr_destroy(void)
 {
-	if (ch_table)
+	if (ch_table) {
 		g_hash_table_destroy(ch_table);
+		ch_table = NULL;
+	}
 	g_rw_lock_clear(&ch_table_lock);
 	num_domain_entries = 0;
 	g_free(domain_name);
-	if (domain_entries)
+	if (domain_entries) {
 		g_array_free(domain_entries, 1);
+		domain_entries = NULL;
+	}
 }

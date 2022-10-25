@@ -603,7 +603,9 @@ int rpc_lsarpc_init(void)
 void rpc_lsarpc_destroy(void)
 {
 	g_free(domain_name);
-	if (ph_table)
+	if (ph_table) {
 		g_hash_table_destroy(ph_table);
+		ph_table = NULL;
+	}
 	g_rw_lock_clear(&ph_table_lock);
 }
