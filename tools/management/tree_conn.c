@@ -126,16 +126,19 @@ int tcm_handle_tree_connect(struct ksmbd_tree_connect_request *req,
 
 	if ((req->account_flags & KSMBD_USER_FLAG_GUEST_ACCOUNT) &&
 	     test_share_flag(share, KSMBD_SHARE_FLAG_GUEST_OK)) {
+		struct ksmbd_user *guest_account, *global_guest_account;
+
 		pr_debug("treecon: Net share permits guest login\n");
-		user = usm_lookup_user(share->guest_account);
-		if (user) {
+		guest_account = usm_lookup_user(share->guest_account);
+		global_guest_account = usm_lookup_user(global_conf.guest_account);
+		if (guest_account) {
 			set_conn_flag(conn, KSMBD_TREE_CONN_FLAG_GUEST_ACCOUNT);
+			user = guest_account;
 			goto bind;
 		}
-
-		user = usm_lookup_user(global_conf.guest_account);
-		if (user) {
+		if (global_guest_account) {
 			set_conn_flag(conn, KSMBD_TREE_CONN_FLAG_GUEST_ACCOUNT);
+			user = global_guest_account;
 			goto bind;
 		}
 	}
