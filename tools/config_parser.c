@@ -137,13 +137,15 @@ static int add_group_key_value(char *line)
 
 	value = key;
 	*key = 0x00;
-	key--;
-	value++;
 
-	while (is_ascii_space_tab(*key))
-		key--;
-	while (is_ascii_space_tab(*value))
-		value++;
+	do {
+		if (key == line)
+			return -EINVAL;
+	} while (is_ascii_space_tab(*--key));
+
+	do {
+		;
+	} while (is_ascii_space_tab(*++value));
 
 	if (is_a_comment(value))
 		return 0;
