@@ -159,6 +159,13 @@ static int add_group_key_value(char *line)
 		return -ENOMEM;
 	}
 
+	if (!parser.current) {
+		pr_err("Key-value definition for `%s' is not in a group\n", key);
+		g_free(key);
+		g_free(value);
+		return -EINVAL;
+	}
+
 	if (g_hash_table_lookup(parser.current->kv, key)) {
 		pr_info("Multiple key-value definitions for `%s' in group `%s'\n",
 			key, parser.current->name);
