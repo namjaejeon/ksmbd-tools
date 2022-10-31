@@ -510,10 +510,20 @@ static gboolean global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 	}
 
 	if (!cp_key_cmp(_k, "smb3 encryption")) {
-		if (cp_get_group_kv_bool(_v))
-			global_conf.flags |= KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION;
-		else
+		switch (cp_get_group_kv_config_opt(_v)) {
+		case KSMBD_CONFIG_OPT_DISABLED:
+			global_conf.flags |= KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION_OFF;
 			global_conf.flags &= ~KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION;
+			break;
+		case KSMBD_CONFIG_OPT_MANDATORY:
+			global_conf.flags |= KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION;
+			global_conf.flags &= ~KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION_OFF;
+			break;
+		default:
+			global_conf.flags &= ~KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION;
+			global_conf.flags &= ~KSMBD_GLOBAL_FLAG_SMB3_ENCRYPTION_OFF;
+			break;
+		}
 
 		return TRUE;
 	}

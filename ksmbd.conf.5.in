@@ -281,9 +281,12 @@ Maximum length that may be used in a SMB2 WRITE request sent by a client.
 Default: \fBsmb2 max write = 4MB\fR \" SMB3_DEFAULT_IOSIZE
 .TP
 \fBsmb3 encryption\fR (G)
-Use of SMB3 encryption is allowed.
+Client is disallowed, allowed, or required to use SMB3 encryption.
+With \fBsmb3 encryption = disabled\fR, SMB3 encryption is disallowed even if it is requested by the client.
+With \fBsmb3 encryption = auto\fR, SMB3 encryption is allowed if it is requested by the client.
+With \fBsmb3 encryption = mandatory\fR, SMB3 encryption is required. i.e. clients that do not support encryption will be denied access to the share.
 
-Default: \fBsmb3 encryption = no\fR
+Default: \fBsmb3 encryption = auto\fR
 .TP
 \fBsmbd max io size\fR (G)
 Maximum read/write size of SMB-Direct.
