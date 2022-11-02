@@ -222,7 +222,7 @@ static int __mmap_parse_file(const char *fname, int (*callback)(char *data))
 
 	len = g_mapped_file_get_length(file);
 	while (len > 0) {
-		delim = strchr(contents, '\n');
+		delim = memchr(contents, '\n', len);
 		if (!delim)
 			delim = contents + len - 1;
 
