@@ -115,29 +115,6 @@ static void dcerpc_free(struct ksmbd_dcerpc *dce)
 	g_free(dce);
 }
 
-static struct ksmbd_dcerpc *dcerpc_alloc(unsigned int flags, int sz)
-{
-	struct ksmbd_dcerpc *dce;
-
-	dce = g_try_malloc0(sizeof(struct ksmbd_dcerpc));
-	if (!dce)
-		return NULL;
-
-	dce->payload = g_try_malloc0(sz);
-	if (!dce->payload) {
-		g_free(dce);
-		return NULL;
-	}
-
-	dce->payload_sz = sz;
-	dce->flags = flags;
-	dce->num_pointers = 1;
-
-	if (sz == KSMBD_DCERPC_MAX_PREFERRED_SIZE)
-		dce->flags &= ~KSMBD_DCERPC_FIXED_PAYLOAD_SZ;
-	return dce;
-}
-
 static struct ksmbd_dcerpc *dcerpc_ext_alloc(unsigned int flags,
 					     void *payload,
 					     int payload_sz)
