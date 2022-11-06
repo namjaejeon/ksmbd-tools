@@ -105,16 +105,22 @@ static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
 
-	ndr_write_union_int32(dce, dce->sm_req.level); //level out
-	ndr_write_int32(dce, dce->sm_req.client_version); //client version
-	ndr_write_int32(dce, 0); //reserved
+	if (ndr_write_union_int32(dce, dce->sm_req.level)) //level out
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, dce->sm_req.client_version)) //client version
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0)) //reserved
+		return KSMBD_RPC_EBAD_DATA;
 
 	ch = samr_ch_alloc(pipe->id);
 	if (!ch)
 		return KSMBD_RPC_ENOMEM;
 
 	/* write connect handle */
-	ndr_write_bytes(dce, ch->handle, HANDLE_SIZE);
+	if (ndr_write_bytes(dce, ch->handle, HANDLE_SIZE))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -139,21 +145,32 @@ int samr_ndr_write_domain_array(struct ksmbd_rpc_pipe *pipe)
 		size_t name_len;
 
 		ret = ndr_write_int32(dce, i);
+		if (ret)
+			return ret;
 		entry = g_array_index(domain_entries, gpointer, i);
 		name_len = strlen((char *)entry);
-		ret |= ndr_write_int16(dce, name_len*2);
-		ret |= ndr_write_int16(dce, name_len*2);
+		ret = ndr_write_int16(dce, name_len*2);
+		if (ret)
+			return ret;
+
+		ret = ndr_write_int16(dce, name_len*2);
+		if (ret)
+			return ret;
 
 		/* ref pointer for name entry */
 		dce->num_pointers++;
-		ret |= ndr_write_int32(dce, dce->num_pointers);
+		ret = ndr_write_int32(dce, dce->num_pointers);
+		if (ret)
+			return ret;
 	}
 
 	for (i = 0; i < num_domain_entries; i++) {
 		gpointer entry;
 
 		entry = g_array_index(domain_entries,  gpointer, i);
-		ret |= ndr_write_string(dce, (char *)entry);
+		ret = ndr_write_string(dce, (char *)entry);
+		if (ret)
+			return ret;
 	}
 
 	return ret;
@@ -163,27 +180,37 @@ static int samr_enum_domain_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct connect_handle *ch;
-	int status;
 
 	ch = samr_ch_lookup(dce->sm_req.handle);
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 	/* Resume Handle */
-	ndr_write_int32(dce, 0);
+	if (ndr_write_int32(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, num_domain_entries); // Sam entry count
-	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, num_domain_entries); // Sam max entry count
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
 
-	status = samr_ndr_write_domain_array(pipe);
+	if (ndr_write_int32(dce, num_domain_entries)) // Sam entry count
+		return KSMBD_RPC_EBAD_DATA;
+
+	dce->num_pointers++;
+
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, num_domain_entries)) // Sam max entry count
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (samr_ndr_write_domain_array(pipe))
+		return KSMBD_RPC_EBAD_DATA;
 
 	/* [out] DWORD* Num Entries */
-	ndr_write_int32(dce, num_domain_entries);
+	if (ndr_write_int32(dce, num_domain_entries))
+		return KSMBD_RPC_EBAD_DATA;
 
-	return status;
+	return KSMBD_RPC_OK;
 }
 
 static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
@@ -217,8 +244,11 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FID;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers);
-	ndr_write_int32(dce, 4);
+	if (ndr_write_int32(dce, dce->num_pointers))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 4))
+		return KSMBD_RPC_EBAD_DATA;
 
 	for (i = 0; i < num_domain_entries; i++) {
 		gpointer entry;
@@ -226,7 +256,8 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 		entry = g_array_index(domain_entries, gpointer, i);
 		if (!strcmp(STR_VAL(dce->sm_req.name), (char *)entry)) {
 			smb_init_domain_sid(&sid);
-			smb_write_sid(dce, &sid);
+			if (smb_write_sid(dce, &sid))
+				return KSMBD_RPC_EBAD_DATA;
 		}
 	}
 
@@ -252,7 +283,8 @@ static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 	ch->refcount++;
-	ndr_write_bytes(dce, ch->handle, HANDLE_SIZE);
+	if (ndr_write_bytes(dce, ch->handle, HANDLE_SIZE))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -303,17 +335,31 @@ static int samr_lookup_names_return(struct ksmbd_rpc_pipe *pipe)
 	if (!ch->user)
 		return KSMBD_RPC_EACCESS_DENIED;
 
-	ndr_write_int32(dce, 1); // count
-	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 1); // count
-	ndr_write_int32(dce, ch->user->uid); // RID
+	if (ndr_write_int32(dce, 1)) // count
+		return KSMBD_RPC_EBAD_DATA;
 
-	ndr_write_int32(dce, 1);
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers);
-	ndr_write_int32(dce, 1);
-	ndr_write_int32(dce, 1);
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 1)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, ch->user->uid)) // RID
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 1))
+		return KSMBD_RPC_EBAD_DATA;
+
+	dce->num_pointers++;
+	if (ndr_write_int32(dce, dce->num_pointers))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 1))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 1))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -347,7 +393,8 @@ static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
 	if (dce->sm_req.rid != ch->user->uid)
 		return KSMBD_RPC_EBAD_FID;
 
-	ndr_write_bytes(dce, ch->handle, HANDLE_SIZE);
+	if (ndr_write_bytes(dce, ch->handle, HANDLE_SIZE))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -369,7 +416,7 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	char *home_dir;
 	g_autofree char *profile_path = NULL;
 	char hostname[NAME_MAX];
-	int home_dir_len, i;
+	int home_dir_len, i, ret;
 
 	ch = samr_ch_lookup(dce->sm_req.handle);
 	if (!ch)
@@ -403,114 +450,263 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	strcat(profile_path, "profile");
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int16(dce, 0x15); // info
-	ndr_write_int16(dce, 0);
+	ret = ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, 0x15); // info
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, 0);
+	if (ret)
+		goto out;
 
 	/*
 	 * Last Logon/Logoff/Password change, Acct Expiry,
 	 * Allow Passworkd Change, Force Password Change.
 	 */
-	for (i = 0; i < 6; i++)
-		ndr_write_int64(dce, 0);
+	for (i = 0; i < 6; i++) {
+		ret = ndr_write_int64(dce, 0);
+		if (ret)
+			goto out;
+	}
 
-	ndr_write_int16(dce, strlen(ch->user->name)*2); // account name length
-	ndr_write_int16(dce, strlen(ch->user->name)*2);
+	ret = ndr_write_int16(dce, strlen(ch->user->name)*2); // account name length
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(ch->user->name)*2);
+	if (ret)
+		goto out;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int16(dce, strlen(ch->user->name)*2); // full name length
-	ndr_write_int16(dce, strlen(ch->user->name)*2);
+	ret = ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(ch->user->name)*2); // full name length
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(ch->user->name)*2);
+	if (ret)
+		goto out;
+
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int16(dce, strlen(home_dir)*2); // home directory length
-	ndr_write_int16(dce, strlen(home_dir)*2);
+	ret = ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(home_dir)*2); // home directory length
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(home_dir)*2);
+	if (ret)
+		goto out;
 
 	/* Home Drive, Logon Script */
 	for (i = 0; i < 2; i++) {
 		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers); // ref pointer
-		ndr_write_int16(dce, 0);
-		ndr_write_int16(dce, 0);
+		ret = ndr_write_int32(dce, dce->num_pointers); // ref pointer
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
 	}
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int16(dce, strlen(profile_path)*2); //profile path length
-	ndr_write_int16(dce, strlen(profile_path)*2);
+	ret = ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(profile_path)*2); //profile path length
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, strlen(profile_path)*2);
+	if (ret)
+		goto out;
+
 
 	/* Description, Workstations, Comments, Parameters */
 	for (i = 0; i < 4; i++) {
 		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers); // ref pointer
-		ndr_write_int16(dce, 0);
-		ndr_write_int16(dce, 0);
+		ret = ndr_write_int32(dce, dce->num_pointers); // ref pointer
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
 	}
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers);
+	ret = ndr_write_int32(dce, dce->num_pointers);
+	if (ret)
+		goto out;
+
 	/* Lm, Nt, Password and Private*/
 	for (i = 0; i < 3; i++) {
-		ndr_write_int16(dce, 0);
-		ndr_write_int16(dce, 0);
-		ndr_write_int32(dce, 0);
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
 	}
 
-	ndr_write_int32(dce, 0); // buf count
+	ret = ndr_write_int32(dce, 0); // buf count
+	if (ret)
+		goto out;
+
 	/* Pointer to Buffer */
-	ndr_write_int32(dce, 0);
-	ndr_write_int32(dce, ch->user->uid); // rid
-	ndr_write_int32(dce, 513); // primary gid
-	ndr_write_int32(dce, 0x00000010); // Acct Flags : Acb Normal
-	ndr_write_int32(dce, 0x00FFFFFF); // Fields Present
-	ndr_write_int16(dce, 168); // logon hours
-	ndr_write_int16(dce, 0);
+	ret = ndr_write_int32(dce, 0);
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int32(dce, ch->user->uid); // rid
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int32(dce, 513); // primary gid
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int32(dce, 0x00000010); // Acct Flags : Acb Normal
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int32(dce, 0x00FFFFFF); // Fields Present
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, 168); // logon hours
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int16(dce, 0);
+	if (ret)
+		goto out;
 
 	/* Pointers to Bits */
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); //ref pointer
+	ret = ndr_write_int32(dce, dce->num_pointers); //ref pointer
+	if (ret)
+		goto out;
 
 	/* Bad Password/Logon Count/Country Code/Code Page */
-	for (i = 0; i < 4; i++)
-		ndr_write_int16(dce, 0);
+	for (i = 0; i < 4; i++) {
+		ret = ndr_write_int16(dce, 0);
+		if (ret)
+			goto out;
+	}
+
 
 	/* Lm/Nt Password Set, Password Expired/etc */
-	ndr_write_int8(dce, 0);
-	ndr_write_int8(dce, 0);
-	ndr_write_int8(dce, 0);
-	ndr_write_int8(dce, 0);
+	ret = ndr_write_int8(dce, 0);
+	if (ret)
+		goto out;
 
-	ndr_write_string(dce, ch->user->name);
-	ndr_write_string(dce, ch->user->name);
-	ndr_write_string(dce, home_dir);
+	ret = ndr_write_int8(dce, 0);
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int8(dce, 0);
+	if (ret)
+		goto out;
+
+	ret = ndr_write_int8(dce, 0);
+	if (ret)
+		goto out;
+
+
+	ret = ndr_write_string(dce, ch->user->name);
+	if (ret)
+		goto out;
+
+	ret = ndr_write_string(dce, ch->user->name);
+	if (ret)
+		goto out;
+
+	ret = ndr_write_string(dce, home_dir);
+	if (ret)
+		goto out;
+
 
 	/* Home Drive, Logon Script */
 	for (i = 0; i < 2; i++) {
-		ndr_write_int32(dce, 0);
-		ndr_write_int32(dce, 0);
-		ndr_write_int32(dce, 0);
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
 	}
 
-	ndr_write_string(dce, profile_path);
+	ret = ndr_write_string(dce, profile_path);
+	if (ret)
+		goto out;
 
 	/* Description, Workstations, Comments, Parameters */
 	for (i = 0; i < 4; i++) {
-		ndr_write_int32(dce, 0);
-		ndr_write_int32(dce, 0);
-		ndr_write_int32(dce, 0);
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
+
+		ret = ndr_write_int32(dce, 0);
+		if (ret)
+			goto out;
 	}
 
 	/* Logon Hours */
-	ndr_write_int32(dce, 1260);
-	ndr_write_int32(dce, 0);
-	ndr_write_int32(dce, 21);
+	ret = ndr_write_int32(dce, 1260);
+	if (ret)
+		goto out;
 
-	for (i = 0; i < 21; i++)
-		ndr_write_int8(dce, 0xff);
+	ret = ndr_write_int32(dce, 0);
+	if (ret)
+		goto out;
 
+	ret = ndr_write_int32(dce, 21);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < 21; i++) {
+		ret = ndr_write_int8(dce, 0xff);
+		if (ret)
+			break;
+	}
+
+out:
 	g_free(home_dir);
-	return KSMBD_RPC_OK;
+	return ret ? KSMBD_RPC_EBAD_DATA: KSMBD_RPC_OK;
 }
 
 static int samr_query_security_invoke(struct ksmbd_rpc_pipe *pipe)
@@ -535,17 +731,24 @@ static int samr_query_security_return(struct ksmbd_rpc_pipe *pipe)
 
 	curr_offset = dce->offset;
 	dce->offset += 16;
-	build_sec_desc(dce, &sec_desc_len, ch->user->uid);
+	if (build_sec_desc(dce, &sec_desc_len, ch->user->uid))
+		return KSMBD_RPC_EBAD_DATA;
+
 	payload_offset = dce->offset;
 
 	dce->offset = curr_offset;
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers);
-	ndr_write_int32(dce, sec_desc_len);
+	if (ndr_write_int32(dce, dce->num_pointers))
+		return KSMBD_RPC_EBAD_DATA;
+	if (ndr_write_int32(dce, sec_desc_len))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers);
-	ndr_write_int32(dce, sec_desc_len);
+	if (ndr_write_int32(dce, dce->num_pointers))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, sec_desc_len))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->offset = payload_offset;
 
@@ -572,13 +775,24 @@ static int samr_get_group_for_user_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FID;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 1); // count
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 1)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 1); // max count
-	ndr_write_int32(dce, 513); // group rid
-	ndr_write_int32(dce, 0x00000007); // attributes
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 1)) // max count
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 513)) // group rid
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0x00000007)) // attributes
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -602,10 +816,15 @@ static int samr_get_alias_membership_return(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
-	ndr_write_int32(dce, 0); // count
+	if (ndr_write_int32(dce, 0)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 0); // max count
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0)) // max count
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -634,9 +853,14 @@ static int samr_close_return(struct ksmbd_rpc_pipe *pipe)
 		samr_ch_free(ch);
 
 	/* write connect handle */
-	ndr_write_int64(dce, 0);
-	ndr_write_int64(dce, 0);
-	ndr_write_int32(dce, 0);
+	if (ndr_write_int64(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int64(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -751,8 +975,11 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe,
 	/*
 	 * [out] DWORD Return value/code
 	 */
-	ndr_write_int32(dce, status);
-	dcerpc_write_headers(dce, status);
+	if (ndr_write_int32(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (dcerpc_write_headers(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->rpc_resp->payload_sz = dce->offset;
 	return status;

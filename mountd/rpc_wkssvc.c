@@ -41,19 +41,30 @@ static int __netwksta_entry_rep_ctr100(struct ksmbd_dcerpc *dce,
 	int ret = 0;
 
 	/* srvsvc_PlatformId */
-	ret |= ndr_write_int32(dce, WKSSVC_PLATFORM_ID_NT);
+	ret = ndr_write_int32(dce, WKSSVC_PLATFORM_ID_NT);
+	if (ret)
+		return ret;
 
 	/* server_name */
 	dce->num_pointers++;
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	dce->num_pointers++;
+	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	if (ret)
+		return ret;
+
 	/* domain_name */
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	dce->num_pointers++;
+	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
+	if (ret)
+		return ret;
 
 	/* version_major */
-	ret |= ndr_write_int32(dce, WKSSVC_VERSION_MAJOR);
+	ret = ndr_write_int32(dce, WKSSVC_VERSION_MAJOR);
+	if (ret)
+		return ret;
+
 	/* version_minor */
-	ret |= ndr_write_int32(dce, WKSSVC_VERSION_MINOR);
+	ret = ndr_write_int32(dce, WKSSVC_VERSION_MINOR);
+
 	return ret;
 }
 
@@ -65,16 +76,19 @@ static int __netwksta_entry_data_ctr100(struct ksmbd_dcerpc *dce,
 	/*
 	 * Umm... Hmm... Huh...
 	 */
-	ret |= ndr_write_vstring(dce, STR_VAL(dce->wi_req.server_name));
-	ret |= ndr_write_vstring(dce, global_conf.work_group);
-	return ret;
+	ret = ndr_write_vstring(dce, STR_VAL(dce->wi_req.server_name));
+	if (ret)
+		return ret;
+
+	return ndr_write_vstring(dce, global_conf.work_group);
 }
 
 static int wkssvc_netwksta_get_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	ndr_write_union_int32(dce, dce->wi_req.level);
+	if (ndr_write_union_int32(dce, dce->wi_req.level))
+		return KSMBD_RPC_EBAD_DATA;
 
 	if (dce->wi_req.level != 100) {
 		pr_err("Unsupported wksta info level (read): %d\n",
@@ -83,8 +97,12 @@ static int wkssvc_netwksta_get_info_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EINVALID_LEVEL;
 	}
 
-	dce->entry_rep(dce, NULL);
-	dce->entry_data(dce, NULL);
+	if (dce->entry_rep(dce, NULL))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (dce->entry_data(dce, NULL))
+		return KSMBD_RPC_EBAD_DATA;
+
 	return KSMBD_RPC_OK;
 }
 
@@ -123,8 +141,11 @@ static int wkssvc_netwksta_info_return(struct ksmbd_rpc_pipe *pipe)
 	/*
 	 * [out] DWORD Return value/code
 	 */
-	ndr_write_int32(dce, status);
-	dcerpc_write_headers(dce, status);
+	if (ndr_write_int32(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (dcerpc_write_headers(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->rpc_resp->payload_sz = dce->offset;
 	return KSMBD_RPC_OK;
