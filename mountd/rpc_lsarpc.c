@@ -83,11 +83,21 @@ static int lsa_domain_account_rep(struct ksmbd_dcerpc *dce, char *domain_name)
 
 	len = strlen(domain_name);
 	ret = ndr_write_int16(dce, len*2); // length
-	ret |= ndr_write_int16(dce, (len+1)*2); // size
+	if (ret)
+		return ret;
+
+	ret = ndr_write_int16(dce, (len+1)*2); // size
+	if (ret)
+		return ret;
+
 	dce->num_pointers++;
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer for domain name*/
+	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer for domain name*/
+	if (ret)
+		return ret;
+
 	dce->num_pointers++;
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer for sid*/
+	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer for sid*/
+
 	return ret;
 }
 
@@ -97,8 +107,15 @@ static int lsa_domain_account_data(struct ksmbd_dcerpc *dce, char *domain_name,
 	int ret;
 
 	ret = ndr_write_lsa_string(dce, domain_name); // domain string
-	ret |= ndr_write_int32(dce, sid->num_subauth); // count
-	smb_write_sid(dce, sid); // sid
+	if (ret)
+		return ret;
+
+	ret = ndr_write_int32(dce, sid->num_subauth); // count
+	if (ret)
+		return ret;
+
+	ret = smb_write_sid(dce, sid); // sid
+
 	return ret;
 }
 
@@ -124,22 +141,43 @@ static int lsarpc_get_primary_domain_info_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FUNC;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int16(dce, 1); // count
-	ndr_write_int16(dce, 0);
-	ndr_write_int16(dce, DS_ROLE_STANDALONE_SERVER); // role
-	ndr_write_int16(dce, 0);
-	ndr_write_int32(dce, 0); // flags
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int16(dce, 1)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int16(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int16(dce, DS_ROLE_STANDALONE_SERVER)) // role
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int16(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0)) // flags
+		return KSMBD_RPC_EBAD_DATA;
+
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 0); // NULL pointer : Pointer to Dns Domain
-	ndr_write_int32(dce, 0); // NULL pointer : Pointer to Forest
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0)) // NULL pointer : Pointer to Dns Domain
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0)) // NULL pointer : Pointer to Forest
+		return KSMBD_RPC_EBAD_DATA;
+
 
 	/* NULL Domain guid */
-	for (i = 0; i < 16; i++)
-		ndr_write_int8(dce, 0);
+	for (i = 0; i < 16; i++) {
+		if (ndr_write_int8(dce, 0))
+			return KSMBD_RPC_EBAD_DATA;
+	}
 
-	ndr_write_vstring(dce, domain_name); // domain string
+	if (ndr_write_vstring(dce, domain_name)) // domain string
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -154,7 +192,8 @@ static int lsarpc_open_policy2_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_ENOMEM;
 
 	/* write connect handle */
-	ndr_write_bytes(dce, ph->handle, HANDLE_SIZE);
+	if (ndr_write_bytes(dce, ph->handle, HANDLE_SIZE))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -189,16 +228,25 @@ static int lsarpc_query_info_policy_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FUNC;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int16(dce, LSA_POLICY_INFO_ACCOUNT_DOMAIN); // level
-	ndr_write_int16(dce, 0);
+	// ref pointer
+	if (ndr_write_int32(dce, dce->num_pointers))
+		return KSMBD_RPC_EBAD_DATA;
+
+	// level
+	if (ndr_write_int16(dce, LSA_POLICY_INFO_ACCOUNT_DOMAIN))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int16(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
 
 	/* Domain, Sid ref pointer */
-	lsa_domain_account_rep(dce, domain_name);
+	if (lsa_domain_account_rep(dce, domain_name))
+		return KSMBD_RPC_EBAD_DATA;
 
 	/* Pointer to domain, Sid */
 	smb_init_domain_sid(&sid);
-	lsa_domain_account_data(dce, domain_name, &sid);
+	if (lsa_domain_account_data(dce, domain_name, &sid))
+		return KSMBD_RPC_EBAD_DATA;
 
 	return KSMBD_RPC_OK;
 }
@@ -281,13 +329,21 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FID;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, pipe->num_entries); // count
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, pipe->num_entries)) // count
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 32); // max size
-	ndr_write_int32(dce, pipe->num_entries); // max count
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 32)) // max size
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, pipe->num_entries)) // max count
+		return KSMBD_RPC_EBAD_DATA;
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		struct lsarpc_names_info *ni;
@@ -296,7 +352,8 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 				gpointer, i);
 		if (ni->type == -1)
 			rc = KSMBD_RPC_SOME_NOT_MAPPED;
-		lsa_domain_account_rep(dce, ni->domain_str);
+		if (lsa_domain_account_rep(dce, ni->domain_str))
+			return KSMBD_RPC_EBAD_DATA;
 	}
 
 	for (i = 0; i < pipe->num_entries; i++) {
@@ -304,14 +361,20 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
-		lsa_domain_account_data(dce, ni->domain_str, &ni->sid);
+		if (lsa_domain_account_data(dce, ni->domain_str, &ni->sid))
+			return KSMBD_RPC_EBAD_DATA;
 	}
 
 	/* Pointer to Names */
-	ndr_write_int32(dce, pipe->num_entries); // count
+	if (ndr_write_int32(dce, pipe->num_entries)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
 	dce->num_pointers++; // ref pointer
-	ndr_write_int32(dce, dce->num_pointers);
-	ndr_write_int32(dce, pipe->num_entries); // max count
+	if (ndr_write_int32(dce, dce->num_pointers))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, pipe->num_entries)) // max count
+		return KSMBD_RPC_EBAD_DATA;
 
 	for (i = 0; i < pipe->num_entries; i++) {
 		struct lsarpc_names_info *ni;
@@ -319,18 +382,31 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
-		ndr_write_int16(dce, ni->type); // sid type
-		ndr_write_int16(dce, 0);
+		if (ndr_write_int16(dce, ni->type)) // sid type
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int16(dce, 0))
+			return KSMBD_RPC_EBAD_DATA;
+
 		if (ni->user)
 			len = strlen(ni->user->name);
 		else
 			len = strlen("None");
-		ndr_write_int16(dce, len*2); // length
-		ndr_write_int16(dce, len*2); // size
+		if (ndr_write_int16(dce, len*2)) // length
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int16(dce, len*2)) // size
+			return KSMBD_RPC_EBAD_DATA;
+
 		dce->num_pointers++; // ref pointer
-		ndr_write_int32(dce, dce->num_pointers);
-		ndr_write_int32(dce, ni->index); // sid index
-		ndr_write_int32(dce, 0); // unknown
+		if (ndr_write_int32(dce, dce->num_pointers))
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int32(dce, ni->index)) // sid index
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int32(dce, 0)) // unknown
+			return KSMBD_RPC_EBAD_DATA;
 	}
 
 	for (i = 0; i < pipe->num_entries; i++) {
@@ -341,10 +417,14 @@ static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
 				gpointer, i);
 		if (ni->user)
 			username = ni->user->name;
-		ndr_write_string(dce, username); // username
+		if (ndr_write_string(dce, username)) // username
+			return KSMBD_RPC_EBAD_DATA;
+
 	}
 
-	ndr_write_int32(dce, pipe->num_entries); // count
+	if (ndr_write_int32(dce, pipe->num_entries)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
 	if (pipe->entry_processed) {
 		for (i = 0; i < pipe->num_entries; i++)
 			pipe->entry_processed(pipe, 0);
@@ -421,30 +501,52 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 
 	/* Domain list */
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
 
-	ndr_write_int32(dce, 1); // domain count
+	if (ndr_write_int32(dce, 1)) // domain count
+		return KSMBD_RPC_EBAD_DATA;
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // ref pointer
-	ndr_write_int32(dce, 32); // max size
-	ndr_write_int32(dce, 1); // max count
+	if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+		return KSMBD_RPC_EBAD_DATA;
+	if (ndr_write_int32(dce, 32)) // max size
+		return KSMBD_RPC_EBAD_DATA;
+	if (ndr_write_int32(dce, 1)) // max count
+		return KSMBD_RPC_EBAD_DATA;
 
-	lsa_domain_account_rep(dce, domain_name);
+	if (lsa_domain_account_rep(dce, domain_name))
+		return KSMBD_RPC_EBAD_DATA;
+
 	smb_init_domain_sid(&sid);
-	lsa_domain_account_data(dce, domain_name, &sid);
+	if (lsa_domain_account_data(dce, domain_name, &sid))
+		return KSMBD_RPC_EBAD_DATA;
 
-	ndr_write_int32(dce, pipe->num_entries); // count
+	if (ndr_write_int32(dce, pipe->num_entries)) // count
+		return KSMBD_RPC_EBAD_DATA;
+
 	dce->num_pointers++;
-	ndr_write_int32(dce, dce->num_pointers); // sid ref id
-	ndr_write_int32(dce, pipe->num_entries); // count
+	if (ndr_write_int32(dce, dce->num_pointers)) // sid ref id
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, pipe->num_entries)) // count
+		return KSMBD_RPC_EBAD_DATA;
 
 	for (i = 0; i < pipe->num_entries; i++) {
-		ndr_write_int16(dce, SID_TYPE_USER); // sid type
-		ndr_write_int16(dce, 0);
+		if (ndr_write_int16(dce, SID_TYPE_USER)) // sid type
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int16(dce, 0))
+			return KSMBD_RPC_EBAD_DATA;
+
 		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers); // ref pointer
-		ndr_write_int32(dce, i); // sid index
-		ndr_write_int32(dce, 0);
+		if (ndr_write_int32(dce, dce->num_pointers)) // ref pointer
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int32(dce, i)) // sid index
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (ndr_write_int32(dce, 0))
+			return KSMBD_RPC_EBAD_DATA;
 	}
 
 	for (i = 0; i < pipe->num_entries; i++) {
@@ -453,11 +555,17 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 		ni = (struct lsarpc_names_info *)g_array_index(pipe->entries,
 				gpointer, i);
 		ni->sid.sub_auth[ni->sid.num_subauth++] = ni->user->uid;
-		ndr_write_int32(dce, ni->sid.num_subauth); // sid auth count
-		smb_write_sid(dce, &ni->sid); // sid
+
+		if (ndr_write_int32(dce, ni->sid.num_subauth)) // sid auth count
+			return KSMBD_RPC_EBAD_DATA;
+
+		if (smb_write_sid(dce, &ni->sid)) // sid
+			return KSMBD_RPC_EBAD_DATA;
 	}
 
-	ndr_write_int32(dce, pipe->num_entries);
+	if (ndr_write_int32(dce, pipe->num_entries))
+		return KSMBD_RPC_EBAD_DATA;
+
 	if (pipe->entry_processed) {
 		for (i = 0; i < pipe->num_entries; i++)
 			pipe->entry_processed(pipe, 0);
@@ -487,9 +595,15 @@ static int lsarpc_close_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FID;
 	lsarpc_ph_free(ph);
 
-	ndr_write_int64(dce, 0);
-	ndr_write_int64(dce, 0);
-	ndr_write_int32(dce, 0);
+	if (ndr_write_int64(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int64(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (ndr_write_int32(dce, 0))
+		return KSMBD_RPC_EBAD_DATA;
+
 	return KSMBD_RPC_OK;
 }
 
@@ -564,8 +678,11 @@ static int lsarpc_return(struct ksmbd_rpc_pipe *pipe,
 	/*
 	 * [out] DWORD Return value/code
 	 */
-	ndr_write_int32(dce, status);
-	dcerpc_write_headers(dce, status);
+	if (ndr_write_int32(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (dcerpc_write_headers(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->rpc_resp->payload_sz = dce->offset;
 	return status;

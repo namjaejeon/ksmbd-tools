@@ -48,16 +48,26 @@ int smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid)
 	return 0;
 }
 
-void smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src)
+int smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src)
 {
 	int i;
 
-	ndr_write_int8(dce, src->revision);
-	ndr_write_int8(dce, src->num_subauth);
-	for (i = 0; i < NUM_AUTHS; ++i)
-		ndr_write_int8(dce, src->authority[i]);
-	for (i = 0; i < src->num_subauth; ++i)
-		ndr_write_int32(dce, src->sub_auth[i]);
+	if (ndr_write_int8(dce, src->revision))
+		return -ENOMEM;
+
+	if (ndr_write_int8(dce, src->num_subauth))
+		return -ENOMEM;
+
+	for (i = 0; i < NUM_AUTHS; ++i) {
+		if (ndr_write_int8(dce, src->authority[i]))
+			return -ENOMEM;
+	}
+	for (i = 0; i < src->num_subauth; ++i) {
+		if (ndr_write_int32(dce, src->sub_auth[i]))
+			return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void smb_copy_sid(struct smb_sid *dst, const struct smb_sid *src)
@@ -191,38 +201,69 @@ static int smb_set_ace(struct ksmbd_dcerpc *dce, int access_req, int rid,
 	struct smb_sid sid = {0};
 
 	memcpy(&sid, rsid, sizeof(struct smb_sid));
-	ndr_write_int8(dce, ACCESS_ALLOWED); // ace type
-	ndr_write_int8(dce, 0); // ace flags
+	// ace type
+	if (ndr_write_int8(dce, ACCESS_ALLOWED))
+		return -ENOMEM;
+
+	// ace flags
+	if (ndr_write_int8(dce, 0))
+		return -ENOMEM;
+
 	size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (sid.num_subauth * 4);
 	if (rid)
 		size += 4;
-	ndr_write_int16(dce, size); // ace size
-	ndr_write_int32(dce, access_req); // ace access required
+
+	// ace size
+	if (ndr_write_int16(dce, size))
+		return -ENOMEM;
+
+	// ace access required
+	if (ndr_write_int32(dce, access_req))
+		return -ENOMEM;
+
 	if (rid)
 		sid.sub_auth[sid.num_subauth++] = rid;
-	smb_write_sid(dce, &sid);
+
+	if (smb_write_sid(dce, &sid))
+		return -ENOMEM;
 
 	return size;
 }
 
 static int set_dacl(struct ksmbd_dcerpc *dce, int rid)
 {
-	int size = 0, i;
+	int size = 0, i, ret;
 	struct smb_sid owner_domain;
 
 	/* Other */
-	size += smb_set_ace(dce, 0x0002035b, 0, &sid_everyone);
+	ret = smb_set_ace(dce, 0x0002035b, 0, &sid_everyone);
+	if (ret < 0)
+		return ret;
+	size += ret;
+
 	/* Local Group Administrators */
-	size += smb_set_ace(dce, 0x000f07ff, 544, &sid_local_group);
+	ret = smb_set_ace(dce, 0x000f07ff, 544, &sid_local_group);
+	if (ret < 0)
+		return ret;
+	size += ret;
+
 	/* Local Group Account Operators */
-	size += smb_set_ace(dce, 0x000f07ff, 548, &sid_local_group);
+	ret = smb_set_ace(dce, 0x000f07ff, 548, &sid_local_group);
+	if (ret < 0)
+		return ret;
+	size += ret;
+
 	/* Owner RID */
 	memcpy(&owner_domain, &sid_domain, sizeof(struct smb_sid));
 	for (i = 0; i < 3; ++i) {
 		owner_domain.sub_auth[i + 1] = global_conf.gen_subauth[i];
 		owner_domain.num_subauth++;
 	}
-	size += smb_set_ace(dce, 0x00020044, rid, &owner_domain);
+
+	ret = smb_set_ace(dce, 0x00020044, rid, &owner_domain);
+	if (ret < 0)
+		return ret;
+	size += ret;
 
 	return size;
 }
@@ -233,33 +274,48 @@ int build_sec_desc(struct ksmbd_dcerpc *dce, __u32 *secdesclen, int rid)
 	int acl_size;
 
 	/* NT Security Descriptor : Revision */
-	ndr_write_int16(dce, 1);
+	if (ndr_write_int16(dce, 1))
+		return -ENOMEM;
 
 	/* ACL Type */
-	ndr_write_int16(dce, SELF_RELATIVE | DACL_PRESENT);
+	if (ndr_write_int16(dce, SELF_RELATIVE | DACL_PRESENT))
+		return -ENOMEM;
 
 	/* Offset to owner SID */
-	ndr_write_int32(dce, 0);
+	if (ndr_write_int32(dce, 0))
+		return -ENOMEM;
+
 	/* Offset to group SID */
-	ndr_write_int32(dce, 0);
+	if (ndr_write_int32(dce, 0))
+		return -ENOMEM;
+
 	/* Offset to SACL */
-	ndr_write_int32(dce, 0);
+	if (ndr_write_int32(dce, 0))
+		return -ENOMEM;
+
 	/* Offset to DACL */
-	ndr_write_int32(dce, sizeof(struct smb_ntsd));
+	if (ndr_write_int32(dce, sizeof(struct smb_ntsd)))
+		return -ENOMEM;
 
 	/* DACL Revision */
-	ndr_write_int16(dce, 2);
+	if (ndr_write_int16(dce, 2))
+		return -ENOMEM;
+
 	acl_size_offset = dce->offset;
 	dce->offset += 2;
 
 	/* Number of ACEs */
-	ndr_write_int32(dce, 4);
+	if (ndr_write_int32(dce, 4))
+		return -ENOMEM;
 
 	acl_size = set_dacl(dce, rid) + sizeof(struct smb_acl);
+	if (acl_size < 0)
+		return -ENOMEM;
 	/* ACL Size */
 	l_offset = dce->offset;
 	dce->offset = acl_size_offset;
-	ndr_write_int16(dce, acl_size);
+	if (ndr_write_int16(dce, acl_size))
+		return -ENOMEM;
 	dce->offset = l_offset;
 
 	*secdesclen = sizeof(struct smb_ntsd) + acl_size;

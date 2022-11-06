@@ -82,10 +82,15 @@ static int __share_entry_rep_ctr1(struct ksmbd_dcerpc *dce, gpointer entry)
 
 	dce->num_pointers++;
 	ret = ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	ret |= ndr_write_int32(dce, __share_type(share));
+	if (ret)
+		return ret;
+
+	ret = ndr_write_int32(dce, __share_type(share));
+	if (ret)
+		return ret;
+
 	dce->num_pointers++;
-	ret |= ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
-	return ret;
+	return ndr_write_int32(dce, dce->num_pointers); /* ref pointer */
 }
 
 static int __share_entry_data_ctr0(struct ksmbd_dcerpc *dce, gpointer entry)
@@ -101,8 +106,10 @@ static int __share_entry_data_ctr1(struct ksmbd_dcerpc *dce, gpointer entry)
 	int ret;
 
 	ret = ndr_write_vstring(dce, share->name);
-	ret |= ndr_write_vstring(dce, share->comment);
-	return ret;
+	if (ret)
+		return ret;
+
+	return ndr_write_vstring(dce, share->comment);
 }
 
 static int __share_entry_null_rep_ctr0(struct ksmbd_dcerpc *dce,
@@ -117,8 +124,15 @@ static int __share_entry_null_rep_ctr1(struct ksmbd_dcerpc *dce,
 	int ret;
 
 	ret = ndr_write_int32(dce, 0); /* ref pointer */
-	ret |= ndr_write_int32(dce, 0);
-	ret |= ndr_write_int32(dce, 0); /* ref pointer */
+	if (ret)
+		return ret;
+
+	ret = ndr_write_int32(dce, 0);
+	if (ret)
+		return ret;
+
+	ret = ndr_write_int32(dce, 0); /* ref pointer */
+
 	return ret;
 }
 
@@ -207,26 +221,35 @@ static int srvsvc_share_enum_all_return(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	int status = KSMBD_RPC_OK;
 
-	ndr_write_union_int32(dce, dce->si_req.level);
+	if (ndr_write_union_int32(dce, dce->si_req.level))
+		return KSMBD_RPC_EBAD_DATA;
 
 	status = ndr_write_array_of_structs(pipe);
+	if (status == KSMBD_RPC_EBAD_DATA)
+		return status;
 	/*
 	 * [out] DWORD* TotalEntries
 	 * [out, unique] DWORD* ResumeHandle
 	 */
-	ndr_write_int32(dce, pipe->num_processed);
+	if (ndr_write_int32(dce, pipe->num_processed))
+		return KSMBD_RPC_EBAD_DATA;
 
 	if (status == KSMBD_RPC_EMORE_DATA) {
 		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers);
-		ndr_write_int32(dce, 0x01);
+		if (ndr_write_int32(dce, dce->num_pointers))
+			return KSMBD_RPC_EBAD_DATA;
+		if (ndr_write_int32(dce, 0x01))
+			return KSMBD_RPC_EBAD_DATA;
 		/* Have pending data, set RETURN_READY again */
 		dce->flags |= KSMBD_DCERPC_RETURN_READY;
 	} else {
 		dce->num_pointers++;
-		ndr_write_int32(dce, dce->num_pointers);
-		ndr_write_int32(dce, 0);
+		if (ndr_write_int32(dce, dce->num_pointers))
+			return KSMBD_RPC_EBAD_DATA;
+		if (ndr_write_int32(dce, 0))
+			return KSMBD_RPC_EBAD_DATA;
 	}
+
 	return status;
 }
 
@@ -234,7 +257,9 @@ static int srvsvc_share_get_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	ndr_write_union_int32(dce, dce->si_req.level);
+	if (ndr_write_union_int32(dce, dce->si_req.level))
+		return KSMBD_RPC_EBAD_DATA;
+
 	if (pipe->num_entries)
 		return __ndr_write_array_of_structs(pipe, pipe->num_entries);
 
@@ -255,7 +280,8 @@ static int srvsvc_share_get_info_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EINVALID_LEVEL;
 	}
 
-	dce->entry_rep(dce, NULL);
+	if (dce->entry_rep(dce, NULL))
+		return KSMBD_RPC_EBAD_DATA;
 
 	if (!rpc_restricted_context(dce->rpc_req))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -385,10 +411,14 @@ static int srvsvc_share_info_return(struct ksmbd_rpc_pipe *pipe)
 	/*
 	 * [out] DWORD Return value/code
 	 */
-	ndr_write_int32(dce, status);
-	dcerpc_write_headers(dce, status);
+	if (ndr_write_int32(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
+
+	if (dcerpc_write_headers(dce, status))
+		return KSMBD_RPC_EBAD_DATA;
 
 	dce->rpc_resp->payload_sz = dce->offset;
+
 	return KSMBD_RPC_OK;
 }
 
