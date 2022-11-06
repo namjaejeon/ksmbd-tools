@@ -385,7 +385,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 			goto fail;
 		if (ndr_read_uniq_vstring_ptr(dce, &username))
 			goto fail;
-		if (strstr(STR_VAL(username), "\\")) {
+		if (STR_VAL(username) && strstr(STR_VAL(username), "\\")) {
 			strtok(STR_VAL(username), "\\");
 			name = strtok(NULL, "\\");
 		}
