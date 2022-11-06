@@ -37,6 +37,8 @@ int smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid)
 		return -EINVAL;
 	if (ndr_read_int8(dce, &sid->num_subauth))
 		return -EINVAL;
+	if (!sid->num_subauth || sid->num_subauth >= SID_MAX_SUB_AUTHORITIES)
+		return -EINVAL;
 	for (i = 0; i < NUM_AUTHS; ++i)
 		if (ndr_read_int8(dce, &sid->authority[i]))
 			return -EINVAL;
