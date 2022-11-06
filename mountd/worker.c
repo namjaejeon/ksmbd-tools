@@ -220,8 +220,11 @@ static int rpc_request(struct ksmbd_ipc_msg *msg)
 {
 	struct ksmbd_rpc_command *req;
 	struct ksmbd_rpc_command *resp;
-	struct ksmbd_ipc_msg *resp_msg;
+	struct ksmbd_ipc_msg *resp_msg = NULL;
 	int ret = -ENOTSUP;
+
+	if (msg->sz < sizeof(struct ksmbd_rpc_command))
+		goto out;
 
 	req = KSMBD_IPC_MSG_PAYLOAD(msg);
 	if (req->flags & KSMBD_RPC_METHOD_RETURN)
