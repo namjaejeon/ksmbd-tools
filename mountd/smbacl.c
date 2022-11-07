@@ -9,6 +9,7 @@
 #include <smbacl.h>
 #include <tools.h>
 #include <glib.h>
+#include <rpc_lsarpc.h>
 
 static const struct smb_sid sid_domain = {1, 1, {0, 0, 0, 0, 0, 5},
 	{21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
@@ -162,13 +163,13 @@ int set_domain_name(struct smb_sid *sid, char *domain, size_t domain_len,
 		    int *type)
 {
 	int ret = 0;
-	char domain_string[NAME_MAX] = {0};
+	char domain_string[DOMAIN_STR_SIZE] = {0};
 	g_autofree char *domain_name = NULL;
 
 	if (!smb_compare_sids(sid, &sid_domain) &&
 	    !memcmp(&sid->sub_auth[1], global_conf.gen_subauth,
 		    sizeof(__u32) * 3)) {
-		if (gethostname(domain_string, NAME_MAX))
+		if (gethostname(domain_string, DOMAIN_STR_SIZE))
 			return -ENOMEM;
 
 		domain_name = g_ascii_strup(domain_string, -1);
