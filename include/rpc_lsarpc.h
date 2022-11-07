@@ -11,6 +11,7 @@
 #include <smbacl.h>
 
 #define HANDLE_SIZE	20
+#define DOMAIN_STR_SIZE	257
 
 struct ksmbd_rpc_command;
 struct ksmbd_rpc_pipe;
@@ -23,7 +24,7 @@ struct policy_handle {
 struct lsarpc_names_info {
 	unsigned int index;
 	int type;
-	char domain_str[NAME_MAX];
+	char domain_str[DOMAIN_STR_SIZE];
 	struct smb_sid sid;
 	struct ksmbd_user *user;
 };
