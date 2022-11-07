@@ -304,7 +304,8 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 			ni->user = usm_lookup_user(passwd->pw_name);
 
 		ni->index = i + 1;
-		if (set_domain_name(&ni->sid, ni->domain_str, &ni->type))
+		if (set_domain_name(&ni->sid, ni->domain_str,
+				    sizeof(ni->domain_str), &ni->type))
 			ni->index = -1;
 
 		pipe->entries = g_array_append_val(pipe->entries, ni);
