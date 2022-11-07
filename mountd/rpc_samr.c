@@ -422,7 +422,9 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
-	gethostname(hostname, NAME_MAX);
+	if (gethostname(hostname, NAME_MAX))
+		return KSMBD_RPC_ENOMEM;
+
 	home_dir_len = 2 + strlen(hostname) + 1 + strlen(ch->user->name);
 
 	home_dir = g_try_malloc0(home_dir_len);
@@ -1035,7 +1037,9 @@ int rpc_samr_init(void)
 	 * ksmbd supports the standalone server and
 	 * uses the hostname as the domain name.
 	 */
-	gethostname(hostname, NAME_MAX);
+	if (gethostname(hostname, NAME_MAX))
+		return -ENOMEM;
+
 	domain_name = g_ascii_strup(hostname, strlen(hostname));
 	rpc_samr_add_domain_entry(domain_name);
 	rpc_samr_add_domain_entry("Builtin");

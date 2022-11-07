@@ -168,7 +168,9 @@ int set_domain_name(struct smb_sid *sid, char *domain, int *type)
 	if (!smb_compare_sids(sid, &sid_domain) &&
 	    !memcmp(&sid->sub_auth[1], global_conf.gen_subauth,
 		    sizeof(__u32) * 3)) {
-		gethostname(domain_string, NAME_MAX);
+		if (gethostname(domain_string, NAME_MAX))
+			return -ENOMEM;
+
 		domain_name = g_ascii_strup(domain_string,
 				strlen(domain_string));
 		if (!domain_name)
