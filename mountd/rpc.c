@@ -743,8 +743,10 @@ int rpc_init(void)
 	if (!pipes_table)
 		return -ENOMEM;
 	g_rw_lock_init(&pipes_table_lock);
-	rpc_samr_init();
-	rpc_lsarpc_init();
+	if (rpc_samr_init())
+		return -ENOMEM;
+	if (rpc_lsarpc_init())
+		return -ENOMEM;
 	return 0;
 }
 
