@@ -1041,8 +1041,10 @@ int rpc_samr_init(void)
 		return -ENOMEM;
 
 	domain_name = g_ascii_strup(hostname, strlen(hostname));
-	rpc_samr_add_domain_entry(domain_name);
-	rpc_samr_add_domain_entry("Builtin");
+	if (rpc_samr_add_domain_entry(domain_name))
+		return -ENOMEM;
+	if (rpc_samr_add_domain_entry("Builtin"))
+		return -ENOMEM;
 	g_rw_lock_init(&ch_table_lock);
 	return 0;
 }
