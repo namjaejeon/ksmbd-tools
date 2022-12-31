@@ -548,6 +548,17 @@ static gboolean global_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		return TRUE;
 	}
 
+	if (!cp_key_cmp(_k, "max connections")) {
+		global_conf.max_connections = memparse(_v);
+		if (!global_conf.max_connections ||
+		    global_conf.max_connections > KSMBD_CONF_MAX_CONNECTIONS) {
+			pr_info("Limits exceeding the maximum simultaneous connections(%d)\n",
+				KSMBD_CONF_MAX_CONNECTIONS);
+			global_conf.max_connections = KSMBD_CONF_MAX_CONNECTIONS;
+		}
+		return TRUE;
+	}
+
 	/* At this point, this is an option that must be applied to all shares */
 	return FALSE;
 }
@@ -556,6 +567,7 @@ static void global_conf_default(void)
 {
 	/* The SPARSE_FILES file system capability flag is set by default */
 	global_conf.share_fake_fscaps = 64;
+	global_conf.max_connections = KSMBD_CONF_DEFAULT_CONNECTIONS;
 }
 
 static void global_conf_create(void)

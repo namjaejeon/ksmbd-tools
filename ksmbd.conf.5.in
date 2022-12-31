@@ -172,11 +172,11 @@ Maximum number of simultaneous sessions to all shares.
 
 Default: \fBmax active sessions = 1024\fR \" KSMBD_CONF_DEFAULT_SESS_CAP
 .TP
-\fBmax connections\fR (S)
+\fBmax connections\fR (G)
 Maximum number of simultaneous connections to the share.
-With \fBmax connections = 0\fR, any number of connections may be made.
+The maximum value is 64k. Values greater than 64k or 0 will be silently set to 64k.
 
-Default: \fBmax connections = 0\fR
+Default: \fBmax connections = 128\fR
 .TP
 \fBmax open files\fR (G)
 Maximum number of simultaneous open files for a client.

@@ -53,6 +53,7 @@ struct smbconf_global {
 	unsigned int		smb2_max_trans;
 	unsigned int		smb2_max_credits;
 	unsigned int		smbd_max_io_size;
+	unsigned int		max_connections;
 	unsigned int		share_fake_fscaps;
 	unsigned int		gen_subauth[3];
 	char			*krb5_keytab_file;
@@ -83,6 +84,9 @@ extern struct smbconf_global global_conf;
 #define KSMBD_CONF_DEFAULT_TCP_PORT	445
 
 #define KSMBD_CONF_FILE_MAX		10000
+
+#define KSMBD_CONF_DEFAULT_CONNECTIONS	128
+#define KSMBD_CONF_MAX_CONNECTIONS	65536
 
 #define PATH_PWDDB		SYSCONFDIR "/ksmbd/ksmbdpwd.db"
 #define PATH_SMBCONF		SYSCONFDIR "/ksmbd/ksmbd.conf"

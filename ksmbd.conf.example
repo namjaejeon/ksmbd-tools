@@ -30,6 +30,7 @@
 	smbd max io size = 8MB
 	tcp port = 445
 	workgroup = WORKGROUP
+	max connections = 128
 
 	; share parameters for all sections
 	browseable = yes
@@ -44,7 +45,7 @@
 	hide dot files = yes
 	inherit owner = no
 	invalid users = 
-	max connections = 0
+	max connections = 128
 	oplocks = yes
 	path = 
 	read list = 

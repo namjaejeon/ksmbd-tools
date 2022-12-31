@@ -585,6 +585,12 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 
 	if (shm_share_config(k, KSMBD_SHARE_CONF_MAX_CONNECTIONS)) {
 		share->max_connections = cp_get_group_kv_long_base(v, 10);
+		if (!share->max_connections ||
+		    share->max_connections > KSMBD_CONF_MAX_CONNECTIONS) {
+			pr_info("Limits exceeding the maximum simultaneous connections(%d)\n",
+				KSMBD_CONF_MAX_CONNECTIONS);
+			share->max_connections = KSMBD_CONF_MAX_CONNECTIONS;
+		}
 		return;
 	}
 
@@ -643,6 +649,7 @@ static void init_share_from_group(struct ksmbd_share *share,
 	share->directory_mask = KSMBD_SHARE_DEFAULT_DIRECTORY_MASK;
 	share->force_create_mode = 0;
 	share->force_directory_mode = 0;
+	share->max_connections = KSMBD_CONF_DEFAULT_CONNECTIONS;
 
 	share->force_uid = KSMBD_SHARE_INVALID_UID;
 	share->force_gid = KSMBD_SHARE_INVALID_GID;
