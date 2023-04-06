@@ -1052,9 +1052,22 @@ int rpc_samr_init(void)
 	return 0;
 }
 
+static void free_ch_entry(gpointer k, gpointer s, gpointer user_data)
+{
+	g_free(s);
+}
+
+static void samr_ch_clear_table(void)
+{
+	g_rw_lock_writer_lock(&ch_table_lock);
+	g_hash_table_foreach(ch_table, free_ch_entry, NULL);
+	g_rw_lock_writer_unlock(&ch_table_lock);
+}
+
 void rpc_samr_destroy(void)
 {
 	if (ch_table) {
+		samr_ch_clear_table();
 		g_hash_table_destroy(ch_table);
 		ch_table = NULL;
 	}
