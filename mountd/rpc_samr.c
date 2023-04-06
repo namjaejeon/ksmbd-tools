@@ -731,6 +731,9 @@ static int samr_query_security_return(struct ksmbd_rpc_pipe *pipe)
 	if (!ch)
 		return KSMBD_RPC_EBAD_FID;
 
+	if (!ch->user)
+		return KSMBD_RPC_EBAD_FID;
+
 	curr_offset = dce->offset;
 	dce->offset += 16;
 	if (build_sec_desc(dce, &sec_desc_len, ch->user->uid))
