@@ -425,7 +425,7 @@ static int samr_query_user_info_return(struct ksmbd_rpc_pipe *pipe)
 	if (gethostname(hostname, NAME_MAX))
 		return KSMBD_RPC_ENOMEM;
 
-	home_dir_len = 2 + strlen(hostname) + 1 + strlen(ch->user->name);
+	home_dir_len = 2 + strlen(hostname) + 1 + strlen(ch->user->name) + 1;
 
 	home_dir = g_try_malloc0(home_dir_len);
 	if (!home_dir)
