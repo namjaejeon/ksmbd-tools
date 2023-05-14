@@ -598,6 +598,7 @@ static void global_conf_update(struct smbconf_group *group)
 		return;
 
 	g_hash_table_remove(global_group->kv, "guest account");
+	g_hash_table_remove(global_group->kv, "max connections");
 	g_hash_table_foreach(global_group->kv, append_key_value, group->kv);
 }
 

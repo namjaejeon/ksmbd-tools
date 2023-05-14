@@ -11,6 +11,7 @@
 	kerberos service name = 
 	map to guest = never
 	max active sessions = 1024
+	max connections = 128
 	max open files = 10000
 	netbios name = KSMBD SERVER
 	restrict anonymous = 0
@@ -26,11 +27,10 @@
 	smb2 max read = 4MB
 	smb2 max trans = 1MB
 	smb2 max write = 4MB
-	smb3 encryption = no
+	smb3 encryption = auto
 	smbd max io size = 8MB
 	tcp port = 445
 	workgroup = WORKGROUP
-	max connections = 128
 
 	; share parameters for all sections
 	browseable = yes
@@ -45,7 +45,6 @@
 	hide dot files = yes
 	inherit owner = no
 	invalid users = 
-	max connections = 128
 	oplocks = yes
 	path = 
 	read list = 
