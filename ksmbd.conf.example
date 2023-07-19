@@ -54,6 +54,7 @@
 	vfs objects = 
 	write list = 
 	writeable = no
+	crossmnt = yes
 
 [example]
 	; share parameter overrides for `example' share

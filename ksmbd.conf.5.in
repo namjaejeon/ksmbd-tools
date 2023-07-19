@@ -346,6 +346,11 @@ Synonym for \fBwriteable\fP.
 Inverted synonym for \fBread only\fP.
 
 Default: \fBwriteable = no\fR
+.TP
+\fBcrossmnt\fR (S)
+Allow path lookup to cross a mountpoint to the root of a different filesystem.
+
+Default: \fBcrossmnt = yes\fR
 .SH COPYRIGHT
 Copyright \(co 2015-2022 ksmbd-tools contributors.
 License GPLv2: GNU GPL version 2 <https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html>.
