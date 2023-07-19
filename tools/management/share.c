@@ -57,6 +57,7 @@ char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"follow symlinks",
 	"vfs objects",
 	"writable",
+	"crossmnt",				/* 30 */
 };
 
 static GHashTable	*shares_table;
@@ -633,6 +634,13 @@ static void process_group_kv(gpointer _k, gpointer _v, gpointer user_data)
 		}
 	}
 
+	if (shm_share_config(k, KSMBD_SHARE_CONF_CROSSMNT)) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, KSMBD_SHARE_FLAG_CROSSMNT);
+		else
+			clear_share_flag(share, KSMBD_SHARE_FLAG_CROSSMNT);
+		return;
+	}
 }
 
 static void fixup_missing_fields(struct ksmbd_share *share)
@@ -660,6 +668,7 @@ static void init_share_from_group(struct ksmbd_share *share,
 	set_share_flag(share, KSMBD_SHARE_FLAG_HIDE_DOT_FILES);
 	set_share_flag(share, KSMBD_SHARE_FLAG_OPLOCKS);
 	set_share_flag(share, KSMBD_SHARE_FLAG_STORE_DOS_ATTRS);
+	set_share_flag(share, KSMBD_SHARE_FLAG_CROSSMNT);
 
 	if (!g_ascii_strcasecmp(share->name, "ipc$"))
 		set_share_flag(share, KSMBD_SHARE_FLAG_PIPE);
