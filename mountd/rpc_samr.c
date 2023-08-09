@@ -390,6 +390,9 @@ static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EBAD_FID;
 	ch->refcount++;
 
+	if (!ch->user)
+		return KSMBD_RPC_EBAD_FID;
+
 	if (dce->sm_req.rid != ch->user->uid)
 		return KSMBD_RPC_EBAD_FID;
 
