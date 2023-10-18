@@ -467,6 +467,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 		}
 
 		ni->user = usm_lookup_user(name);
+		ndr_free_uniq_vstring_ptr(&username);
 		if (!ni->user) {
 			g_free(ni);
 			break;
