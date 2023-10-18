@@ -86,6 +86,8 @@ static int samr_connect5_invoke(struct ksmbd_rpc_pipe *pipe)
 
 	if (ndr_read_uniq_vstring_ptr(dce, &server_name))
 		return KSMBD_RPC_EINVALID_PARAMETER;
+	ndr_free_uniq_vstring_ptr(&server_name);
+
 	// Access mask
 	if (ndr_read_int32(dce, NULL))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -260,6 +262,7 @@ static int samr_lookup_domain_return(struct ksmbd_rpc_pipe *pipe)
 				return KSMBD_RPC_EBAD_DATA;
 		}
 	}
+	ndr_free_uniq_vstring_ptr(&dce->sm_req.name);
 
 	return KSMBD_RPC_OK;
 }
