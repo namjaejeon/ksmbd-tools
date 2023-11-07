@@ -73,7 +73,7 @@ const char *KSMBD_SHARE_DEFCONF[KSMBD_SHARE_CONF_MAX] = {
 	"",
 	"no",
 	"",
-	"yes",
+	"; yes",
 /*5*/	"yes",
 	"",
 	"",

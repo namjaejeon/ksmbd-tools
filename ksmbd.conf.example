@@ -49,7 +49,7 @@
 	oplocks = yes
 	path = 
 	read list = 
-	read only = yes
+	read only = ; yes
 	store dos attributes = yes
 	valid users = 
 	veto files = 

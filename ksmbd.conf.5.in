@@ -224,7 +224,7 @@ Default: \fBread list = \fR
 Users are allowed read-only access to the share.
 With \fBread only = no\fR, the effect is the same as with \fBwriteable = yes\fR.
 
-Default: \fBread only = yes\fR
+Default: \fBread only = ; yes\fR
 .TP
 \fBrestrict anonymous\fR (G)
 How to restrict connections to any share as the user given with \fBguest account\fR.
@@ -353,7 +353,7 @@ Default: \fBworkgroup = WORKGROUP\fR
 Users are allowed read-write access to the share.
 With \fBwritable = yes\fR, the effect is the same as with \fBread only = no\fR.
 
-Default: \fBwritable = no\fR
+Default: \fBwritable = \fR
 .TP
 \fBwriteable\fR (S)
 Synonym for \fBwritable\fP.

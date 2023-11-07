@@ -564,7 +564,6 @@ static void add_group_ipc_share_conf(void)
 {
 	add_group_key_value("comment = IPC share");
 	add_group_key_value("guest ok = yes");
-	add_group_key_value("read only = yes");
 }
 
 static int finalize_smbconf_parser(void)
