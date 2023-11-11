@@ -218,8 +218,6 @@ retry:
 			goto retry;
 		}
 
-		pr_err("Can't convert string: %s\n", err->message);
-		g_error_free(err);
 		return NULL;
 	}
 
