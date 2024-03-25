@@ -76,6 +76,11 @@ Default: \fBdeadtime = 0\fR
 Octal bitmask that gets bitwise ANDed with DOS-to-UNIX-mapped permissions when creating a directory.
 
 Default: \fBdirectory mask = 0755\fR
+.TP
+\fBdurable handles\fR (G)
+Can grant SMB2 durable file handles on a share.
+
+Default: \fBdurable handles = no\fR
 \" .TP
 \" \fBfollow symlinks\fR (S)
 \" 
