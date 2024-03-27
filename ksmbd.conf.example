@@ -31,6 +31,7 @@
 	smbd max io size = 8MB
 	tcp port = 445
 	workgroup = WORKGROUP
+	durable handles = no
 
 	; default share parameters
 	browseable = yes

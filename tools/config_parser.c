@@ -518,6 +518,16 @@ static void process_global_conf_kv(char *k, char *v)
 				KSMBD_CONF_MAX_CONNECTIONS;
 		return;
 	}
+
+	if (!cp_key_cmp(k, "durable handles")) {
+		if (cp_get_group_kv_bool(v))
+			global_conf.flags |=
+				KSMBD_GLOBAL_FLAG_DURABLE_HANDLES;
+		else
+			global_conf.flags &=
+				~KSMBD_GLOBAL_FLAG_DURABLE_HANDLES;
+		return;
+	}
 }
 
 static void add_group_global_conf(void)
