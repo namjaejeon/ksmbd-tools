@@ -175,6 +175,7 @@ static int share_config_request(struct ksmbd_ipc_msg *msg)
 		goto out;
 
 	resp = KSMBD_IPC_MSG_PAYLOAD(resp_msg);
+	resp->payload_sz = payload_sz;
 	shm_handle_share_config_request(share, resp);
 	resp_msg->type = KSMBD_EVENT_SHARE_CONFIG_RESPONSE;
 	resp->handle = req->handle;
