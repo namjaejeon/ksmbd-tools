@@ -370,15 +370,29 @@ static void add_users_map(struct ksmbd_share *share,
 		if (**pp == 0x00)
 			continue;
 		if (**pp == '@') {
-			struct group *e = getgrnam(*pp + 1);
+			struct group *ge = getgrnam(*pp + 1);
+			g_autoptr(GPtrArray) ge_gid_users =
+				g_ptr_array_new_with_free_func(g_free);
+			struct passwd *pe;
 
-			if (!e) {
+			if (!ge) {
 				pr_err("Can't get group file entry for `%s'\n",
 				       *pp + 1);
 				continue;
 			}
 
-			add_users_map(share, map, g_strdupv(e->gr_mem));
+			setpwent();
+			while ((pe = getpwent()))
+				if (pe->pw_gid == ge->gr_gid)
+					gptrarray_printf(ge_gid_users,
+							 "%s",
+							 pe->pw_name);
+			endpwent();
+
+			add_users_map(share, map, gptrarray_to_strv(ge_gid_users));
+			ge_gid_users = NULL;
+
+			add_users_map(share, map, g_strdupv(ge->gr_mem));
 			continue;
 		}
 
