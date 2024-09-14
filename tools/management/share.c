@@ -357,7 +357,8 @@ struct ksmbd_share *shm_lookup_share(char *name)
 
 static void add_users_map(struct ksmbd_share *share,
 			  enum share_users map,
-			  char **names)
+			  char **names,
+			  int grc)
 {
 	char **pp;
 
@@ -369,7 +370,7 @@ static void add_users_map(struct ksmbd_share *share,
 
 		if (**pp == 0x00)
 			continue;
-		if (**pp == '@') {
+		if (**pp == grc) {
 			struct group *ge = getgrnam(*pp + 1);
 			g_autoptr(GPtrArray) ge_gid_users =
 				g_ptr_array_new_with_free_func(g_free);
@@ -389,10 +390,16 @@ static void add_users_map(struct ksmbd_share *share,
 							 pe->pw_name);
 			endpwent();
 
-			add_users_map(share, map, gptrarray_to_strv(ge_gid_users));
+			add_users_map(share,
+				      map,
+				      gptrarray_to_strv(ge_gid_users),
+				      0x00);
 			ge_gid_users = NULL;
 
-			add_users_map(share, map, g_strdupv(ge->gr_mem));
+			add_users_map(share,
+				      map,
+				      g_strdupv(ge->gr_mem),
+				      0x00);
 			continue;
 		}
 
@@ -641,35 +648,40 @@ static void process_share_conf_kv(struct ksmbd_share *share, char *k, char *v)
 	if (shm_share_config(k, KSMBD_SHARE_CONF_VALID_USERS)) {
 		add_users_map(share,
 			      KSMBD_SHARE_VALID_USERS_MAP,
-			      cp_get_group_kv_list(v));
+			      cp_get_group_kv_list(v),
+			      '@');
 		return;
 	}
 
 	if (shm_share_config(k, KSMBD_SHARE_CONF_INVALID_USERS)) {
 		add_users_map(share,
 			      KSMBD_SHARE_INVALID_USERS_MAP,
-			      cp_get_group_kv_list(v));
+			      cp_get_group_kv_list(v),
+			      '@');
 		return;
 	}
 
 	if (shm_share_config(k, KSMBD_SHARE_CONF_READ_LIST)) {
 		add_users_map(share,
 			      KSMBD_SHARE_READ_LIST_MAP,
-			      cp_get_group_kv_list(v));
+			      cp_get_group_kv_list(v),
+			      '@');
 		return;
 	}
 
 	if (shm_share_config(k, KSMBD_SHARE_CONF_WRITE_LIST)) {
 		add_users_map(share,
 			      KSMBD_SHARE_WRITE_LIST_MAP,
-			      cp_get_group_kv_list(v));
+			      cp_get_group_kv_list(v),
+			      '@');
 		return;
 	}
 
 	if (shm_share_config(k, KSMBD_SHARE_CONF_ADMIN_USERS)) {
 		add_users_map(share,
 			      KSMBD_SHARE_ADMIN_USERS_MAP,
-			      cp_get_group_kv_list(v));
+			      cp_get_group_kv_list(v),
+			      '@');
 		return;
 	}
 
