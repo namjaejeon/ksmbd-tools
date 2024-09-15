@@ -707,7 +707,8 @@ static void process_share_conf_kv(struct ksmbd_share *share, char *k, char *v)
 		return;
 	}
 
-	if (shm_share_config(k, KSMBD_SHARE_CONF_VETO_FILES)) {
+	if (shm_share_config(k, KSMBD_SHARE_CONF_VETO_FILES) &&
+	    !test_share_flag(share, KSMBD_SHARE_FLAG_PIPE)) {
 		share->veto_list = cp_get_group_kv_string(v + 1);
 		share->veto_list_sz = strlen(share->veto_list);
 		make_veto_list(share);
