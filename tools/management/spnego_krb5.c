@@ -164,6 +164,7 @@ static krb5_error_code acquire_creds_from_keytab(krb5_context context,
 		goto out_err;
 	}
 
+	krb5_free_principal(context, sprinc);
 	g_free(host_name);
 	g_free(service_name);
 	return 0;
