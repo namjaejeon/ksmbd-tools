@@ -118,7 +118,7 @@ static int is_a_key_value(char *entry)
 	}
 	entry = cp_ltrim(entry + 1);
 	for (; !cp_smbconf_eol(entry); entry++) {
-		is_key_value = cp_printable(entry) || *entry == '\t';
+		is_key_value = cp_printable(entry);
 		if (!is_key_value) {
 			pr_debug("Value contains `%c' [0x%.2X]\n",
 				 *entry,

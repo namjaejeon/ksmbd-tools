@@ -25,7 +25,7 @@ extern struct smbconf_parser parser;
 static inline int cp_printable(unsigned char *p)
 {
 	/* eighth bit is ok due to utf-8 mb */
-	return *p >= 0x20 && *p != 0x7F;
+	return (*p >= 0x20 && *p != 0x7F) || *p == '\t';
 }
 
 static inline int cp_smbconf_eol(char *p)
