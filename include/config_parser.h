@@ -58,5 +58,6 @@ unsigned long cp_get_group_kv_long(char *v);
 int cp_get_group_kv_config_opt(char *v);
 char **cp_get_group_kv_list(char *v);
 void cp_group_kv_list_free(char **list);
+int cp_group_kv_steal(GHashTable *kv, const char *lookup, char **k, char **v);
 
 #endif /* __KSMBD_CONFIG_H__ */
