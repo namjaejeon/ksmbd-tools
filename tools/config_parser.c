@@ -131,6 +131,18 @@ out:
 	return is_key_value;
 }
 
+static unsigned int key_hash(const char *k)
+{
+	g_autofree char *ck = g_ascii_strdown(k, -1);
+
+	return g_str_hash(ck);
+}
+
+static int key_equal(const char *lk, const char *rk)
+{
+	return !cp_key_cmp(lk, rk);
+}
+
 static void add_group(const char *entry)
 {
 	g_autofree char *name =
@@ -145,7 +157,10 @@ static void add_group(const char *entry)
 
 	g = g_malloc(sizeof(struct smbconf_group));
 	g->name = name;
-	g->kv = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	g->kv = g_hash_table_new_full((GHashFunc)key_hash,
+				      (GEqualFunc)key_equal,
+				      g_free,
+				      g_free);
 	g_hash_table_insert(parser.groups, name, g);
 	name = NULL;
 
