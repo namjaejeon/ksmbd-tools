@@ -608,6 +608,17 @@ static int finalize_smbconf_parser(void)
 		if (shm_add_new_share(parser.current))
 			ret = -EINVAL;
 
+		if (g_hash_table_size(parser.current->kv)) {
+			char *k, *v;
+			GHashTableIter kv_iter;
+
+			pr_debug("Ignored key-values in group `%s'\n",
+				 parser.current->name);
+
+			ghash_for_each(k, v, parser.current->kv, kv_iter)
+				pr_debug("... `%s = %s'\n", k, v);
+		}
+
 		free_group(parser.current);
 	}
 
