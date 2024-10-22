@@ -137,19 +137,12 @@ static struct ksmbd_user *new_ksmbd_user(char *name, char *pwd)
 		}
 	} while (getgrouplist(name, KSMBD_SHARE_INVALID_GID, sgid, &ngroups) < 0);
 
-	for (i = 0; i < ngroups; i++) {
-		struct group *gr;
-
+	for (i = 0; i < ngroups; i++)
 		if (sgid[i] == KSMBD_SHARE_INVALID_GID) {
 			memmove(sgid + i, sgid + i + 1,
 				sizeof(gid_t) * (ngroups - i - 1));
 			ngroups--;
 		}
-
-		gr = getgrgid(sgid[i]);
-		if (gr != NULL)
-			pr_debug("gid : %d(%s)\n", sgid[i], gr->gr_name);
-	}
 
 	user->ngroups = ngroups;
 	user->sgid = sgid;
@@ -265,6 +258,24 @@ int usm_add_new_user(char *name, char *pwd)
 	if (!g_hash_table_insert(users_table, user->name, user)) {
 		kill_ksmbd_user(user);
 		ret = -EINVAL;
+	} else {
+		struct group *e;
+		int i;
+
+		pr_debug("... with UID %u\n",
+			 user->uid);
+
+		e = getgrgid(user->gid);
+		pr_debug("... with GID %u (`%s')\n",
+			 user->gid,
+			 e ? e->gr_name : "");
+
+		for (i = 0; i < user->ngroups; i++) {
+			e = getgrgid(user->sgid[i]);
+			pr_debug("... with SGID %u (`%s')\n",
+				 user->sgid[i],
+				 e ? e->gr_name : "");
+		}
 	}
 	g_rw_lock_writer_unlock(&users_table_lock);
 	return ret;
@@ -306,7 +317,9 @@ void usm_update_user_password(struct ksmbd_user *user, char *pwd)
 	char *pass_b64 = g_strdup(pwd);
 	char *pass = base64_decode(pass_b64, &pass_sz);
 
-	pr_debug("Update user password: %s\n", user->name);
+	pr_debug("New password for user `%s' [0x%" PRIXPTR "]\n",
+		 user->name,
+		 (uintptr_t)user);
 	g_rw_lock_writer_lock(&user->update_lock);
 	g_free(user->pass_b64);
 	g_free(user->pass);
