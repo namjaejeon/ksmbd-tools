@@ -66,7 +66,8 @@ const char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
  * WARNING:
  *
  * Same as above.
- * Know that entries may have COUPLING, e.g. they may be synonyms or antonyms.
+ * Know that entries may have COUPLING, i.e. they may affect the same feature.
+ * Trailing comments are supported ONLY if the value is empty.
  */
 const char *KSMBD_SHARE_DEFCONF[KSMBD_SHARE_CONF_MAX] = {
 /*0*/	"",
@@ -541,6 +542,7 @@ static int group_kv_steal(GHashTable *kv,
 static int process_share_conf_kv(struct ksmbd_share *share, GHashTable *kv)
 {
 	g_autofree char *k = NULL, *v = NULL;
+	int has_read_only;
 
 	if (group_kv_steal(kv, KSMBD_SHARE_CONF_COMMENT, &k, &v)) {
 		share->comment = cp_get_group_kv_string(v);
@@ -565,7 +567,8 @@ static int process_share_conf_kv(struct ksmbd_share *share, GHashTable *kv)
 			return -EINVAL;
 	}
 
-	if (group_kv_steal(kv, KSMBD_SHARE_CONF_READ_ONLY, &k, &v)) {
+	if ((has_read_only =
+	     group_kv_steal(kv, KSMBD_SHARE_CONF_READ_ONLY, &k, &v))) {
 		if (cp_get_group_kv_bool(v)) {
 			set_share_flag(share, KSMBD_SHARE_FLAG_READONLY);
 			clear_share_flag(share, KSMBD_SHARE_FLAG_WRITEABLE);
@@ -582,9 +585,10 @@ static int process_share_conf_kv(struct ksmbd_share *share, GHashTable *kv)
 			clear_share_flag(share, KSMBD_SHARE_FLAG_BROWSEABLE);
 	}
 
-	if (group_kv_steal(kv, KSMBD_SHARE_CONF_WRITE_OK, &k, &v) ||
-	    group_kv_steal(kv, KSMBD_SHARE_CONF_WRITEABLE, &k, &v) ||
-	    group_kv_steal(kv, KSMBD_SHARE_CONF_WRITABLE, &k, &v)) {
+	if (!has_read_only &&
+	    (group_kv_steal(kv, KSMBD_SHARE_CONF_WRITABLE, &k, &v) ||
+	     group_kv_steal(kv, KSMBD_SHARE_CONF_WRITEABLE, &k, &v) ||
+	     group_kv_steal(kv, KSMBD_SHARE_CONF_WRITE_OK, &k, &v))) {
 		if (cp_get_group_kv_bool(v)) {
 			set_share_flag(share, KSMBD_SHARE_FLAG_WRITEABLE);
 			clear_share_flag(share, KSMBD_SHARE_FLAG_READONLY);

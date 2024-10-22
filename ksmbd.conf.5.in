@@ -227,7 +227,8 @@ Default: \fBread list = \fR
 .TP
 \fBread only\fR (S)
 Users are allowed read-only access to the share.
-With \fBread only = no\fR, the effect is the same as with \fBwriteable = yes\fR.
+With \fBread only = no\fR, the effect is the same as with \fBwritable = yes\fR.
+The parameter has precedence over \fBwritable\fR, \fBwriteable\fR, and \fBwrite ok\fR.
 
 Default: \fBread only = ; yes\fR
 .TP
@@ -357,11 +358,15 @@ Default: \fBworkgroup = WORKGROUP\fR
 \fBwritable\fR (S)
 Users are allowed read-write access to the share.
 With \fBwritable = yes\fR, the effect is the same as with \fBread only = no\fR.
+The parameter has precedence over \fBwriteable\fR, and \fBwrite ok\fR.
 
 Default: \fBwritable = \fR
 .TP
 \fBwriteable\fR (S)
-Synonym for \fBwritable\fP.
+Same effect as \fBwritable\fP.
+The parameter has precedence over \fBwrite ok\fR.
+
+Default: \fBwriteable = \fR
 .TP
 \fBwrite list\fR (S)
 List of the users that are allowed read-write access to the share.
@@ -370,7 +375,9 @@ A user being in the list has precedence over \fBread only = yes\fR.
 Default: \fBwrite list = \fR
 .TP
 \fBwrite ok\fR (S)
-Synonym for \fBwritable\fP.
+Same effect as \fBwritable\fP.
+
+Default: \fBwrite ok = \fR
 .SH COPYRIGHT
 Copyright \(co 2015-2022 ksmbd-tools contributors.
 License GPLv2: GNU GPL version 2 <https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html>.
