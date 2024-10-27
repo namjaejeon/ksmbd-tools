@@ -514,6 +514,10 @@ static int process_global_conf_kv(GHashTable *kv)
 		global_conf.krb5_keytab_file = cp_get_group_kv_string(v);
 	}
 
+	if (group_kv_steal(kv, "kerberos support", &k, &v)) {
+		global_conf.krb5_support = cp_get_group_kv_bool(v);
+	}
+
 	if (group_kv_steal(kv, "server multi channel support", &k, &v)) {
 		if (cp_get_group_kv_bool(v))
 			global_conf.flags |=
