@@ -2,12 +2,12 @@
 .SH NAME
 ksmbd.conf \- the configuration file for ksmbd.mountd
 .SH DESCRIPTION
-\fBksmbd.conf\fR is the configuration file for \fBksmbd.mountd\fP(8) user mode daemon.
-\fBksmbd.addshare\fP(8) can be used for configuring shares for \fBksmbd.conf\fR.
+\fBksmbd.conf\fR is the configuration file for \fBksmbd.mountd\fR(8) user mode daemon.
+\fBksmbd.addshare\fR(8) can be used for configuring shares for \fBksmbd.conf\fR.
 \fBksmbd.addshare\fR modifies \fBksmbd.conf\fR such that its existing formatting is not retained.
 \fBksmbd.addshare\fR notifies \fBksmbd.mountd\fR of changes, if it had made any, by sending the \fBSIGHUP\fR signal to \fBksmbd.mountd\fR.
 Changes made with \fBksmbd.addshare\fR will never require restarting \fBksmbd.mountd\fR and \fBksmbd\fR to take effect.
-\fBksmbd.control --reload\fR can be used for notifying \fBksmbd.mountd\fR of changes when not using \fBksmbd.addshare\fR.
+\fBksmbd.control \-\-reload\fR can be used for notifying \fBksmbd.mountd\fR of changes when not using \fBksmbd.addshare\fR.
 \fBksmbd.conf\fR is expected to be at \fB@sysconfdir@/ksmbd/ksmbd.conf\fR by default. \" PATH_SMBCONF
 A configuration file that may serve as an example can be found at \fB@sysconfdir@/ksmbd/ksmbd.conf.example\fR.
 .SH "FILE FORMAT"
@@ -24,7 +24,7 @@ A semicolon (\fB;\fR) or a hash (\fB#\fR) marks the beginning of a comment which
 .SH SHARES
 Each section name, except that of the \fBglobal\fR section, defines a shared resource, commonly referred to as a share.
 A section name, which is the share name, must be UTF-8, [1, 64) bytes, and is case-insensitive. \" KSMBD_REQ_MAX_SHARE_NAME
-Users that may be allowed to connect to a share are those that are present in \fBksmbdpwd.db\fP(5) user database.
+Users that may be allowed to connect to a share are those that are present in \fBksmbdpwd.db\fR(5) user database.
 A share may limit which users are allowed to connect to a particular share.
 When connected to a share, the user is mapped to a system user and underlying filesystem permissions are enforced.
 By default, this mapping is done by name, but it may also be done by mapping all users connected to the share to a single system user and group.
@@ -35,10 +35,10 @@ When a share parameter is given in a section other than \fBglobal\fR, it is spec
 Under the \fBglobal\fR section, a share parameter sets its default value for all shares.
 Global parameters, marked below with \fB(G)\fR, can only be given in the \fBglobal\fR section and control functionality that applies to the server.
 Changes to global parameters apply only after restarting \fBksmbd.mountd\fR and \fBksmbd\fR.
-\" .TP
-\" \fBadmin users\fR (S)
-\" 
-\" Default: \fBadmin users = \fR
+.\" .TP
+.\" \fBadmin users\fR (S)
+.\" 
+.\" Default: \fBadmin users = \fR
 .TP
 \fBbind interfaces only\fR (G)
 Only bind to interfaces given with \fBinterfaces\fR.
@@ -81,10 +81,10 @@ Default: \fBdirectory mask = 0755\fR
 Can grant SMB2 durable file handles on a share.
 
 Default: \fBdurable handles = no\fR
-\" .TP
-\" \fBfollow symlinks\fR (S)
-\" 
-\" Default: \fBfollow symlinks = no\fR
+.\" .TP
+.\" \fBfollow symlinks\fR (S)
+.\" 
+.\" Default: \fBfollow symlinks = no\fR
 .TP
 \fBforce create mode\fR (S)
 Octal bitmask that gets bitwise ORed after the bitmask given with \fBcreate mask\fR is applied.
@@ -127,14 +127,14 @@ Default: \fBguest ok = no\fR
 Files starting with a dot appear as hidden files.
 
 Default: \fBhide dot files = yes\fR
-\" .TP
-\" \fBhosts allow\fR (S)
-\" 
-\" Default: \fBhosts allow = \fR
-\" .TP
-\" \fBhosts deny\fR (S)
-\" 
-\" Default: \fBhosts deny = \fR
+.\" .TP
+.\" \fBhosts allow\fR (S)
+.\" 
+.\" Default: \fBhosts allow = \fR
+.\" .TP
+.\" \fBhosts deny\fR (S)
+.\" 
+.\" Default: \fBhosts deny = \fR
 .TP
 \fBinherit owner\fR (S)
 Ownership for new files and directories is controlled by the ownership of the parent directory.
@@ -160,19 +160,19 @@ With \fBipc timeout = 0\fR, user space can reply whenever.
 
 Default: \fBipc timeout = 0\fR
 .TP
-\fBkerberos keytab file (G)
+\fBkerberos keytab file\fR (G)
 Path of the keytab file for the service principal.
-If no value is given, it is the default keytab resolved with \fBkrb5_kt_default\fP(3).
+If no value is given, it is the default keytab resolved with \fBkrb5_kt_default\fR(3).
 
 Default: \fBkerberos keytab file = \fR
 .TP
-\fBkerberos service name (G)
+\fBkerberos service name\fR (G)
 Service principal name.
-If no value is given, it is \fBcifs/\fR followed by the FQDN resolved with \fBgetaddrinfo\fP(3).
+If no value is given, it is \fBcifs/\fR followed by the FQDN resolved with \fBgetaddrinfo\fR(3).
 
 Default: \fBkerberos service name = \fR
 .TP
-\fBkerberos support (G)
+\fBkerberos support\fR (G)
 Support for Kerberos 5 authentication.
 For the parameter to take effect, \fBksmbd.mountd\fR must be built against Kerberos 5.
 
@@ -181,8 +181,8 @@ Default: \fBkerberos support = no\fR
 \fBmap to guest\fR (G)
 When to map a user to the user given with \fBguest account\fR.
 With \fBmap to guest = bad user\fR, map when the user does not exist.
-\" With \fBmap to guest = bad password\fR, 
-\" With \fBmap to guest = bad uid\fR, 
+.\" With \fBmap to guest = bad password\fR, 
+.\" With \fBmap to guest = bad uid\fR, 
 
 Default: \fBmap to guest = never\fR
 .TP
@@ -246,7 +246,7 @@ Default: \fBrestrict anonymous = 0\fR
 .TP
 \fBroot directory\fR (G)
 Path of the directory prepended to \fBpath\fR of every share.
-Somewhat similar to \fBchroot\fP(2).
+Somewhat similar to \fBchroot\fR(2).
 
 Default: \fBroot directory = \fR
 .TP
@@ -369,7 +369,7 @@ The parameter has precedence over \fBwriteable\fR, and \fBwrite ok\fR.
 Default: \fBwritable = \fR
 .TP
 \fBwriteable\fR (S)
-Same effect as \fBwritable\fP.
+Same effect as \fBwritable\fR.
 The parameter has precedence over \fBwrite ok\fR.
 
 Default: \fBwriteable = \fR
@@ -381,7 +381,7 @@ A user being in the list has precedence over \fBread only = yes\fR.
 Default: \fBwrite list = \fR
 .TP
 \fBwrite ok\fR (S)
-Same effect as \fBwritable\fP.
+Same effect as \fBwritable\fR.
 
 Default: \fBwrite ok = \fR
 .SH COPYRIGHT
@@ -395,6 +395,6 @@ For bug reports, use the issue tracker at https://github.com/cifsd-team/ksmbd-to
 .SH "SEE ALSO"
 .TP
 \fBUtilities\fR
-\fBksmbd.addshare\fP(8),
-\fBksmbd.adduser\fP(8),
-\fBksmbd.mountd\fP(8)
+\fBksmbd.addshare\fR(8),
+\fBksmbd.adduser\fR(8),
+\fBksmbd.mountd\fR(8)
