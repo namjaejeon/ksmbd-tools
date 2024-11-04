@@ -24,24 +24,40 @@ jobs:
         g++ --version
         pip3 install --user meson
         PATH=$HOME/.local/bin:$PATH
-    - name: autotools build with mit krb5
-      run: |
         ./autogen.sh
-        ./configure
+    - name: autotools build without krb5
+      run: |
+        mkdir autotools-no-krb5-build
+        cd autotools-no-krb5-build
+        ../configure
         make DISTCHECK_CONFIGURE_FLAGS=--enable-krb5=no distcheck
     - name: autotools build with mit krb5
       run: |
-        ./autogen.sh
-        ./configure
+        mkdir autotools-mit-krb5-build
+        cd autotools-mit-krb5-build
+        ../configure
         make DISTCHECK_CONFIGURE_FLAGS="LIBKRB5_CFLAGS='$(krb5-config.mit --cflags)' LIBKRB5_LIBS='$(krb5-config.mit --libs)' --enable-krb5" distcheck
     - name: autotools build with heimdal krb5
       run: |
-        ./autogen.sh
-        ./configure
+        mkdir autotools-heimdal-krb5-build
+        cd autotools-heimdal-krb5-build
+        ../configure
         make DISTCHECK_CONFIGURE_FLAGS="LIBKRB5_CFLAGS='$(krb5-config.heimdal --cflags)' LIBKRB5_LIBS='$(krb5-config.heimdal --libs) -lasn1' --enable-krb5" distcheck
     - name: meson build without krb5
       run: |
-        mkdir build
-        cd build
+        mkdir meson-no-krb5-build
+        cd meson-no-krb5-build
         meson -Dkrb5=disabled ..
+        meson dist
+    - name: meson build with mit krb5
+      run: |
+        mkdir meson-mit-krb5-build
+        cd meson-mit-krb5-build
+        meson -Dkrb5=enabled -Dkrb5_name=mit-krb5 ..
+        meson dist
+    - name: meson build with heimdal krb5
+      run: |
+        mkdir meson-heimdal-krb5-build
+        cd meson-heimdal-krb5-build
+        meson -Dkrb5=enabled -Dkrb5_name=heimdal-krb5 ..
         meson dist
