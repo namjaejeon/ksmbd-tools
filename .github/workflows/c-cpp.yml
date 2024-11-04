@@ -1,0 +1,47 @@
+name: ksmbd-tools CI
+
+on:
+  push:
+    branches:
+    - master
+    - next
+  pull_request:
+    branches:
+    - master
+    - next
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Prerequisite for build test
+      run: |
+        sudo apt-get install libnl-3-dev libnl-genl-3-dev krb5-multidev heimdal-multidev ninja-build
+        gcc --version
+        g++ --version
+        pip3 install --user meson
+        PATH=$HOME/.local/bin:$PATH
+    - name: autotools build with mit krb5
+      run: |
+        ./autogen.sh
+        ./configure
+        make DISTCHECK_CONFIGURE_FLAGS=--enable-krb5=no distcheck
+    - name: autotools build with mit krb5
+      run: |
+        ./autogen.sh
+        ./configure
+        make DISTCHECK_CONFIGURE_FLAGS="LIBKRB5_CFLAGS='$(krb5-config.mit --cflags)' LIBKRB5_LIBS='$(krb5-config.mit --libs)' --enable-krb5" distcheck
+    - name: autotools build with heimdal krb5
+      run: |
+        ./autogen.sh
+        ./configure
+        make DISTCHECK_CONFIGURE_FLAGS="LIBKRB5_CFLAGS='$(krb5-config.heimdal --cflags)' LIBKRB5_LIBS='$(krb5-config.heimdal --libs) -lasn1' --enable-krb5" distcheck
+    - name: meson build without krb5
+      run: |
+        mkdir build
+        cd build
+        meson -Dkrb5=disabled ..
+        meson dist
