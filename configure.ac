@@ -11,7 +11,7 @@ AC_INIT([ksmbd-tools],
         [https://github.com/cifsd-team/ksmbd-tools])
 
 AC_CONFIG_SRCDIR([config.h.in])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign tar-pax subdir-objects])
@@ -20,9 +20,9 @@ AC_SUBST([ksmbd_tools_version], ksmbd_tools_version)
 
 AC_LANG([C])
 AC_PROG_CC
-AC_PROG_CC_STDC
+AC_PROG_CC
 AM_SILENT_RULES([yes])
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_SED
 AC_PROG_MKDIR_P
 AC_PROG_LN_S
@@ -35,7 +35,7 @@ AC_SUBST([in_script], [[\
                        ]])
 
 AC_ARG_ENABLE([krb5],
-              [AC_HELP_STRING([--enable-krb5], [Enable Kerberos 5 authentication @<:@default=no@:>@])],
+              [AS_HELP_STRING([--enable-krb5], [Enable Kerberos 5 authentication @<:@default=no@:>@])],
               [enable_krb5=$enableval],
               [enable_krb5=no])
 
@@ -58,7 +58,7 @@ AS_IF([test "x$enable_krb5" != xno], [
 ])
 
 AC_ARG_WITH([rundir],
-            [AC_HELP_STRING([--with-rundir=DIR],
+            [AS_HELP_STRING([--with-rundir=DIR],
                             [Store modifiable per-process data in DIR @<:@LOCALSTATEDIR/run@:>@])],
             [with_rundir=$withval],
             [with_rundir=no])
@@ -74,7 +74,7 @@ AS_IF([test "x$with_rundir" = xno], [
 AC_SUBST([runstatedir])
 
 AC_ARG_WITH([systemdsystemunitdir],
-            [AC_HELP_STRING([--with-systemdsystemunitdir@<:@=DIR@:>@],
+            [AS_HELP_STRING([--with-systemdsystemunitdir@<:@=DIR@:>@],
                             [Install systemd unit file to DIR (query pkg-config by default)])],
             [with_systemdsystemunitdir=$withval],
             [with_systemdsystemunitdir=yes])
