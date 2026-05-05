@@ -57,6 +57,19 @@ AS_IF([test "x$enable_krb5" != xno], [
 	])
 ])
 
+AC_ARG_ENABLE([asan],
+              [AS_HELP_STRING([--enable-asan], [Enable AddressSanitizer @<:@default=no@:>@])],
+              [enable_asan=$enableval],
+              [enable_asan=no])
+
+AS_IF([test "x$enable_asan" != xno], [
+	ASAN_CFLAGS="-O0 -g -fsanitize=address,leak,undefined -fno-omit-frame-pointer"
+	ASAN_LDFLAGS="-fsanitize=address,leak,undefined"
+])
+
+AC_SUBST([ASAN_CFLAGS])
+AC_SUBST([ASAN_LDFLAGS])
+
 AC_ARG_WITH([rundir],
             [AC_HELP_STRING([--with-rundir=DIR],
                             [Store modifiable per-process data in DIR @<:@LOCALSTATEDIR/run@:>@])],
