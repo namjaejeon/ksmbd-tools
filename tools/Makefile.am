@@ -1,7 +1,7 @@
 AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
             -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBKRB5_CFLAGS) -fno-common \
-            $(ASAN_CFLAGS)
-AM_LDFLAGS = $(ASAN_LDFLAGS)
+            $(ASAN_CFLAGS) $(MSAN_CFLAGS)
+AM_LDFLAGS = $(ASAN_LDFLAGS) $(MSAN_LDFLAGS)
 LIBS = $(GLIB_LIBS) $(LIBNL_LIBS) $(LIBKRB5_LIBS) $(PTHREAD_LIBS)
 
 EXTRA_DIST = meson.build
