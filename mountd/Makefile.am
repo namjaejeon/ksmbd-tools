@@ -1,6 +1,6 @@
 AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
             -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common \
-            $(ASAN_CFLAGS) $(MSAN_CFLAGS)
+            $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS)
 
 noinst_LIBRARIES = libmountd.a
 libmountd_a_SOURCES = worker.c ipc.c rpc.c rpc_srvsvc.c rpc_wkssvc.c mountd.c \

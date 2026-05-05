@@ -80,7 +80,7 @@ AS_IF([test "x$enable_msan" != xno], [
 		AC_MSG_ERROR([MemorySanitizer requires clang. Use CC=clang ./configure --enable-msan])
 	])
 	AS_IF([test "x$enable_asan" != xno], [
-		AC_MSG_ERROR([--enable-asan and --enable-msan are mutually exclusive.])
+		AC_MSG_ERROR([--enable-asan, --enable-msan, and --enable-tsan are mutually exclusive.])
 	])
 	MSAN_CFLAGS="-O0 -g -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
 	MSAN_LDFLAGS="-fsanitize=memory"
@@ -88,6 +88,22 @@ AS_IF([test "x$enable_msan" != xno], [
 
 AC_SUBST([MSAN_CFLAGS])
 AC_SUBST([MSAN_LDFLAGS])
+
+AC_ARG_ENABLE([tsan],
+              [AS_HELP_STRING([--enable-tsan], [Enable ThreadSanitizer @<:@default=no@:>@])],
+              [enable_tsan=$enableval],
+              [enable_tsan=no])
+
+AS_IF([test "x$enable_tsan" != xno], [
+	AS_IF([test "x$enable_asan" != xno || test "x$enable_msan" != xno], [
+		AC_MSG_ERROR([--enable-asan, --enable-msan, and --enable-tsan are mutually exclusive.])
+	])
+	TSAN_CFLAGS="-O0 -g -fsanitize=thread -fno-omit-frame-pointer"
+	TSAN_LDFLAGS="-fsanitize=thread"
+])
+
+AC_SUBST([TSAN_CFLAGS])
+AC_SUBST([TSAN_LDFLAGS])
 
 AC_ARG_WITH([rundir],
             [AC_HELP_STRING([--with-rundir=DIR],
