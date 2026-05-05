@@ -61,3 +61,21 @@ jobs:
         cd meson-heimdal-krb5-build
         meson -Dkrb5=enabled -Dkrb5_name=heimdal-krb5 ..
         meson dist
+    - name: clang build with asan
+      run: |
+        mkdir clang-asan-build
+        cd clang-asan-build
+        CC=clang ../configure --enable-asan
+        make
+    - name: clang build with msan
+      run: |
+        mkdir clang-msan-build
+        cd clang-msan-build
+        CC=clang ../configure --enable-msan
+        make
+    - name: clang build with tsan
+      run: |
+        mkdir clang-tsan-build
+        cd clang-tsan-build
+        CC=clang ../configure --enable-tsan
+        make
