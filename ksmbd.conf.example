@@ -48,6 +48,7 @@
 	force user = 
 	guest ok = no
 	hide dot files = yes
+	hide unreadable = no
 	inherit owner = no
 	invalid users = 
 	oplocks = yes

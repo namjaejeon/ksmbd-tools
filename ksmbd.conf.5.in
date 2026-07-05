@@ -131,6 +131,12 @@ Default: \fBguest ok = no\fR
 Files starting with a dot appear as hidden files.
 
 Default: \fBhide dot files = yes\fR
+.TP
+\fBhide unreadable\fR (S)
+Directory entries are hidden unless the connected user has read data, read
+extended attributes, and read attributes access.
+
+Default: \fBhide unreadable = no\fR
 .\" .TP
 .\" \fBhosts allow\fR (S)
 .\" 
