@@ -61,6 +61,7 @@ const char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"writable",
 /*30*/	"crossmnt",
 	"hide unreadable",
+	"time machine",
 };
 
 /*
@@ -102,6 +103,7 @@ const char *KSMBD_SHARE_DEFCONF[KSMBD_SHARE_CONF_MAX] = {
 	"",
 	"",
 /*30*/	"yes",
+	"no",
 	"no",
 };
 
@@ -768,6 +770,13 @@ static int process_share_conf_kv(struct ksmbd_share *share, GHashTable *kv)
 		else
 			clear_share_flag(share,
 					 KSMBD_SHARE_FLAG_HIDE_UNREADABLE);
+	}
+
+	if (group_kv_steal(kv, KSMBD_SHARE_CONF_TIME_MACHINE, &k, &v)) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share, KSMBD_SHARE_FLAG_TIME_MACHINE);
+		else
+			clear_share_flag(share, KSMBD_SHARE_FLAG_TIME_MACHINE);
 	}
 
 	return 0;
