@@ -66,6 +66,8 @@ static const char *__defconf_fmt[KSMBD_SHARE_CONF_MAX] = {
 	"; list of vfs objects to overload io ops with [%s]",
 	"; users have read-write access [%s]",
 /*30*/	"; path lookup can cross mountpoints [%s]",
+	"; allow access-based directory enumeration [%s]",
+	"; advertise as apple time machine backup target [%s]",
 };
 
 static char **__get_options(GHashTable *kv, int is_global)
@@ -332,6 +334,8 @@ static GList *new_conf_ml(GList *ml,
 	case KSMBD_SHARE_CONF_FOLLOW_SYMLINKS:
 	case KSMBD_SHARE_CONF_WRITABLE:
 	case KSMBD_SHARE_CONF_CROSSMNT:
+	case KSMBD_SHARE_CONF_HIDE_UNREADABLE:
+	case KSMBD_SHARE_CONF_TIME_MACHINE:
 		ml = new_va_ml(ml, p, "yes", "no", NULL);
 		break;
 	case KSMBD_SHARE_CONF_GUEST_ACCOUNT:
