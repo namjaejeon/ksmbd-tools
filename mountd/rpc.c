@@ -1011,6 +1011,8 @@ static int dcerpc_parse_bind_req(struct ksmbd_dcerpc *dce,
 	return KSMBD_RPC_OK;
 
 fail:
+	for (j = 0; j < i; j++)
+		g_free(hdr->list[j].transfer_syntaxes);
 	g_free(hdr->list);
 	return ret;
 }
