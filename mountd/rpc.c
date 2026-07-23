@@ -1199,7 +1199,7 @@ static int dcerpc_bind_return(struct ksmbd_rpc_pipe *pipe)
 
 	for (i = 0; i < dce->bi_req.num_contexts; i++) {
 		for (j = 0; j < dce->bi_req.list[i].num_syntaxes; j++) {
-			static struct dcerpc_syntax *a;
+			struct dcerpc_syntax *a;
 
 			a = &dce->bi_req.list[i].transfer_syntaxes[j];
 			if (dcerpc_syntax_supported(a) != -1) {
