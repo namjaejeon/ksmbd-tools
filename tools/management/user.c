@@ -156,7 +156,7 @@ static void usm_clear_users(void)
 	struct ksmbd_user *user;
 	GHashTableIter iter;
 
-	ghash_for_each(user, users_table, iter)
+	ghash_for_each_remove(user, users_table, iter)
 		kill_ksmbd_user(user);
 }
 

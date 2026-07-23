@@ -702,7 +702,7 @@ static void lsarpc_ph_clear_table(void)
 	GHashTableIter iter;
 
 	g_rw_lock_writer_lock(&ph_table_lock);
-	ghash_for_each(ph, ph_table, iter)
+	ghash_for_each_remove(ph, ph_table, iter)
 		g_free(ph);
 	g_rw_lock_writer_unlock(&ph_table_lock);
 }
