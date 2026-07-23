@@ -214,7 +214,7 @@ static void __clear_pipes_table(void)
 	GHashTableIter iter;
 
 	g_rw_lock_writer_lock(&pipes_table_lock);
-	ghash_for_each(pipe, pipes_table, iter)
+	ghash_for_each_remove(pipe, pipes_table, iter)
 		__rpc_pipe_free(pipe);
 	g_rw_lock_writer_unlock(&pipes_table_lock);
 }

@@ -1045,7 +1045,7 @@ static void samr_ch_clear_table(void)
 	GHashTableIter iter;
 
 	g_rw_lock_writer_lock(&ch_table_lock);
-	ghash_for_each(ch, ch_table, iter)
+	ghash_for_each_remove(ch, ch_table, iter)
 		g_free(ch);
 	g_rw_lock_writer_unlock(&ch_table_lock);
 }
