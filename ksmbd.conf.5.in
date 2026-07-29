@@ -318,7 +318,7 @@ Default: \fBshare:fake_fscaps = 64\fR \" FILE_SUPPORTS_SPARSE_FILES
 \fBsmb2 leases\fR (G)
 Negotiate SMB2 leases on file open requests.
 
-Default: \fBsmb2 leases = no\fR
+Default: \fBsmb2 leases = yes\fR
 .TP
 \fBsmb2 max credits\fR (G)
 Maximum number of outstanding simultaneous SMB2 operations.
