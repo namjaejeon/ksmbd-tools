@@ -26,7 +26,7 @@
 	server signing = auto
 	server string = SMB SERVER
 	share:fake_fscaps = 64
-	smb2 leases = no
+	smb2 leases = yes
 	smb2 max credits = 8192
 	smb2 max read = 4MB
 	smb2 max trans = 4MB

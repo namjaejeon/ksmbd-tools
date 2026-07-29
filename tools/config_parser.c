@@ -583,6 +583,7 @@ static void add_group_global_conf(void)
 	add_group_key_value("tcp port = 445");
 	add_group_key_value("workgroup = WORKGROUP");
 	add_group_key_value("server signing = auto");
+	add_group_key_value("smb2 leases = yes");
 }
 
 static void steal_global_share_conf_kv(GHashTable *kv)
