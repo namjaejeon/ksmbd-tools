@@ -64,6 +64,7 @@ const char *KSMBD_SHARE_CONF[KSMBD_SHARE_CONF_MAX] = {
 	"time machine",
 	"allow insecure wide links",
 	"smb3 encryption",
+/*35*/	"continuous availability",
 };
 
 /*
@@ -109,6 +110,7 @@ const char *KSMBD_SHARE_DEFCONF[KSMBD_SHARE_CONF_MAX] = {
 	"no",
 	"no",
 	"auto",
+/*35*/	"no",
 };
 
 static GHashTable	*shares_table;
@@ -801,6 +803,16 @@ static int process_share_conf_kv(struct ksmbd_share *share, GHashTable *kv)
 			clear_share_flag(share, KSMBD_SHARE_FLAG_ENCRYPT_DATA);
 			break;
 		}
+	}
+
+	if (group_kv_steal(kv, KSMBD_SHARE_CONF_CONTINUOUS_AVAILABILITY,
+			   &k, &v)) {
+		if (cp_get_group_kv_bool(v))
+			set_share_flag(share,
+				       KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY);
+		else
+			clear_share_flag(share,
+					 KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY);
 	}
 
 	return 0;
