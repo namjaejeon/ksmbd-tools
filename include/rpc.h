@@ -163,8 +163,11 @@ struct ndr_string_rep {
 #define STR_VAL(x)	((x).ptr)
 
 struct srvsvc_share_info_request {
-	int				level;
+	__u32				level;
 	size_t				max_size;
+	unsigned int			resume_handle;
+	unsigned int			total_entries;
+	int				operation_status;
 
 	struct ndr_uniq_char_ptr	server_name;
 	struct ndr_char_ptr		share_name;
@@ -174,7 +177,7 @@ struct srvsvc_share_info_request {
 
 struct wkssvc_netwksta_info_request {
 	struct ndr_uniq_char_ptr	server_name;
-	int				level;
+	__u32				level;
 };
 
 struct samr_info_request {
@@ -292,6 +295,12 @@ struct ksmbd_dcerpc {
 	char			*payload;
 	int			num_pointers;
 	int			bind_req_active;
+	int			response_started;
+	char			*response_payload;
+	size_t			response_payload_sz;
+	size_t			response_payload_offset;
+	size_t			response_alloc_hint;
+	size_t			response_limit;
 
 	union {
 		struct dcerpc_header			hdr;
@@ -369,7 +378,7 @@ int ndr_read_union_int32(struct ksmbd_dcerpc *dce, __u32 *value);
 
 int ndr_write_bytes(struct ksmbd_dcerpc *dce, const void *value, size_t sz);
 int ndr_read_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz);
-int ndr_write_vstring(struct ksmbd_dcerpc *dce, void *value);
+int ndr_write_vstring(struct ksmbd_dcerpc *dce, const void *value);
 int ndr_write_string(struct ksmbd_dcerpc *dce, const char *str);
 int ndr_write_lsa_string(struct ksmbd_dcerpc *dce, const char *str);
 int ndr_write_string_rep(struct ksmbd_dcerpc *dce, const char *str);
@@ -387,10 +396,15 @@ void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr);
 void ndr_free_uniq_vstring_ptr(struct ndr_uniq_char_ptr *ctr);
 int ndr_read_ptr(struct ksmbd_dcerpc *dce, struct ndr_ptr *ctr);
 int ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
+int ndr_max_entries(struct ksmbd_dcerpc *dce,
+		    struct ksmbd_rpc_pipe *pipe);
 int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr);
 int ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe);
 
+#define DCERPC_NCA_S_OP_RNG_ERROR	0x1C010002U
+
 int dcerpc_write_headers(struct ksmbd_dcerpc *dce, int method_status);
+int dcerpc_write_fault(struct ksmbd_dcerpc *dce, __u32 status);
 
 void dcerpc_set_ext_payload(struct ksmbd_dcerpc *dce,
 			    void *payload,
