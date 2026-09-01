@@ -36,6 +36,9 @@
 #define SRVSVC_OPNUM_SHARE_ENUM_ALL	15
 #define SRVSVC_OPNUM_GET_SHARE_INFO	16
 
+static int srvsvc_clear_headers(struct ksmbd_rpc_pipe *pipe,
+				int status);
+
 static int __share_type(struct ksmbd_share *share)
 {
 	if (test_share_flag(share, KSMBD_SHARE_FLAG_PIPE))
@@ -367,6 +370,15 @@ static int srvsvc_clear_headers(struct ksmbd_rpc_pipe *pipe,
 	return 0;
 }
 
+static void srvsvc_request_cleanup(struct ksmbd_rpc_pipe *pipe)
+{
+	if (!pipe || !pipe->dce)
+		return;
+
+	ndr_free_uniq_vstring_ptr(&pipe->dce->si_req.server_name);
+	ndr_free_vstring_ptr(&pipe->dce->si_req.share_name);
+}
+
 static int srvsvc_share_info_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
@@ -473,5 +485,15 @@ int rpc_srvsvc_read_request(struct ksmbd_rpc_pipe *pipe,
 
 int rpc_srvsvc_write_request(struct ksmbd_rpc_pipe *pipe)
 {
-	return srvsvc_invoke(pipe);
+	struct srvsvc_share_info_request *req = &pipe->dce->si_req;
+	int ret;
+
+	pipe->dce->request_cleanup = srvsvc_request_cleanup;
+	memset(req, 0, sizeof(*req));
+	ret = srvsvc_invoke(pipe);
+	if (ret != KSMBD_RPC_OK && ret != KSMBD_RPC_EMORE_DATA) {
+		srvsvc_clear_headers(pipe, ret);
+		rpc_pipe_reset(pipe);
+	}
+	return ret;
 }
