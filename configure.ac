@@ -56,6 +56,54 @@ AS_IF([test "x$enable_krb5" != xno], [
 	])
 ])
 
+AC_ARG_ENABLE([asan],
+              [AS_HELP_STRING([--enable-asan], [Enable AddressSanitizer @<:@default=no@:>@])],
+              [enable_asan=$enableval],
+              [enable_asan=no])
+
+AS_IF([test "x$enable_asan" != xno], [
+	ASAN_CFLAGS="-O0 -g -fsanitize=address,leak,undefined -fno-omit-frame-pointer"
+	ASAN_LDFLAGS="-fsanitize=address,leak,undefined"
+])
+
+AC_SUBST([ASAN_CFLAGS])
+AC_SUBST([ASAN_LDFLAGS])
+
+AC_ARG_ENABLE([msan],
+              [AS_HELP_STRING([--enable-msan], [Enable MemorySanitizer (requires clang) @<:@default=no@:>@])],
+              [enable_msan=$enableval],
+              [enable_msan=no])
+
+AS_IF([test "x$enable_msan" != xno], [
+	AS_IF([! $CC -v 2>&1 | grep -q clang], [
+		AC_MSG_ERROR([MemorySanitizer requires clang. Use CC=clang ./configure --enable-msan])
+	])
+	AS_IF([test "x$enable_asan" != xno], [
+		AC_MSG_ERROR([--enable-asan, --enable-msan, and --enable-tsan are mutually exclusive.])
+	])
+	MSAN_CFLAGS="-O0 -g -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
+	MSAN_LDFLAGS="-fsanitize=memory"
+])
+
+AC_SUBST([MSAN_CFLAGS])
+AC_SUBST([MSAN_LDFLAGS])
+
+AC_ARG_ENABLE([tsan],
+              [AS_HELP_STRING([--enable-tsan], [Enable ThreadSanitizer @<:@default=no@:>@])],
+              [enable_tsan=$enableval],
+              [enable_tsan=no])
+
+AS_IF([test "x$enable_tsan" != xno], [
+	AS_IF([test "x$enable_asan" != xno || test "x$enable_msan" != xno], [
+		AC_MSG_ERROR([--enable-asan, --enable-msan, and --enable-tsan are mutually exclusive.])
+	])
+	TSAN_CFLAGS="-O0 -g -fsanitize=thread -fno-omit-frame-pointer"
+	TSAN_LDFLAGS="-fsanitize=thread"
+])
+
+AC_SUBST([TSAN_CFLAGS])
+AC_SUBST([TSAN_LDFLAGS])
+
 AC_ARG_WITH([rundir],
             [AS_HELP_STRING([--with-rundir=DIR],
                             [Store modifiable per-process data in DIR @<:@LOCALSTATEDIR/run@:>@])],

@@ -1,5 +1,6 @@
 AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
-            -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common
+            -I$(top_srcdir)/include $(GLIB_CFLAGS) $(LIBNL_CFLAGS) -fno-common \
+            $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS)
 
 noinst_LIBRARIES = libaddshare.a
 libaddshare_a_SOURCES = share_admin.c addshare.c share_admin.h
