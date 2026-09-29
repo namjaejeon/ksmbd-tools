@@ -39,6 +39,7 @@
 	; default share parameters
 	browseable = yes
 	comment = 
+	continuous availability = no
 	create mask = 0744
 	crossmnt = yes
 	directory mask = 0755

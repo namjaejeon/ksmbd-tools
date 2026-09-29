@@ -64,6 +64,36 @@ Description of the share as seen in a net view and and in the browse list.
 
 Default: \fBcomment = \fR
 .TP
+\fBcontinuous availability\fR (S)
+Offer SMB3 Continuous Availability on the share, which lets clients request
+persistent file handles.  Unlike a durable handle, a persistent handle survives
+a restart of the server: the kernel journals the state of every persistent open
+and replays the journal when the share is connected again, so the client can
+resume its handle with a DURABLE_HANDLE_RECONNECT_V2 create context.
+
+The journal lives in a \fB.ksmbd\-ca\fR directory at the root of the share.
+That directory is created on demand and is always invisible and inaccessible to
+clients, as if it were listed in \fBveto files\fR.  The share's filesystem must
+therefore be writable by the share's effective user, and must support
+\fBfsync\fR() durably; the journal is fsynced before a persistent handle is
+granted to a client.
+
+All opens on the share are forced to write-through (MS-SMB2 3.3.5.9), and a new
+open that conflicts with a persistent handle left disconnected by another client
+is rejected with \fBSTATUS_FILE_NOT_AVAILABLE\fR until that handle either
+reconnects or times out.  Expect a throughput cost; Continuous Availability is
+meant for workloads such as virtual machine images or databases, which do their
+own caching and open few files, not for home directories.
+
+Requires the global \fBdurable handles = yes\fR.  Persistent handles are not
+granted on alternate data streams.
+
+This is standalone Continuous Availability: the state is recovered by the same
+node that wrote it.  Failover of a persistent handle to a different node is not
+implemented.
+
+Default: \fBcontinuous availability = no\fR
+.TP
 \fBcreate mask\fR (S)
 Octal bitmask that gets bitwise ANDed with DOS-to-UNIX-mapped permissions when creating a file.
 
