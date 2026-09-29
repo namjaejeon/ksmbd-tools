@@ -70,6 +70,7 @@ static const char *__defconf_fmt[KSMBD_SHARE_CONF_MAX] = {
 	"; advertise as apple time machine backup target [%s]",
 	"; allow administrator-created symlinks outside the share [%s]",
 	"; allow or require SMB3 encryption [%s]",
+/*35*/	"; offer smb3 persistent handles, state kept in .ksmbd-ca [%s]",
 };
 
 static char **__get_options(GHashTable *kv, int is_global)
