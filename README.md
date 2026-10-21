@@ -368,9 +368,14 @@ make check
 meson test -C build --print-errorlogs
 ```
 
-The RPC tests cover protocol error replies, large SAMR and LSARPC response
-fragmentation, negotiated fragment sizes, and policy handle lifetime. The
-quota tests cover request validation, permissions, filesystem identity,
+The RPC tests cover protocol error replies, request and response fragmentation,
+negotiated fragment sizes, policy attributes and handle lifetime, and share
+enumeration length and resume handling. They exercise both SID lookup calls
+with 20,480 maximum-size SIDs. RPC requests are assembled within a 4 MiB limit;
+the advertised receive fragment size is at most 4096 bytes to fit the kernel
+IPC payload limit.
+
+The quota tests cover request validation, permissions, filesystem identity,
 native quota calls, and Btrfs qgroup handling with mocked system calls.
 The tests do not require a mounted quota filesystem or a running SMB server.
 
