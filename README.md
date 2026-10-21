@@ -357,7 +357,8 @@ are unsupported. Group and project quotas are not exposed through SMB.
 
 ## Tests
 
-After configuring the build, run the quota tests with either build system:
+After configuring the build, run the RPC and quota tests with either build
+system:
 
 ```sh
 # Autotools
@@ -367,9 +368,11 @@ make check
 meson test -C build --print-errorlogs
 ```
 
-The tests cover request validation, permissions, filesystem identity,
+The RPC tests cover protocol error replies, large SAMR and LSARPC response
+fragmentation, negotiated fragment sizes, and policy handle lifetime. The
+quota tests cover request validation, permissions, filesystem identity,
 native quota calls, and Btrfs qgroup handling with mocked system calls.
-They do not require a mounted quota filesystem or a running SMB server.
+The tests do not require a mounted quota filesystem or a running SMB server.
 
 
 ## Packages
