@@ -365,8 +365,8 @@ kernel's group SIDs and keeps users and groups distinct even when their names
 or numeric IDs are equal. Discover the group domain with SAMR domain
 enumeration or look it up by name before enumerating or opening groups.
 
-LSA account lookup accepts the hostname as a local user prefix. Use the
-Unix Group prefix to select a group explicitly.
+LSA account lookup accepts the hostname and the configured `netbios name` as
+local user prefixes. Use `Unix Group\groupname` to select a group explicitly.
 
 ## Tests
 
