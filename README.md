@@ -13,6 +13,7 @@ merged to mainline in the Linux 5.15 release.
 - [Building and Installing](#building-and-installing)
 - [Usage](#usage)
 - [SMB user quotas](#smb-user-quotas)
+- [RPC account identities](#rpc-account-identities)
 - [Tests](#tests)
 - [Packages](#packages)
 
@@ -355,6 +356,18 @@ SMB operations support user quota queries and limit updates. Enable quota
 accounting locally; filesystem-wide default limits and `FSQFLAGS` updates
 are unsupported. Group and project quotas are not exposed through SMB.
 
+## RPC account identities
+
+SAMR exposes configured users in the host's account domain, with each Linux
+UID used as the user RID. POSIX groups are exposed in the separate `Unix Group`
+domain (`S-1-22-2`), with each GID used as the group RID. This matches the
+kernel's group SIDs and keeps users and groups distinct even when their names
+or numeric IDs are equal. Discover the group domain with SAMR domain
+enumeration or look it up by name before enumerating or opening groups.
+
+LSA account lookup accepts the hostname as a local user prefix. Use the
+Unix Group prefix to select a group explicitly.
+
 ## Tests
 
 After configuring the build, run the RPC and quota tests with either build
@@ -369,8 +382,11 @@ meson test -C build --print-errorlogs
 ```
 
 The RPC tests cover protocol error replies, request and response fragmentation,
-negotiated fragment sizes, policy attributes and handle lifetime, and share
-enumeration length and resume handling. They exercise both SID lookup calls
+negotiated fragment sizes for share, server and workstation information,
+policy attributes and handle lifetime, presentation context additions, account
+namespaces, and share enumeration length and resume handling. They also check
+the NDR array bounds in user information and security descriptor lengths in
+share information. They exercise both SID lookup calls
 with 20,480 maximum-size SIDs. RPC requests are assembled within a 4 MiB limit;
 the advertised receive fragment size is at most 4096 bytes to fit the kernel
 IPC payload limit.
