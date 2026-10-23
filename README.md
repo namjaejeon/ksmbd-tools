@@ -359,11 +359,17 @@ are unsupported. Group and project quotas are not exposed through SMB.
 ## RPC account identities
 
 SAMR exposes configured users in the host's account domain, with each Linux
-UID used as the user RID. POSIX groups are exposed in the separate `Unix Group`
-domain (`S-1-22-2`), with each GID used as the group RID. This matches the
-kernel's group SIDs and keeps users and groups distinct even when their names
-or numeric IDs are equal. Discover the group domain with SAMR domain
-enumeration or look it up by name before enumerating or opening groups.
+UID as the user RID. The virtual `Unix Users` group in that same domain is
+the primary group of every configured user. Its RID is 4294967295, reserved
+because Linux cannot use UID -1. If a configured account has that name,
+the group uses `Unix Users (1)` (or the next unused suffix).
+
+POSIX groups referenced by those users are SAMR aliases in the `Unix Group`
+domain S-1-22-2. Their RIDs are Linux GIDs, and their membership lists contain
+full host-domain user SIDs. This preserves the kernel's POSIX group SIDs
+without interpreting cross-domain UIDs as group-domain RIDs. User and group
+names or numeric IDs may coincide. Discover the group domain through SAMR
+domain enumeration and lookup before opening aliases.
 
 LSA account lookup accepts the hostname and the configured `netbios name` as
 local user prefixes. Use `Unix Group\groupname` to select a group explicitly.
