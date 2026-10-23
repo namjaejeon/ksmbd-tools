@@ -374,6 +374,14 @@ domain enumeration and lookup before opening aliases.
 LSA account lookup accepts the hostname and the configured `netbios name` as
 local user prefixes. Use `Unix Group\groupname` to select a group explicitly.
 
+RPC account and policy objects expose a fixed public query ACL. The current
+kernel RPC IPC does not carry a caller token, so the daemon grants these
+public rights to each caller and rejects administrative, write, private
+policy and SACL rights. `MAXIMUM_ALLOWED` returns the concrete public rights;
+generic rights are expanded and checked when a handle is opened. Root SMB
+credentials do not bypass this policy. Token-specific administrative RPC
+access requires an IPC extension and is not provided by this interface.
+
 ## Tests
 
 After configuring the build, run the RPC and quota tests with either build
