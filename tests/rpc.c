@@ -19,6 +19,10 @@ int log_level = -1;
 static GPtrArray *users;
 static GPtrArray *shares;
 static unsigned int receive_limit;
+static size_t group_buffer_min;
+static const char *test_group_name;
+static unsigned int group_cursor;
+static char *group_buffer;
 
 /* Keep group identity tests independent of the host's NSS database. */
 static int mock_group(gid_t gid, struct group *group, char *buf, size_t size,
@@ -27,10 +31,12 @@ static int mock_group(gid_t gid, struct group *group, char *buf, size_t size,
 	const char *name;
 
 	*result = NULL;
+	if (size < group_buffer_min)
+		return ERANGE;
 	if (gid == 0)
 		name = "root";
 	else if (gid == 1000)
-		name = "test-group";
+		name = test_group_name;
 	else
 		return 0;
 	if (strlen(name) + 1 > size)
@@ -54,10 +60,47 @@ int getgrnam_r(const char *name, struct group *group, char *buf, size_t size,
 {
 	if (!strcmp(name, "root"))
 		return mock_group(0, group, buf, size, result);
-	if (!strcmp(name, "test-group"))
+	if (!strcmp(name, test_group_name))
 		return mock_group(1000, group, buf, size, result);
 	*result = NULL;
 	return 0;
+}
+
+void setgrent(void)
+{
+	group_cursor = 0;
+}
+
+void endgrent(void)
+{
+	group_cursor = 0;
+	g_clear_pointer(&group_buffer, g_free);
+}
+
+struct group *getgrent(void)
+{
+	const gid_t gids[] = { 0, 1000 };
+	static struct group group;
+	struct group *result;
+	size_t size = MAX(group_buffer_min, 128);
+	char *next;
+	int ret;
+
+	if (group_cursor == G_N_ELEMENTS(gids))
+		return NULL;
+	next = g_try_realloc(group_buffer, size);
+	if (!next) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	group_buffer = next;
+	ret = mock_group(gids[group_cursor], &group, group_buffer, size, &result);
+	if (ret) {
+		errno = ret;
+		return NULL;
+	}
+	group_cursor++;
+	return result;
 }
 
 void __pr_log(int level, const char *fmt, ...)
@@ -367,6 +410,8 @@ static void fixture_init(void)
 {
 	unsigned int i;
 
+	group_buffer_min = group_cursor = 0;
+	test_group_name = "test-group";
 	memset(&global_conf, 0, sizeof(global_conf));
 	global_conf.netbios_name = "SERVER";
 	global_conf.work_group = "WORKGROUP";
@@ -1065,6 +1110,7 @@ struct wire_reader {
 	const guint8 *data;
 	size_t size;
 	size_t offset;
+	int big_endian;
 };
 
 static void wire_skip(struct wire_reader *wire, size_t size)
@@ -1086,14 +1132,17 @@ static unsigned int wire16(struct wire_reader *wire)
 	wire_align(wire, 2);
 	wire_skip(wire, 2);
 	memcpy(&value, wire->data + wire->offset - 2, 2);
-	return le16toh(value);
+	return wire->big_endian ? be16toh(value) : le16toh(value);
 }
 
 static unsigned int wire32(struct wire_reader *wire)
 {
+	__u32 value;
+
 	wire_align(wire, 4);
 	wire_skip(wire, 4);
-	return get32(wire->data + wire->offset - 4);
+	memcpy(&value, wire->data + wire->offset - 4, 4);
+	return wire->big_endian ? be32toh(value) : le32toh(value);
 }
 
 static char *wire_string(struct wire_reader *wire)
@@ -1107,7 +1156,8 @@ static char *wire_string(struct wire_reader *wire)
 	g_assert_cmpuint(actual, <=, max);
 	wire_skip(wire, (size_t)actual * 2);
 	value = g_convert((const char *)wire->data + wire->offset - actual * 2,
-			  actual * 2, "UTF-8", "UTF-16LE", NULL, NULL, NULL);
+			  actual * 2, "UTF-8", wire->big_endian ? "UTF-16BE" : "UTF-16LE",
+			  NULL, NULL, NULL);
 	g_assert_nonnull(value);
 	wire_align(wire, 4);
 	return value;
@@ -1295,18 +1345,21 @@ static GByteArray *share_get_info(unsigned int level, size_t capacity)
 	return result;
 }
 
-static void check_share_descriptor(struct wire_reader *wire, unsigned int size)
+static const guint8 *check_share_descriptor(struct wire_reader *wire, unsigned int size)
 {
 	unsigned int i;
+	const guint8 *sd;
 
 	for (i = 0; i < 4; i++) {
 		g_autofree char *value = wire_string(wire);
 	}
 	g_assert_cmpuint(size, >, 20);
 	g_assert_cmpuint(wire32(wire), ==, size);
+	sd = wire->data + wire->offset;
 	wire_skip(wire, size);
-	g_assert_cmpuint(wire->data[wire->offset - size], ==, 1);
+	g_assert_cmpuint(sd[0], ==, 1);
 	wire_align(wire, 4);
+	return sd;
 }
 
 static void test_share_security_descriptor(void)
@@ -1533,15 +1586,27 @@ static void test_account_namespaces(void)
 	fixture_destroy();
 }
 
-static GByteArray *lsa_lookup_name(GByteArray *policy, const char *name,
-				   unsigned int version)
+static GByteArray *lsa_lookup_names(GByteArray *policy, const char *const *names,
+				    unsigned int count, unsigned int version)
 {
 	GByteArray *stub = g_byte_array_new(), *result;
+	unsigned int i;
 
 	g_byte_array_append(stub, policy->data, 20);
-	put32(stub, 1);
-	put32(stub, 1);
-	put_rpc_string(stub, name);
+	put32(stub, count);
+	put32(stub, count);
+	for (i = 0; i < count; i++) {
+		glong length;
+		g_autofree gunichar2 *utf16 =
+			g_utf8_to_utf16(names[i], -1, NULL, &length, NULL);
+
+		g_assert_nonnull(utf16);
+		put16(stub, length * 2);
+		put16(stub, length * 2);
+		put32(stub, i + 1);
+	}
+	for (i = 0; i < count; i++)
+		put_string(stub, names[i], 0);
 	put32(stub, 0);
 	put32(stub, 0);
 	put16(stub, 1);
@@ -1555,16 +1620,22 @@ static GByteArray *lsa_lookup_name(GByteArray *policy, const char *name,
 	return result;
 }
 
+static GByteArray *lsa_lookup_name(GByteArray *policy, const char *name,
+				   unsigned int version)
+{
+	return lsa_lookup_names(policy, &name, 1, version);
+}
+
 static void check_lsa_name_rid(GByteArray *result, unsigned int version,
 			       unsigned int type, const guint8 *domain, size_t domain_size,
 			       unsigned int rid)
 {
 	struct wire_reader wire = { .data = result->data, .size = result->len };
 	GByteArray *sid;
-	unsigned int ref, mapped = type != 8;
+	unsigned int ref, mapped = type != 8, known = mapped || domain;
 
 	ref = wire32(&wire);
-	g_assert_cmpuint(!!ref, ==, mapped);
+	g_assert_cmpuint(!!ref, ==, known);
 	if (ref) {
 		g_autofree char *name = NULL;
 
@@ -1588,14 +1659,15 @@ static void check_lsa_name_rid(GByteArray *result, unsigned int version,
 		g_assert_cmpuint(!!ref, ==, mapped);
 	else
 		g_assert_cmpuint(ref, ==, mapped ? rid : 0);
-	g_assert_cmpuint(wire32(&wire), ==, mapped ? 0 : UINT32_MAX);
+	g_assert_cmpuint(wire32(&wire), ==, known ? 0 : UINT32_MAX);
 	if (version) {
 		g_assert_cmpuint(wire32(&wire), ==, 0);
 		if (mapped) {
 			sid = wire_sid(&wire);
-			g_assert_cmpuint(sid->len, ==, domain_size + 4);
+			g_assert_cmpuint(sid->len, ==, domain_size + (type == 3 ? 0 : 4));
 			g_assert_cmpmem(sid->data + 2, domain_size - 2, domain + 2, domain_size - 2);
-			g_assert_cmpuint(get32(sid->data + sid->len - 4), ==, rid);
+			if (type != 3)
+				g_assert_cmpuint(get32(sid->data + sid->len - 4), ==, rid);
 			g_byte_array_unref(sid);
 		}
 	}
@@ -1642,7 +1714,8 @@ static void test_lsa_account_names(void)
 
 			result = lsa_lookup_name(policy, name, version);
 			check_lsa_name(result, version, i < 3 ? 1 : 8,
-					local_domain_sid, sizeof(local_domain_sid));
+					i < 3 ? local_domain_sid : NULL,
+					i < 3 ? sizeof(local_domain_sid) : 0);
 			g_byte_array_unref(result);
 		}
 		result = lsa_lookup_name(policy, "SERVER\\unmapped-uid-account", version);
@@ -2929,6 +3002,320 @@ static void test_connect_revision(void)
 	fixture_destroy();
 }
 
+static void test_samr_large_group(void)
+{
+	GByteArray *server, *domain, *result;
+	long suggested = sysconf(_SC_GETGR_R_SIZE_MAX);
+
+	fixture_init();
+	((struct ksmbd_user *)users->pdata[0])->gid = 1000;
+	/* Force a normal NSS ERANGE reply before the complete group is available. */
+	group_buffer_min = 2 * (size_t)(suggested > 1024 ? suggested : 1024);
+	open_pipe(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 0xac, 1);
+	server = samr_connect_handle();
+	domain = samr_open_domain(server, unix_group_sid, sizeof(unix_group_sid));
+	result = samr_enum(domain, 15, 0, UINT32_MAX);
+	g_assert_cmpuint(get32(result->data + 8), ==, 2);
+	g_assert_cmpuint(get32(result->data + result->len - 4), ==, 0);
+	g_byte_array_unref(result);
+	samr_check_name(domain, "TEST-GROUP", 1000, 4);
+	samr_check_rid(domain, 1000, "test-group", 4);
+	result = samr_open_account(domain, 27, 1000);
+	g_assert_cmpuint(get32(result->data + 20), ==, 0);
+	g_byte_array_unref(result);
+	g_byte_array_unref(domain);
+	g_byte_array_unref(server);
+	fixture_destroy();
+}
+
+static void test_samr_enum_filters(void)
+{
+	const struct {
+		unsigned int filter, count;
+	} cases[] = {
+		{ 0, 2 }, { 0x10, 2 }, { 1, 0 }, { 0x11, 0 },
+		{ 0x80, 0 }, { 0x90, 0 }, { 0x200, 0 }, { 0x210, 0 },
+		{ 0x400, 2 }, { 0x20000, 2 }, { 0x20400, 2 },
+		{ 0x20410, 2 }, { 0x20411, 0 }, { UINT32_MAX, 0 },
+	};
+	GByteArray *server, *domain, *result, *stub = g_byte_array_new();
+	unsigned int i;
+
+	fixture_init();
+	open_pipe(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 0xac, 1);
+	server = samr_connect_handle();
+	domain = samr_open_domain(server, local_domain_sid, sizeof(local_domain_sid));
+	for (i = 0; i < G_N_ELEMENTS(cases); i++) {
+		g_byte_array_set_size(stub, 0);
+		g_byte_array_append(stub, domain->data, 20);
+		put32(stub, 0);
+		put32(stub, cases[i].filter);
+		put32(stub, 256);
+		result = exchange(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 13, stub, 128);
+		g_assert_cmpuint(get32(result->data + 8), ==, cases[i].count);
+		g_assert_cmpuint(get32(result->data + result->len - 4), ==,
+				 cases[i].count ? KSMBD_NT_STATUS_MORE_ENTRIES : 0);
+		if (cases[i].count) {
+			g_assert_cmpuint(get32(result->data + 20), ==, 1000);
+			g_assert_cmpuint(get32(result->data + 32), ==, 1001);
+		}
+		g_byte_array_unref(result);
+	}
+	g_byte_array_unref(stub);
+	g_byte_array_unref(domain);
+	g_byte_array_unref(server);
+	fixture_destroy();
+}
+
+static void put_be32(GByteArray *stub, unsigned int value)
+{
+	put32(stub, GUINT32_SWAP_LE_BE(value));
+}
+
+static GByteArray *share_descriptor_blobs(GByteArray *result, int enumerate,
+					 int big_endian)
+{
+	struct wire_reader wire = {
+		.data = result->data, .size = result->len, .big_endian = big_endian,
+	};
+	unsigned int sizes[3], count = enumerate ? 3 : 1, i;
+	GByteArray *blobs = g_byte_array_new();
+
+	g_assert_cmpuint(wire32(&wire), ==, 502);
+	if (enumerate)
+		g_assert_cmpuint(wire32(&wire), ==, 502);
+	g_assert_cmpuint(wire32(&wire), !=, 0);
+	if (enumerate) {
+		g_assert_cmpuint(wire32(&wire), ==, count);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, count);
+	}
+	for (i = 0; i < count; i++) {
+		wire_skip(&wire, 8 * 4);
+		sizes[i] = wire32(&wire);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+	}
+	for (i = 0; i < count; i++) {
+		const guint8 *sd = check_share_descriptor(&wire, sizes[i]);
+
+		g_assert_cmpuint(get32(sd + 16), ==, 20); /* LE DACL offset. */
+		g_byte_array_append(blobs, sd, sizes[i]);
+	}
+	if (enumerate) {
+		g_assert_cmpuint(wire32(&wire), ==, count);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, 0);
+	}
+	g_assert_cmpuint(wire32(&wire), ==, 0);
+	g_assert_cmpuint(wire.offset, ==, wire.size);
+	return blobs;
+}
+
+static void test_share_descriptor_big_endian(void)
+{
+	const unsigned int flags = KSMBD_RPC_SRVSVC_METHOD_INVOKE;
+	unsigned int enumerate, i;
+
+	fixture_init();
+	open_pipe(1, flags, 0, 3);
+	for (enumerate = 0; enumerate < 2; enumerate++) {
+		GByteArray *stub = g_byte_array_new(), *result, *expected, *actual;
+		struct ksmbd_rpc_command *req, *resp = command(1, flags, 4096);
+		__u16 value16;
+		__u32 value32;
+		unsigned int opnum = enumerate ? 15 : 16;
+
+		result = enumerate ? share_enum(502, UINT32_MAX, 0) :
+				     share_get_info(502, 4096);
+		expected = share_descriptor_blobs(result, enumerate, 0);
+		g_byte_array_unref(result);
+		put32(stub, 0);
+		if (enumerate) {
+			put_be32(stub, 502);
+			put_be32(stub, 502);
+			put_be32(stub, 1);
+			put32(stub, 0);
+			put32(stub, 0);
+			put32(stub, UINT32_MAX);
+			put_be32(stub, 1);
+			put32(stub, 0);
+		} else {
+			put_be32(stub, 7);
+			put32(stub, 0);
+			put_be32(stub, 7);
+			for (i = 0; i < sizeof("share0"); i++)
+				put16(stub, GUINT16_SWAP_LE_BE("share0"[i]));
+			put_be32(stub, 502);
+		}
+		req = request(1, flags, opnum, stub);
+		req->payload[4] = 0;
+		value16 = htobe16(req->payload_sz);
+		memcpy(req->payload + 8, &value16, 2);
+		value16 = htobe16(opnum);
+		memcpy(req->payload + 22, &value16, 2);
+		value32 = htobe32(1);
+		memcpy(req->payload + 12, &value32, 4);
+		value32 = htobe32(stub->len);
+		memcpy(req->payload + 16, &value32, 4);
+		g_assert_cmpint(rpc_ioctl_request(req, resp, 4096), ==, 0);
+		g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_RESPONSE);
+		g_assert_cmpuint(resp->payload[4], ==, 0);
+		g_assert_cmpuint(resp->payload[3], ==, 3);
+		result = g_byte_array_new();
+		g_byte_array_append(result, (void *)(resp->payload + 24),
+				    resp->payload_sz - 24);
+		actual = share_descriptor_blobs(result, enumerate, 1);
+		g_assert_cmpmem(actual->data, actual->len, expected->data, expected->len);
+		g_byte_array_unref(actual);
+		g_byte_array_unref(expected);
+		g_byte_array_unref(result);
+		g_byte_array_unref(stub);
+		g_free(req);
+		g_free(resp);
+	}
+	fixture_destroy();
+}
+
+static void test_lsa_group_casefold(void)
+{
+	const char *names[] = { "Unix Group\\ROOT", "Unix Group\\TEST-GROUP",
+				"Unix Group\\TeSt-GrOuP", "TEST-GROUP" };
+	GByteArray *policy, *result;
+	long suggested = sysconf(_SC_GETGR_R_SIZE_MAX);
+	unsigned int version, i;
+
+	fixture_init();
+	group_buffer_min = 2 * (size_t)(suggested > 1024 ? suggested : 1024);
+	open_pipe(1, KSMBD_RPC_LSARPC_METHOD_INVOKE, 0xab, 0);
+	policy = open_policy();
+	for (version = 0; version < 2; version++) {
+		for (i = 0; i < G_N_ELEMENTS(names); i++) {
+			result = lsa_lookup_name(policy, names[i], version);
+			check_lsa_name_rid(result, version, 4, unix_group_sid,
+					   sizeof(unix_group_sid), i ? 1000 : 0);
+			g_byte_array_unref(result);
+		}
+	}
+	test_group_name = "tést-group";
+	for (version = 0; version < 2; version++) {
+		result = lsa_lookup_name(policy, "uNiX gRoUp\\TÉST-GROUP", version);
+		check_lsa_name(result, version, 4, unix_group_sid, sizeof(unix_group_sid));
+		g_byte_array_unref(result);
+		result = lsa_lookup_name(policy, "Unix Group\\MISSING", version);
+		check_lsa_name(result, version, 8, unix_group_sid, sizeof(unix_group_sid));
+		g_byte_array_unref(result);
+	}
+	g_byte_array_unref(policy);
+	fixture_destroy();
+}
+
+static void test_lsa_unmapped_name_domains(void)
+{
+	const guint8 nt_authority[] = { 1, 0, 0, 0, 0, 0, 0, 5 };
+	const guint8 *sids[] = { local_domain_sid, unix_group_sid, nt_authority };
+	const size_t lengths[] = { sizeof(local_domain_sid), sizeof(unix_group_sid),
+				   sizeof(nt_authority) };
+	const char *names[] = { NULL, "SERVER\\missing", "Unix Group\\missing",
+				"NT Authority\\missing", "FOREIGN\\missing" };
+	GByteArray *policy, *result;
+	unsigned int version, mixed, i;
+
+	fixture_init();
+	names[0] = ((struct ksmbd_user *)users->pdata[0])->name;
+	open_pipe(1, KSMBD_RPC_LSARPC_METHOD_INVOKE, 0xab, 0);
+	policy = open_policy();
+	for (version = 0; version < 2; version++) {
+		for (mixed = 0; mixed < 2; mixed++) {
+			unsigned int count = 4 + mixed;
+			struct wire_reader wire;
+
+			result = lsa_lookup_names(policy, names + !mixed, count, version);
+			wire = (struct wire_reader){ .data = result->data, .size = result->len };
+			g_assert_cmpuint(wire32(&wire), !=, 0);
+			g_assert_cmpuint(wire32(&wire), ==, 3);
+			g_assert_cmpuint(wire32(&wire), !=, 0);
+			g_assert_cmpuint(wire32(&wire), >=, 3);
+			g_assert_cmpuint(wire32(&wire), ==, 3);
+			for (i = 0; i < 3; i++) {
+				wire_skip(&wire, 8);
+				g_assert_cmpuint(wire32(&wire), !=, 0);
+			}
+			for (i = 0; i < 3; i++) {
+				g_autofree char *name = wire_string(&wire);
+				GByteArray *sid = wire_sid(&wire);
+
+				g_assert_cmpmem(sid->data, sid->len, sids[i], lengths[i]);
+				g_byte_array_unref(sid);
+			}
+			g_assert_cmpuint(wire32(&wire), ==, count);
+			g_assert_cmpuint(wire32(&wire), !=, 0);
+			g_assert_cmpuint(wire32(&wire), ==, count);
+			for (i = 0; i < count; i++) {
+				unsigned int mapped = mixed && !i;
+				unsigned int index = mapped ? 0 : i - mixed;
+				unsigned int value;
+
+				g_assert_cmpuint(wire16(&wire), ==, mapped ? 1 : 8);
+				value = wire32(&wire);
+				if (version)
+					g_assert_cmpuint(!!value, ==, mapped);
+				else
+					g_assert_cmpuint(value, ==, mapped ? 1000 : 0);
+				g_assert_cmpuint(wire32(&wire), ==,
+						 index < 3 ? index : UINT32_MAX);
+				if (version)
+					g_assert_cmpuint(wire32(&wire), ==, 0);
+			}
+			if (version && mixed) {
+				GByteArray *sid = wire_sid(&wire);
+
+				g_assert_cmpuint(get32(sid->data + sid->len - 4), ==, 1000);
+				g_byte_array_unref(sid);
+			}
+			g_assert_cmpuint(wire32(&wire), ==, mixed);
+			g_assert_cmpuint(wire32(&wire), ==, mixed ?
+					 KSMBD_NT_STATUS_SOME_NOT_MAPPED : KSMBD_NT_STATUS_NONE_MAPPED);
+			g_assert_cmpuint(wire.offset, ==, wire.size);
+			g_byte_array_unref(result);
+		}
+	}
+	g_byte_array_unref(policy);
+	fixture_destroy();
+}
+
+static void test_lsa_domain_names(void)
+{
+	char hostname[256] = { 0 };
+	const char *names[] = { hostname, "SERVER", "sErVeR", "Unix Group", "uNiX gRoUp" };
+	GByteArray *policy, *result;
+	unsigned int version, i;
+
+	g_assert_cmpint(gethostname(hostname, sizeof(hostname) - 1), ==, 0);
+	fixture_init();
+	open_pipe(1, KSMBD_RPC_LSARPC_METHOD_INVOKE, 0xab, 0);
+	policy = open_policy();
+	for (version = 0; version < 2; version++) {
+		for (i = 0; i < G_N_ELEMENTS(names); i++) {
+			struct wire_reader wire;
+			g_autofree char *canonical = NULL;
+			g_autofree char *expected = i < 3 ? g_ascii_strup(hostname, -1) :
+								 g_strdup("Unix Group");
+
+			result = lsa_lookup_name(policy, names[i], version);
+			check_lsa_name_rid(result, version, 3,
+					   i < 3 ? local_domain_sid : unix_group_sid,
+					   i < 3 ? sizeof(local_domain_sid) : sizeof(unix_group_sid), 0);
+			wire = (struct wire_reader){ .data = result->data, .size = result->len };
+			wire_skip(&wire, 32);
+			canonical = wire_string(&wire);
+			g_assert_cmpstr(canonical, ==, expected);
+			g_byte_array_unref(result);
+		}
+	}
+	g_byte_array_unref(policy);
+	fixture_destroy();
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
@@ -2967,5 +3354,11 @@ int main(int argc, char **argv)
 	g_test_add_func("/rpc/handle-grants", test_handle_grants);
 	g_test_add_func("/rpc/samr/user-all-access-fields", test_user_all_access_fields);
 	g_test_add_func("/rpc/samr/security-descriptor", test_samr_security_descriptor);
+	g_test_add_func("/rpc/samr/large-group", test_samr_large_group);
+	g_test_add_func("/rpc/samr/enum-filters", test_samr_enum_filters);
+	g_test_add_func("/rpc/srvsvc/descriptor-big-endian", test_share_descriptor_big_endian);
+	g_test_add_func("/rpc/lsarpc/group-casefold", test_lsa_group_casefold);
+	g_test_add_func("/rpc/lsarpc/unmapped-name-domains", test_lsa_unmapped_name_domains);
+	g_test_add_func("/rpc/lsarpc/domain-names", test_lsa_domain_names);
 	return g_test_run();
 }

@@ -75,6 +75,7 @@
 static GHashTable	*ph_table;
 static GRWLock		ph_table_lock;
 static gchar		*domain_name;
+static GMutex		group_lookup_lock;
 
 static void lsarpc_request_cleanup(struct ksmbd_rpc_pipe *pipe);
 
@@ -737,6 +738,34 @@ static void lsarpc_init_unix_domain_sid(struct smb_sid *sid, __u32 rid)
 	sid->sub_auth[0] = rid;
 }
 
+static int lsarpc_lookup_group_casefold(const char *name, __u32 *gid,
+				       char **resolved)
+{
+	struct group *result;
+	int ret = -ENOENT;
+
+	/* Protect the NSS cursor and copy the static result before unlocking. */
+	g_mutex_lock(&group_lookup_lock);
+	setgrent();
+	for (;;) {
+		errno = 0;
+		result = getgrent();
+		if (!result) {
+			ret = errno ? -errno : -ENOENT;
+			break;
+		}
+		if (ksmbd_name_compare(name, result->gr_name))
+			continue;
+		*gid = result->gr_gid;
+		*resolved = g_strdup(result->gr_name);
+		ret = *resolved ? 0 : -ENOMEM;
+		break;
+	}
+	endgrent();
+	g_mutex_unlock(&group_lookup_lock);
+	return ret;
+}
+
 static int lsarpc_lookup_group(const char *name, __u32 *gid, char **resolved)
 {
 	struct group group, *result;
@@ -760,6 +789,8 @@ static int lsarpc_lookup_group(const char *name, __u32 *gid, char **resolved)
 			size *= 2;
 			continue;
 		}
+		if (name && (ret == ENOENT || (!ret && !result)))
+			return lsarpc_lookup_group_casefold(name, gid, resolved);
 		if (ret || !result)
 			return ret ? -ret : -ENOENT;
 		*gid = result->gr_gid;
@@ -829,6 +860,38 @@ static void lsarpc_predefined_sids(const struct lsarpc_predefined *entry,
 	smb_copy_sid(sid, domain);
 	if (entry->type != SID_TYPE_DOMAIN)
 		sid->sub_auth[sid->num_subauth++] = entry->rid;
+}
+
+static int lsarpc_find_domain(struct lsarpc_names_info *ni, const char *name)
+{
+	const char *canonical = NULL;
+	unsigned int i;
+
+	if (!ksmbd_name_compare(name, domain_name) ||
+	    (global_conf.netbios_name &&
+	     !ksmbd_name_compare(name, global_conf.netbios_name))) {
+		smb_init_domain_sid(&ni->domain_sid);
+		canonical = domain_name;
+	} else if (!ksmbd_name_compare(name, SMB_UNIX_GROUP_DOMAIN)) {
+		smb_init_unix_group_sid(&ni->domain_sid);
+		canonical = SMB_UNIX_GROUP_DOMAIN;
+	} else {
+		for (i = 0; i < G_N_ELEMENTS(lsarpc_predefined); i++) {
+			const struct lsarpc_predefined *entry = &lsarpc_predefined[i];
+			struct smb_sid sid;
+
+			if (!entry->domain[0] || ksmbd_name_compare(name, entry->domain))
+				continue;
+			lsarpc_predefined_sids(entry, &ni->domain_sid, &sid);
+			canonical = entry->domain;
+			break;
+		}
+	}
+	if (!canonical)
+		return 0;
+	g_strlcpy(ni->domain_str, canonical, sizeof(ni->domain_str));
+	ni->domain_known = 1;
+	return 1;
 }
 
 static int lsarpc_resolve_predefined(struct lsarpc_names_info *ni,
@@ -990,6 +1053,8 @@ static int lsarpc_extract_account_name(const char *input, char **name,
 static int lsarpc_resolve_name(struct lsarpc_names_info *ni, const char *input)
 {
 	g_autofree char *name = NULL;
+	g_autofree char *qualifier = NULL;
+	const char *separator = strrchr(input, '\\');
 	__u32 rid = 0;
 	int type, ret;
 	g_autofree char *local_group = NULL;
@@ -997,6 +1062,17 @@ static int lsarpc_resolve_name(struct lsarpc_names_info *ni, const char *input)
 	ret = lsarpc_resolve_predefined(ni, input);
 	if (ret)
 		return ret < 0 ? ret : 0;
+	if (separator) {
+		/* A known domain survives even when its account cannot be mapped. */
+		qualifier = g_strndup(input, separator - input);
+		lsarpc_find_domain(ni, qualifier);
+	} else if (lsarpc_find_domain(ni, input)) {
+		smb_copy_sid(&ni->sid, &ni->domain_sid);
+		ni->type = SID_TYPE_DOMAIN;
+		ni->mapped = 1;
+		ni->resolved_name = g_strdup(ni->domain_str);
+		return ni->resolved_name ? 0 : -ENOMEM;
+	}
 	ret = lsarpc_extract_account_name(input, &name, &type);
 	if (ret)
 		return ret;
@@ -1033,7 +1109,7 @@ static int lsarpc_resolve_name(struct lsarpc_names_info *ni, const char *input)
 		return ni->user ? -ENOMEM : 0;
 	smb_copy_sid(&ni->sid, &ni->domain_sid);
 	ni->sid.sub_auth[ni->sid.num_subauth++] = rid;
-	ni->mapped = 1;
+	ni->mapped = ni->domain_known = 1;
 	return 0;
 }
 
@@ -1856,9 +1932,9 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 		int domain_index = -1;
 
 		ni = g_ptr_array_index(pipe->entries, i);
-		if (!ni->mapped)
+		mapped += !!ni->mapped;
+		if (!ni->domain_known)
 			continue;
-		mapped++;
 		for (j = 0; j < domains->len; j++) {
 			struct lsarpc_names_info *domain;
 
@@ -1950,7 +2026,7 @@ static int lsarpc_lookup_names3_return(struct ksmbd_rpc_pipe *pipe)
 				rc = KSMBD_RPC_EBAD_DATA;
 				goto out;
 			}
-			if (ndr_write_int32(dce, ni->mapped ? ni->index : -1) ||
+			if (ndr_write_int32(dce, ni->domain_known ? ni->index : -1) ||
 			    ndr_write_int32(dce, 0)) {
 				rc = KSMBD_RPC_EBAD_DATA;
 				goto out;
@@ -2027,9 +2103,9 @@ static int lsarpc_lookup_names_return(struct ksmbd_rpc_pipe *pipe)
 		int domain_index = -1;
 
 		ni = g_ptr_array_index(pipe->entries, i);
-		if (!ni->mapped)
+		mapped += !!ni->mapped;
+		if (!ni->domain_known)
 			continue;
-		mapped++;
 		for (j = 0; j < domains->len; j++) {
 			struct lsarpc_names_info *domain;
 
@@ -2113,7 +2189,7 @@ static int lsarpc_lookup_names_return(struct ksmbd_rpc_pipe *pipe)
 			}
 			if (ndr_write_int16(dce, type) ||
 			    ndr_write_int32(dce, rid) ||
-			    ndr_write_int32(dce, ni->mapped ? ni->index : -1)) {
+			    ndr_write_int32(dce, ni->domain_known ? ni->index : -1)) {
 				rc = KSMBD_RPC_EBAD_DATA;
 				goto out;
 			}
