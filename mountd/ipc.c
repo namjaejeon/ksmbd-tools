@@ -455,7 +455,8 @@ int ipc_msg_send(struct ksmbd_ipc_msg *msg)
 	struct nlmsghdr *hdr;
 	int ret = -EINVAL;
 
-	nlmsg = nlmsg_alloc();
+	nlmsg = nlmsg_alloc_size(nlmsg_total_size(GENL_HDRLEN +
+						  nla_total_size(msg->sz)));
 	if (!nlmsg) {
 		ret = -ENOMEM;
 		goto out_error;
