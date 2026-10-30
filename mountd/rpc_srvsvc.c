@@ -614,6 +614,18 @@ static void __share_entry_discard(struct ksmbd_rpc_pipe *pipe)
 	put_ksmbd_share(share);
 }
 
+static gint __share_name_compare(gconstpointer a, gconstpointer b)
+{
+	const struct ksmbd_share *share_a = *(struct ksmbd_share * const *)a;
+	const struct ksmbd_share *share_b = *(struct ksmbd_share * const *)b;
+	const char *name_a = share_a->name ? share_a->name : "";
+	const char *name_b = share_b->name ? share_b->name : "";
+	int ret;
+
+	ret = g_ascii_strcasecmp(name_a, name_b);
+	return ret ? ret : g_strcmp0(share_a->name, share_b->name);
+}
+
 static void __enum_all_shares(struct ksmbd_share *share,
 			      struct ksmbd_rpc_pipe *pipe)
 {
@@ -636,6 +648,7 @@ static int srvsvc_share_enum_all_invoke(struct ksmbd_rpc_pipe *pipe)
 	unsigned int i;
 
 	shm_iter_shares((share_cb)__enum_all_shares, pipe);
+	g_ptr_array_sort(pipe->entries, __share_name_compare);
 	pipe->entry_processed = __share_entry_processed;
 	req->resume_handle = req->payload_handle.ptr;
 
