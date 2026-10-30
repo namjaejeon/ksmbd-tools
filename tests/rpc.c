@@ -1291,6 +1291,72 @@ static void test_samr_unknown_domain(void)
 	fixture_destroy();
 }
 
+struct rpc_pipe_race {
+	volatile gint stop;
+	volatile gint started;
+	unsigned int calls;
+};
+
+static gpointer rpc_pipe_race_writer(gpointer data)
+{
+	struct rpc_pipe_race *race = data;
+	unsigned int flags = KSMBD_RPC_SAMR_METHOD_INVOKE;
+	GByteArray *stub = connect_stub();
+	struct ksmbd_rpc_command *req, *resp;
+
+	req = request(1, flags, 64, stub);
+	resp = command(1, flags, 128);
+	g_atomic_int_set(&race->started, 1);
+	while (!g_atomic_int_get(&race->stop)) {
+		resp->payload_sz = 0;
+		rpc_ioctl_request(req, resp, 128);
+		race->calls++;
+	}
+	g_free(req);
+	g_free(resp);
+	g_byte_array_unref(stub);
+	return NULL;
+}
+
+static void test_rpc_pipe_close_race(void)
+{
+	unsigned int flags = KSMBD_RPC_SAMR_METHOD_INVOKE;
+	struct rpc_pipe_race race = { 0 };
+	GThread *writer;
+	unsigned int i;
+
+	fixture_init();
+	open_pipe(1, flags, 0xac, 1);
+	writer = g_thread_new("rpc-pipe-writer", rpc_pipe_race_writer, &race);
+	while (!g_atomic_int_get(&race.started))
+		g_thread_yield();
+
+	for (i = 0; i < 100; i++) {
+		struct ksmbd_rpc_command *req = command(1, flags, 0);
+		struct ksmbd_rpc_command *resp = command(1, flags, 0);
+
+		g_assert_cmpint(rpc_close_request(req, resp), ==, 0);
+		g_free(req);
+		g_free(resp);
+		open_pipe(1, flags, 0xac, 1);
+		g_usleep(1000);
+	}
+
+	g_atomic_int_set(&race.stop, 1);
+	g_thread_join(writer);
+	g_assert_cmpuint(race.calls, >, 0);
+
+	{
+		struct ksmbd_rpc_command *req = command(1, flags, 0);
+		struct ksmbd_rpc_command *resp = command(1, flags, 0);
+
+		g_assert_cmpint(rpc_close_request(req, resp), ==, 0);
+		g_free(req);
+		g_free(resp);
+	}
+	fixture_destroy();
+}
+
 static GByteArray *samr_open_account_access(GByteArray *domain, unsigned int opnum,
 				     unsigned int rid, unsigned int access)
 {
@@ -3451,6 +3517,7 @@ int main(int argc, char **argv)
 	g_test_add_func("/rpc/samr/invalid-handle", test_samr_invalid_handle);
 	g_test_add_func("/rpc/lsarpc/invalid-handle", test_lsarpc_invalid_handle);
 	g_test_add_func("/rpc/samr/unknown-domain", test_samr_unknown_domain);
+	g_test_add_func("/rpc/pipe/close-race", test_rpc_pipe_close_race);
 	g_test_add_func("/rpc/samr/fragmentation", test_samr_fragmentation);
 	g_test_add_func("/rpc/lsarpc/fragmentation", test_lsarpc_fragmentation);
 	g_test_add_func("/rpc/read-without-request", test_read_without_request);
