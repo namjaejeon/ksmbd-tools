@@ -1398,10 +1398,7 @@ static void test_share_security_descriptor(void)
 	fixture_init();
 	open_pipe(1, KSMBD_RPC_SRVSVC_METHOD_INVOKE, 0, 3);
 	result = share_get_info(502, 4096);
-	wire = (struct wire_reader){
-		.data = result->data,
-		.size = result->len
-	};
+	wire = (struct wire_reader){ .data = result->data, .size = result->len };
 	g_assert_cmpuint(wire32(&wire), ==, 502);
 	g_assert_cmpuint(wire32(&wire), !=, 0);
 	wire_skip(&wire, 8 * 4);
@@ -2274,7 +2271,10 @@ static void test_lsa_unix_user_sid(void)
 
 		result = exchange(1, KSMBD_RPC_LSARPC_METHOD_INVOKE,
 				  version ? 57 : 15, stub, 4096);
-		wire = (struct wire_reader){ .data = result->data, .size = result->len };
+		wire = (struct wire_reader){
+			.data = result->data,
+			.size = result->len
+		};
 		g_assert_cmpuint(wire32(&wire), !=, 0);
 		g_assert_cmpuint(wire32(&wire), ==, 1);
 		wire_skip(&wire, 12 + 8 + 4);
