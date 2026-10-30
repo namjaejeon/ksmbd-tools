@@ -1268,6 +1268,29 @@ static GByteArray *samr_open_domain(GByteArray *server, const guint8 *sid,
 	return result;
 }
 
+static void test_samr_unknown_domain(void)
+{
+	unsigned int flags = KSMBD_RPC_SAMR_METHOD_INVOKE;
+	GByteArray *server, *stub = g_byte_array_new(), *result;
+
+	fixture_init();
+	open_pipe(1, flags, 0xac, 1);
+	server = samr_connect_handle();
+	g_byte_array_append(stub, server->data, 20);
+	put_rpc_string(stub, "unknown-domain");
+	result = exchange(1, flags, 5, stub, 128);
+
+	g_assert_cmpuint(result->len, ==, 8);
+	g_assert_cmpuint(get32(result->data), ==, 0);
+	g_assert_cmpuint(get32(result->data + 4), ==,
+			 KSMBD_NT_STATUS_NO_SUCH_DOMAIN);
+
+	g_byte_array_unref(result);
+	g_byte_array_unref(stub);
+	g_byte_array_unref(server);
+	fixture_destroy();
+}
+
 static GByteArray *samr_open_account_access(GByteArray *domain, unsigned int opnum,
 				     unsigned int rid, unsigned int access)
 {
@@ -3427,6 +3450,7 @@ int main(int argc, char **argv)
 	g_test_init(&argc, &argv, NULL);
 	g_test_add_func("/rpc/samr/invalid-handle", test_samr_invalid_handle);
 	g_test_add_func("/rpc/lsarpc/invalid-handle", test_lsarpc_invalid_handle);
+	g_test_add_func("/rpc/samr/unknown-domain", test_samr_unknown_domain);
 	g_test_add_func("/rpc/samr/fragmentation", test_samr_fragmentation);
 	g_test_add_func("/rpc/lsarpc/fragmentation", test_lsarpc_fragmentation);
 	g_test_add_func("/rpc/read-without-request", test_read_without_request);
