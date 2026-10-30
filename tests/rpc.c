@@ -2,6 +2,7 @@
 #include <endian.h>
 #include <errno.h>
 #include <grp.h>
+#include <pwd.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -23,6 +24,8 @@ static size_t group_buffer_min;
 static const char *test_group_name;
 static unsigned int group_cursor;
 static char *group_buffer;
+static uid_t test_passwd_uid;
+static const char *test_passwd_name;
 
 /* Keep group identity tests independent of the host's NSS database. */
 static int mock_group(gid_t gid, struct group *group, char *buf, size_t size,
@@ -63,6 +66,25 @@ int getgrnam_r(const char *name, struct group *group, char *buf, size_t size,
 	if (!strcmp(name, test_group_name))
 		return mock_group(1000, group, buf, size, result);
 	*result = NULL;
+	return 0;
+}
+
+int getpwuid_r(uid_t uid, struct passwd *passwd, char *buf, size_t size,
+		struct passwd **result)
+{
+	size_t name_size;
+
+	*result = NULL;
+	if (!test_passwd_name || uid != test_passwd_uid)
+		return 0;
+	name_size = strlen(test_passwd_name) + 1;
+	if (name_size > size)
+		return ERANGE;
+	memcpy(buf, test_passwd_name, name_size);
+	memset(passwd, 0, sizeof(*passwd));
+	passwd->pw_name = buf;
+	passwd->pw_uid = uid;
+	*result = passwd;
 	return 0;
 }
 
@@ -412,6 +434,8 @@ static void fixture_init(void)
 
 	group_buffer_min = group_cursor = 0;
 	test_group_name = "test-group";
+	test_passwd_uid = 0;
+	test_passwd_name = NULL;
 	memset(&global_conf, 0, sizeof(global_conf));
 	global_conf.netbios_name = "SERVER";
 	global_conf.work_group = "WORKGROUP";
@@ -1269,6 +1293,9 @@ static const guint8 local_domain_sid[] = {
 	1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0
 };
 static const guint8 unix_group_sid[] = { 1, 1, 0, 0, 0, 0, 0, 22, 2, 0, 0, 0 };
+static const guint8 unix_user_domain_sid[] = {
+	1, 1, 0, 0, 0, 0, 0, 22, 1, 0, 0, 0
+};
 
 static void test_user_all_information(void)
 {
@@ -1371,7 +1398,10 @@ static void test_share_security_descriptor(void)
 	fixture_init();
 	open_pipe(1, KSMBD_RPC_SRVSVC_METHOD_INVOKE, 0, 3);
 	result = share_get_info(502, 4096);
-	wire = (struct wire_reader){ .data = result->data, .size = result->len };
+	wire = (struct wire_reader){
+		.data = result->data,
+		.size = result->len
+	};
 	g_assert_cmpuint(wire32(&wire), ==, 502);
 	g_assert_cmpuint(wire32(&wire), !=, 0);
 	wire_skip(&wire, 8 * 4);
@@ -2002,6 +2032,15 @@ static void put_local_user_sid(GByteArray *stub, unsigned int rid)
 	put32(stub, rid);
 }
 
+static void put_unix_user_sid(GByteArray *stub, unsigned int uid)
+{
+	const guint8 sid[] = { 1, 2, 0, 0, 0, 0, 0, 22, 1, 0, 0, 0 };
+
+	put32(stub, 2);
+	g_byte_array_append(stub, sid, sizeof(sid));
+	put32(stub, uid);
+}
+
 static GByteArray *lsa_lookup_request(GByteArray *policy, unsigned int opnum,
 				      unsigned int ignored, unsigned int mapped,
 				      unsigned int level, unsigned int options)
@@ -2197,6 +2236,73 @@ static void test_lsa_unmapped_sids(void)
 	}
 	g_byte_array_unref(policy);
 	g_byte_array_unref(stub);
+	fixture_destroy();
+}
+
+static void test_lsa_unix_user_sid(void)
+{
+	const uid_t uid = 4242;
+	GByteArray *policy, *stub, *result;
+	unsigned int version;
+
+	fixture_init();
+	test_passwd_uid = uid;
+	test_passwd_name = "nss-only-user";
+	open_pipe(1, KSMBD_RPC_LSARPC_METHOD_INVOKE, 0xab, 0);
+	policy = open_policy();
+	for (version = 0; version < 2; version++) {
+		struct wire_reader wire;
+		GByteArray *domain_sid;
+		g_autofree char *domain_name = NULL;
+		g_autofree char *name = NULL;
+
+		stub = g_byte_array_new();
+		g_byte_array_append(stub, policy->data, 20);
+		put32(stub, 1);
+		put32(stub, 1);
+		put32(stub, 1);
+		put32(stub, 1);
+		put_unix_user_sid(stub, uid);
+		put32(stub, 0);
+		put32(stub, 0);
+		put16(stub, 1);
+		put32(stub, 0);
+		if (version) {
+			put32(stub, 0);
+			put32(stub, 1);
+		}
+
+		result = exchange(1, KSMBD_RPC_LSARPC_METHOD_INVOKE,
+				  version ? 57 : 15, stub, 4096);
+		wire = (struct wire_reader){ .data = result->data, .size = result->len };
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, 1);
+		wire_skip(&wire, 12 + 8 + 4);
+		domain_name = wire_string(&wire);
+		g_assert_cmpstr(domain_name, ==, "Unix User");
+		domain_sid = wire_sid(&wire);
+		g_assert_cmpmem(domain_sid->data, domain_sid->len,
+				unix_user_domain_sid, sizeof(unix_user_domain_sid));
+		g_byte_array_unref(domain_sid);
+		g_assert_cmpuint(wire32(&wire), ==, 1);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, 1);
+		g_assert_cmpuint(wire16(&wire), ==, 1);
+		wire_align(&wire, 4);
+		wire_skip(&wire, 4);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, 0);
+		if (version)
+			g_assert_cmpuint(wire32(&wire), ==, 0);
+		name = wire_string(&wire);
+		g_assert_cmpstr(name, ==, test_passwd_name);
+		g_assert_cmpuint(wire32(&wire), ==, 1);
+		g_assert_cmpuint(wire32(&wire), ==, KSMBD_NT_STATUS_SUCCESS);
+		g_assert_cmpuint(wire.offset, ==, wire.size);
+		g_byte_array_unref(stub);
+		g_byte_array_unref(result);
+	}
+	g_byte_array_unref(policy);
 	fixture_destroy();
 }
 
@@ -3349,6 +3455,7 @@ int main(int argc, char **argv)
 	g_test_add_func("/rpc/lsarpc/ignored-translations", test_lsa_ignored_translations);
 	g_test_add_func("/rpc/lsarpc/lookup-scope", test_lsa_lookup_scope);
 	g_test_add_func("/rpc/lsarpc/unmapped-sids", test_lsa_unmapped_sids);
+	g_test_add_func("/rpc/lsarpc/unix-user-sid", test_lsa_unix_user_sid);
 	g_test_add_func("/rpc/lsarpc/predefined", test_lsa_predefined);
 	g_test_add_func("/rpc/samr/group-alias-membership", test_group_alias_membership);
 	g_test_add_func("/rpc/handle-grants", test_handle_grants);

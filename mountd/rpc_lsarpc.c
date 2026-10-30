@@ -799,6 +799,35 @@ static int lsarpc_lookup_group(const char *name, __u32 *gid, char **resolved)
 	}
 }
 
+static int lsarpc_lookup_unix_user(__u32 uid, char **resolved)
+{
+	struct passwd passwd, *result;
+	size_t size;
+	long suggested = sysconf(_SC_GETPW_R_SIZE_MAX);
+	int ret;
+
+	size = suggested > 1024 ? suggested : 1024;
+	for (;;) {
+		g_autofree char *buf = g_try_malloc(size);
+
+		if (!buf)
+			return -ENOMEM;
+		ret = getpwuid_r((uid_t)uid, &passwd, buf, size, &result);
+		if (ret == ERANGE) {
+			if (size > G_MAXSIZE / 2)
+				return -ENOMEM;
+			size *= 2;
+			continue;
+		}
+		if (ret)
+			return -ret;
+		if (!result || !result->pw_name || !result->pw_name[0])
+			return -ENOENT;
+		*resolved = g_strdup(result->pw_name);
+		return *resolved ? 0 : -ENOMEM;
+	}
+}
+
 /* MS-LSAT 3.1.1.1.1, in the daemon's C (English) system locale. */
 struct lsarpc_predefined {
 	const char *domain, *name;
@@ -986,6 +1015,12 @@ static int lsarpc_resolve_sid(struct lsarpc_names_info *ni)
 		ni->user = smb_valid_user_rid(rid) ? usm_lookup_uid(rid) : NULL;
 		if (ni->user)
 			ni->resolved_name = g_strdup(ni->user->name);
+		else if (!g_ascii_strcasecmp(ni->domain_str, "Unix User") &&
+			 rid != SMB_LOCAL_USERS_RID) {
+			ret = lsarpc_lookup_unix_user(rid, &ni->resolved_name);
+			if (ret == -ENOMEM)
+				return ret;
+		}
 		break;
 	case SID_TYPE_GROUP:
 		smb_copy_sid(&ni->domain_sid, &ni->sid);
@@ -1238,6 +1273,7 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct lsarpc_names_info *ni = NULL;
 	__u32 num_sid, array_ref, max_count;
 	unsigned int i;
+	int ret, status = KSMBD_RPC_EINVALID_PARAMETER;
 
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
@@ -1272,17 +1308,24 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 		__u32 sid_max_count;
 
 		ni = g_try_malloc0(sizeof(struct lsarpc_names_info));
-		if (!ni)
+		if (!ni) {
+			status = KSMBD_RPC_ENOMEM;
 			goto fail;
+		}
 
 		if (ndr_read_int32(dce, &sid_max_count) ||
 		    sid_max_count > SID_MAX_SUB_AUTHORITIES)
 			goto fail;
 		if (smb_read_sid(dce, &ni->sid))
 			goto fail;
-		if (sid_max_count < ni->sid.num_subauth ||
-		    lsarpc_resolve_sid(ni))
+		if (sid_max_count < ni->sid.num_subauth)
 			goto fail;
+		ret = lsarpc_resolve_sid(ni);
+		if (ret) {
+			if (ret == -ENOMEM)
+				status = KSMBD_RPC_ENOMEM;
+			goto fail;
+		}
 
 		g_ptr_array_add(pipe->entries, ni);
 		ni = NULL;
@@ -1304,7 +1347,7 @@ fail:
 		}
 		pipe->num_entries = 0;
 	}
-	return KSMBD_RPC_EINVALID_PARAMETER;
+	return status;
 }
 
 static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
@@ -1313,6 +1356,7 @@ static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct lsarpc_names_info *ni = NULL;
 	__u32 num_sid, array_ref, max_count;
 	unsigned int i;
+	int ret, status = KSMBD_RPC_EINVALID_PARAMETER;
 
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
@@ -1347,17 +1391,24 @@ static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
 		__u32 sid_max_count;
 
 		ni = g_try_malloc0(sizeof(struct lsarpc_names_info));
-		if (!ni)
+		if (!ni) {
+			status = KSMBD_RPC_ENOMEM;
 			goto fail;
+		}
 
 		if (ndr_read_int32(dce, &sid_max_count) ||
 		    sid_max_count > SID_MAX_SUB_AUTHORITIES)
 			goto fail;
 		if (smb_read_sid(dce, &ni->sid))
 			goto fail;
-		if (sid_max_count < ni->sid.num_subauth ||
-		    lsarpc_resolve_sid(ni))
+		if (sid_max_count < ni->sid.num_subauth)
 			goto fail;
+		ret = lsarpc_resolve_sid(ni);
+		if (ret) {
+			if (ret == -ENOMEM)
+				status = KSMBD_RPC_ENOMEM;
+			goto fail;
+		}
 
 		g_ptr_array_add(pipe->entries, ni);
 		ni = NULL;
@@ -1379,7 +1430,7 @@ fail:
 		}
 		pipe->num_entries = 0;
 	}
-	return KSMBD_RPC_EINVALID_PARAMETER;
+	return status;
 }
 
 static int lsarpc_lookup_sid2_return(struct ksmbd_rpc_pipe *pipe)
