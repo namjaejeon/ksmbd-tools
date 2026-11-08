@@ -491,12 +491,10 @@ static int lsarpc_read_attribute_security(struct ksmbd_dcerpc *dce)
 	}
 	for (i = 0; i < 2; i++) {
 		struct smb_sid sid;
-		__u32 count;
 
 		if (!refs[i])
 			continue;
-		if (ndr_read_int32(dce, &count) || smb_read_sid(dce, &sid) ||
-		    count != sid.num_subauth)
+		if (smb_read_conformant_sid(dce, &sid))
 			return -EINVAL;
 	}
 	for (; i < G_N_ELEMENTS(refs); i++) {
@@ -1224,9 +1222,7 @@ static int lsarpc_read_translations(struct ksmbd_dcerpc *dce,
 		} else if (names && extended && items[i].sid_ref) {
 			struct smb_sid sid;
 
-			if (ndr_read_int32(dce, &max_count) ||
-			    max_count > SID_MAX_SUB_AUTHORITIES ||
-			    smb_read_sid(dce, &sid) || max_count != sid.num_subauth)
+			if (smb_read_conformant_sid(dce, &sid))
 				return -EINVAL;
 		}
 	}
@@ -1291,7 +1287,7 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 		goto fail;
 	if (array_ref) {
 		if (ndr_read_int32(dce, &max_count) ||
-		    max_count < num_sid)
+		    max_count != num_sid)
 			goto fail;
 	} else if (num_sid) {
 		goto fail;
@@ -1305,20 +1301,13 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 	}
 
 	for (i = 0; i < num_sid; i++) {
-		__u32 sid_max_count;
-
 		ni = g_try_malloc0(sizeof(struct lsarpc_names_info));
 		if (!ni) {
 			status = KSMBD_RPC_ENOMEM;
 			goto fail;
 		}
 
-		if (ndr_read_int32(dce, &sid_max_count) ||
-		    sid_max_count > SID_MAX_SUB_AUTHORITIES)
-			goto fail;
-		if (smb_read_sid(dce, &ni->sid))
-			goto fail;
-		if (sid_max_count < ni->sid.num_subauth)
+		if (smb_read_conformant_sid(dce, &ni->sid))
 			goto fail;
 		ret = lsarpc_resolve_sid(ni);
 		if (ret) {
@@ -1374,7 +1363,7 @@ static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
 		goto fail;
 	if (array_ref) {
 		if (ndr_read_int32(dce, &max_count) ||
-		    max_count < num_sid)
+		    max_count != num_sid)
 			goto fail;
 	} else if (num_sid) {
 		goto fail;
@@ -1388,20 +1377,13 @@ static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
 	}
 
 	for (i = 0; i < num_sid; i++) {
-		__u32 sid_max_count;
-
 		ni = g_try_malloc0(sizeof(struct lsarpc_names_info));
 		if (!ni) {
 			status = KSMBD_RPC_ENOMEM;
 			goto fail;
 		}
 
-		if (ndr_read_int32(dce, &sid_max_count) ||
-		    sid_max_count > SID_MAX_SUB_AUTHORITIES)
-			goto fail;
-		if (smb_read_sid(dce, &ni->sid))
-			goto fail;
-		if (sid_max_count < ni->sid.num_subauth)
+		if (smb_read_conformant_sid(dce, &ni->sid))
 			goto fail;
 		ret = lsarpc_resolve_sid(ni);
 		if (ret) {
@@ -1796,7 +1778,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 	    ndr_read_int32(dce, &max_count))
 		goto fail;
 	if (num_names > LSARPC_MAX_NAME_COUNT ||
-	    max_count < num_names)
+	    max_count != num_names)
 		goto fail;
 
 	reps = g_ptr_array_new_with_free_func(g_free);
@@ -1884,7 +1866,7 @@ static int lsarpc_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 	    ndr_read_int32(dce, &max_count))
 		goto fail;
 	if (num_names > LSARPC_MAX_NAME_COUNT ||
-	    max_count < num_names)
+	    max_count != num_names)
 		goto fail;
 
 	reps = g_ptr_array_new_with_free_func(g_free);

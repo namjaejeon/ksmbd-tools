@@ -3511,9 +3511,109 @@ static void test_lsa_domain_names(void)
 	fixture_destroy();
 }
 
+static void test_conformant_counts(void)
+{
+	const unsigned int opnums[] = { 14, 68, 15, 57 };
+	GByteArray *policy, *server, *domain, *result, *stub;
+	unsigned int op, variant, max_count;
+
+	fixture_init();
+	open_pipe(1, KSMBD_RPC_LSARPC_METHOD_INVOKE, 0xab, 0);
+	policy = open_policy();
+	for (op = 0; op < G_N_ELEMENTS(opnums); op++) {
+		int names = op < 2;
+		int extended = op & 1;
+
+		for (variant = 0; variant < (names ? 3 : 5); variant++) {
+			size_t sid_offset;
+
+			stub = g_byte_array_new();
+			g_byte_array_append(stub, policy->data, 20);
+			put32(stub, 1);
+			if (!names)
+				put32(stub, 1);
+			put32(stub, variant < 3 ? variant : 1);
+			if (names) {
+				put_rpc_string(stub,
+					((struct ksmbd_user *)users->pdata[0])->name);
+			} else {
+				put32(stub, 1);
+				sid_offset = stub->len;
+				put_local_user_sid(stub, 1000);
+				if (variant >= 3)
+					stub->data[sid_offset] = variant == 3 ? 4 : 6;
+			}
+			put32(stub, 0);
+			put32(stub, 0);
+			put16(stub, 1);
+			put32(stub, 0);
+			if (extended) {
+				put32(stub, 0);
+				put32(stub, 1);
+			}
+			result = exchange(1, KSMBD_RPC_LSARPC_METHOD_INVOKE,
+					  opnums[op], stub, 4096);
+			g_assert_cmpuint(get32(result->data + result->len - 4), ==,
+				variant == 1 ? 0 : KSMBD_NT_STATUS_INVALID_PARAMETER);
+			g_byte_array_unref(result);
+			g_byte_array_unref(stub);
+		}
+	}
+	g_byte_array_unref(policy);
+	fixture_destroy();
+
+	fixture_init();
+	open_pipe(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 0xac, 1);
+	server = samr_connect_handle();
+	for (max_count = 3; max_count <= 5; max_count++) {
+		stub = g_byte_array_new();
+		g_byte_array_append(stub, server->data, 20);
+		put32(stub, 0x02000000);
+		put32(stub, max_count);
+		g_byte_array_append(stub, local_domain_sid, sizeof(local_domain_sid));
+		result = exchange(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 7, stub, 128);
+		g_assert_cmpuint(get32(result->data + 20), ==,
+			max_count == 4 ? 0 : KSMBD_NT_STATUS_INVALID_PARAMETER);
+		g_byte_array_unref(result);
+		g_byte_array_unref(stub);
+	}
+	domain = samr_open_domain(server, local_domain_sid, sizeof(local_domain_sid));
+	for (max_count = 0; max_count <= 2; max_count++) {
+		stub = g_byte_array_new();
+		g_byte_array_append(stub, domain->data, 20);
+		put32(stub, 1);
+		put32(stub, 1);
+		put32(stub, max_count);
+		put32(stub, 1);
+		put_local_user_sid(stub, 1000);
+		result = exchange(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 16, stub, 128);
+		g_assert_cmpuint(get32(result->data + result->len - 4), ==,
+			max_count == 1 ? 0 : KSMBD_NT_STATUS_INVALID_PARAMETER);
+		g_byte_array_unref(result);
+		g_byte_array_unref(stub);
+	}
+	/* A present, empty conformant array must also have a zero maximum. */
+	for (max_count = 0; max_count <= 1; max_count++) {
+		stub = g_byte_array_new();
+		g_byte_array_append(stub, domain->data, 20);
+		put32(stub, 0);
+		put32(stub, 1);
+		put32(stub, max_count);
+		result = exchange(1, KSMBD_RPC_SAMR_METHOD_INVOKE, 16, stub, 128);
+		g_assert_cmpuint(get32(result->data + result->len - 4), ==,
+			max_count ? KSMBD_NT_STATUS_INVALID_PARAMETER : 0);
+		g_byte_array_unref(result);
+		g_byte_array_unref(stub);
+	}
+	g_byte_array_unref(domain);
+	g_byte_array_unref(server);
+	fixture_destroy();
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/input/conformant-counts", test_conformant_counts);
 	g_test_add_func("/rpc/samr/invalid-handle", test_samr_invalid_handle);
 	g_test_add_func("/rpc/lsarpc/invalid-handle", test_lsarpc_invalid_handle);
 	g_test_add_func("/rpc/samr/unknown-domain", test_samr_unknown_domain);

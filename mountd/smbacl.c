@@ -78,6 +78,17 @@ int smb_read_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid)
 	return 0;
 }
 
+int smb_read_conformant_sid(struct ksmbd_dcerpc *dce, struct smb_sid *sid)
+{
+	__u32 max_count;
+
+	if (ndr_read_int32(dce, &max_count) ||
+	    max_count > SID_MAX_SUB_AUTHORITIES ||
+	    smb_read_sid(dce, sid) || max_count != sid->num_subauth)
+		return -EINVAL;
+	return 0;
+}
+
 int smb_write_sid(struct ksmbd_dcerpc *dce, const struct smb_sid *src)
 {
 	int i;

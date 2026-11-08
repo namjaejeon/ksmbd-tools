@@ -508,22 +508,6 @@ static int samr_write_error_payload(struct ksmbd_dcerpc *dce,
 	}
 }
 
-static int samr_read_sid_argument(struct ksmbd_dcerpc *dce,
-				  struct smb_sid *sid)
-{
-	__u32 max_count;
-
-	if (ndr_read_int32(dce, &max_count))
-		return -EINVAL;
-	if (max_count > SID_MAX_SUB_AUTHORITIES)
-		return -EINVAL;
-	if (smb_read_sid(dce, sid))
-		return -EINVAL;
-	if (max_count < sid->num_subauth)
-		return -EINVAL;
-	return 0;
-}
-
 static void samr_init_builtin_sid(struct smb_sid *sid)
 {
 	memset(sid, 0, sizeof(*sid));
@@ -1373,7 +1357,7 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &dce->sm_req.access_mask))
 		return KSMBD_RPC_EINVALID_PARAMETER;
-	if (samr_read_sid_argument(dce, &sid))
+	if (smb_read_conformant_sid(dce, &sid))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	memcpy(dce->sm_req.sid, &sid, sizeof(sid));
 
@@ -2557,7 +2541,7 @@ static int samr_get_alias_membership_invoke(struct ksmbd_rpc_pipe *pipe)
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (array_ref) {
 		if (ndr_read_int32(dce, &max_count) ||
-		    max_count < count)
+		    max_count != count)
 			return KSMBD_RPC_EINVALID_PARAMETER;
 	} else if (count) {
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -2579,7 +2563,7 @@ static int samr_get_alias_membership_invoke(struct ksmbd_rpc_pipe *pipe)
 	for (i = 0; i < count; i++) {
 		struct smb_sid *sid = g_try_new0(struct smb_sid, 1);
 
-		if (!sid || samr_read_sid_argument(dce, sid)) {
+		if (!sid || smb_read_conformant_sid(dce, sid)) {
 			g_free(sid);
 			samr_free_names(&dce->sm_req);
 			return KSMBD_RPC_EINVALID_PARAMETER;
