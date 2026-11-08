@@ -3610,9 +3610,75 @@ static void test_conformant_counts(void)
 	fixture_destroy();
 }
 
+static void test_string_terminators(void)
+{
+	const struct {
+		const char *value;
+		unsigned int count;
+	} cases[] = {
+		{ "admin", 5 },
+		{ "admin", 6 },
+		{ "admin\0junk", 10 },
+		{ "admin\0junk", 11 },
+		{ "", 0 },
+		{ "", 1 },
+	};
+	unsigned int endian, i, mode, j;
+
+	for (endian = 0; endian < 2; endian++) {
+		for (i = 0; i < G_N_ELEMENTS(cases); i++) {
+			GByteArray *stub = g_byte_array_new();
+			guint32 header[] = { cases[i].count, 0, cases[i].count };
+
+			for (j = 0; j < G_N_ELEMENTS(header); j++) {
+				guint32 value = endian ? htole32(header[j]) : htobe32(header[j]);
+
+				g_byte_array_append(stub, (const guint8 *)&value, 4);
+			}
+			for (j = 0; j < cases[i].count; j++) {
+				guint16 value = cases[i].value[j];
+
+				value = endian ? htole16(value) : htobe16(value);
+				g_byte_array_append(stub, (const guint8 *)&value, 2);
+			}
+			for (mode = 0; mode < 3; mode++) {
+				struct ksmbd_dcerpc dce = {
+					.payload = (char *)stub->data,
+					.payload_sz = stub->len,
+					.flags = endian ? KSMBD_DCERPC_LITTLE_ENDIAN : 0,
+				};
+				struct ndr_string_rep rep = {
+					.length = cases[i].count * 2,
+					.size = cases[i].count * 2,
+					.ref_id = 1,
+				};
+				char *value;
+				int valid = (i == 0 && mode != 0) ||
+					((i == 1 || i == 5) && mode != 2) || i == 4;
+
+				if (mode == 0)
+					value = ndr_read_vstring(&dce);
+				else if (mode == 1)
+					value = ndr_read_vstring_compat(&dce);
+				else
+					value = ndr_read_string_data(&dce, &rep);
+				if (valid) {
+					g_assert_cmpstr(value, ==, cases[i].value);
+					g_assert_cmpuint(dce.offset, ==, stub->len);
+				} else {
+					g_assert_null(value);
+				}
+				g_free(value);
+			}
+			g_byte_array_unref(stub);
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/ndr/string-terminators", test_string_terminators);
 	g_test_add_func("/rpc/input/conformant-counts", test_conformant_counts);
 	g_test_add_func("/rpc/samr/invalid-handle", test_samr_invalid_handle);
 	g_test_add_func("/rpc/lsarpc/invalid-handle", test_lsarpc_invalid_handle);

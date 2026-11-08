@@ -902,13 +902,20 @@ int ndr_write_lsa_string_rep(struct ksmbd_dcerpc *dce, const char *str)
 	return ndr_write_int32(dce, dce->num_pointers);
 }
 
+enum ndr_string_termination {
+	NDR_STRING_TERMINATED,
+	NDR_STRING_OPTIONAL_TERMINATOR,
+	NDR_STRING_COUNTED,
+};
+
 static char *ndr_read_vstring_internal(struct ksmbd_dcerpc *dce,
 				       __u32 *actual_count,
-				       int require_terminator)
+				       enum ndr_string_termination termination)
 {
 	gchar *out;
 	gsize bytes_read = 0;
 	gsize bytes_written = 0;
+	gsize string_len;
 
 	__u32 max_count, offset, actual;
 	int charset = KSMBD_CHARSET_UTF16LE;
@@ -940,7 +947,7 @@ static char *ndr_read_vstring_internal(struct ksmbd_dcerpc *dce,
 	if (actual > (dce->payload_sz - MIN(dce->offset,
 					    dce->payload_sz)) / 2)
 		return NULL;
-	if (require_terminator) {
+	if (termination == NDR_STRING_TERMINATED) {
 		__u16 terminator;
 
 		memcpy(&terminator, PAYLOAD_HEAD(dce) + (actual - 1) * 2,
@@ -959,6 +966,14 @@ static char *ndr_read_vstring_internal(struct ksmbd_dcerpc *dce,
 			     &bytes_written);
 	if (!out)
 		return NULL;
+	string_len = bytes_written;
+	if (termination != NDR_STRING_COUNTED && string_len &&
+	    out[string_len - 1] == '\0')
+		string_len--;
+	if (bytes_read != actual * 2 || memchr(out, '\0', string_len)) {
+		g_free(out);
+		return NULL;
+	}
 
 	dce->offset += actual * 2;
 	if (actual_count)
@@ -968,7 +983,7 @@ static char *ndr_read_vstring_internal(struct ksmbd_dcerpc *dce,
 
 char *ndr_read_vstring(struct ksmbd_dcerpc *dce)
 {
-	return ndr_read_vstring_internal(dce, NULL, 1);
+	return ndr_read_vstring_internal(dce, NULL, NDR_STRING_TERMINATED);
 }
 
 char *ndr_read_vstring_compat(struct ksmbd_dcerpc *dce)
@@ -977,7 +992,7 @@ char *ndr_read_vstring_compat(struct ksmbd_dcerpc *dce)
 	 * Several NDR clients, including Impacket, omit the terminating
 	 * code unit while retaining the counted UTF-16 representation.
 	 */
-	return ndr_read_vstring_internal(dce, NULL, 0);
+	return ndr_read_vstring_internal(dce, NULL, NDR_STRING_OPTIONAL_TERMINATOR);
 }
 
 int ndr_read_vstring_ptr(struct ksmbd_dcerpc *dce, struct ndr_char_ptr *ctr)
@@ -1029,7 +1044,7 @@ char *ndr_read_string_data(struct ksmbd_dcerpc *dce,
 	if (!rep->ref_id)
 		return NULL;
 
-	value = ndr_read_vstring_internal(dce, &actual_count, 0);
+	value = ndr_read_vstring_internal(dce, &actual_count, NDR_STRING_COUNTED);
 	if (!value)
 		return NULL;
 	if (actual_count != rep->length / 2 ||
@@ -1762,7 +1777,7 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 	dce->offset = sizeof(struct dcerpc_header);
 
 	/*
-	 * Preserve bind assoc group, if was specified.
+	 * Use the client's association group when one was specified.
 	 */
 	if (dce->bi_req.assoc_group_id == 0)
 		dce->bi_req.assoc_group_id = 0x53f0;
