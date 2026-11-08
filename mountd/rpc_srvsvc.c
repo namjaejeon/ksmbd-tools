@@ -782,7 +782,7 @@ static int srvsvc_share_info_invoke(struct ksmbd_rpc_pipe *pipe)
 		dce->si_req.operation_status = KSMBD_RPC_EINVALID_LEVEL;
 		return KSMBD_RPC_OK;
 	}
-	if (rpc_restricted_context(dce->rpc_req))
+	if (rpc_restricted_context(pipe->request_flags))
 		return KSMBD_RPC_OK;
 
 	if (dce->req_hdr.opnum == SRVSVC_OPNUM_GET_SHARE_INFO)
@@ -823,7 +823,7 @@ static int srvsvc_share_get_info_build_response(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	int status;
 
-	if (rpc_restricted_context(dce->rpc_req)) {
+	if (rpc_restricted_context(pipe->request_flags)) {
 		if (pipe->num_entries)
 			rpc_pipe_reset(pipe);
 		dce->si_req.operation_status = KSMBD_RPC_EACCESS_DENIED;
@@ -869,7 +869,7 @@ static int srvsvc_share_info_return(struct ksmbd_rpc_pipe *pipe)
 
 	if (dce->req_hdr.opnum != SRVSVC_OPNUM_GET_SHARE_INFO) {
 		if (!dce->response_payload) {
-			if (rpc_restricted_context(dce->rpc_req)) {
+			if (rpc_restricted_context(pipe->request_flags)) {
 				if (pipe->num_entries)
 					rpc_pipe_reset(pipe);
 				dce->si_req.operation_status =
@@ -923,7 +923,7 @@ static int srvsvc_server_get_info_build_response(struct ksmbd_rpc_pipe *pipe)
 		sizeof(struct dcerpc_response_header);
 	pipe->num_processed = 0;
 
-	if (rpc_restricted_context(dce->rpc_req) && !status)
+	if (rpc_restricted_context(pipe->request_flags) && !status)
 		status = KSMBD_RPC_EACCESS_DENIED;
 
 	if (ndr_write_int32(dce, output_level))

@@ -1928,12 +1928,12 @@ out:
 	return ret;
 }
 
-int rpc_restricted_context(struct ksmbd_rpc_command *req)
+int rpc_restricted_context(unsigned int flags)
 {
 	if (global_conf.restrict_anon == 0)
 		return 0;
 
-	return req->flags & KSMBD_RPC_RESTRICTED_CONTEXT;
+	return flags & KSMBD_RPC_RESTRICTED_CONTEXT;
 }
 
 int rpc_build_response(struct ksmbd_rpc_pipe *pipe,
@@ -2062,13 +2062,13 @@ static int rpc_pipe_read_request(struct ksmbd_rpc_pipe *pipe,
 	if (dce->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST)
 		goto out;
 
-	if (req->flags & KSMBD_RPC_SRVSVC_METHOD_INVOKE)
+	if (pipe->request_flags & KSMBD_RPC_SRVSVC_METHOD_INVOKE)
 		ret = rpc_srvsvc_read_request(pipe, resp, max_resp_sz);
-	else if (req->flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
+	else if (pipe->request_flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		ret = rpc_wkssvc_read_request(pipe, resp, max_resp_sz);
-	else if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+	else if (pipe->request_flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
 		ret = rpc_samr_read_request(pipe, resp, max_resp_sz);
-	else if (req->flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
+	else if (pipe->request_flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
 		ret = rpc_lsarpc_read_request(pipe, resp, max_resp_sz);
 
 out:
@@ -2197,13 +2197,13 @@ static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
 	dce->hdr = pipe->request_header;
 	dce->req_hdr = pipe->request_method;
 	dcerpc_set_ext_payload(dce, pipe->request.data, pipe->request.size);
-	if (req->flags & KSMBD_RPC_SRVSVC_METHOD_INVOKE)
+	if (pipe->request_flags & KSMBD_RPC_SRVSVC_METHOD_INVOKE)
 		return rpc_srvsvc_write_request(pipe);
-	if (req->flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
+	if (pipe->request_flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)
 		return rpc_wkssvc_write_request(pipe);
-	if (req->flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
+	if (pipe->request_flags & KSMBD_RPC_SAMR_METHOD_INVOKE)
 		return rpc_samr_write_request(pipe);
-	if (req->flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
+	if (pipe->request_flags & KSMBD_RPC_LSARPC_METHOD_INVOKE)
 		return rpc_lsarpc_write_request(pipe);
 	return KSMBD_RPC_ENOTIMPLEMENTED;
 }

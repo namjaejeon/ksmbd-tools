@@ -149,7 +149,7 @@ static int wkssvc_netwksta_info_return(struct ksmbd_rpc_pipe *pipe)
 	dce->offset = sizeof(struct dcerpc_header) +
 		sizeof(struct dcerpc_response_header);
 
-	if (rpc_restricted_context(dce->rpc_req)) {
+	if (rpc_restricted_context(pipe->request_flags)) {
 		status = KSMBD_RPC_EACCESS_DENIED;
 		if (wkssvc_write_null_info(dce))
 			return KSMBD_RPC_EBAD_DATA;
@@ -197,7 +197,7 @@ static int wkssvc_netwksta_info_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (ndr_request_end(dce))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
-	if (rpc_restricted_context(dce->rpc_req))
+	if (rpc_restricted_context(pipe->request_flags))
 		return KSMBD_RPC_OK;
 
 	if (dce->req_hdr.opnum == WKSSVC_NETWKSTA_GET_INFO)

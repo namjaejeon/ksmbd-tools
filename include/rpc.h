@@ -464,7 +464,7 @@ int rpc_write_response_fragment(struct ksmbd_rpc_pipe *pipe);
 void rpc_init(void);
 void rpc_destroy(void);
 
-int rpc_restricted_context(struct ksmbd_rpc_command *req);
+int rpc_restricted_context(unsigned int flags);
 
 int rpc_ioctl_request(struct ksmbd_rpc_command *req,
 		      struct ksmbd_rpc_command *resp,

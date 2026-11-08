@@ -4025,9 +4025,42 @@ static void test_bind_state(void)
 	}
 }
 
+static void test_response_request_flags(void)
+{
+	unsigned int flags = KSMBD_RPC_SAMR_METHOD_INVOKE;
+	unsigned int variant;
+
+	for (variant = 0; variant < 4; variant++) {
+		struct ksmbd_rpc_command *req, *resp = command(1, flags, 128);
+		GByteArray *stub;
+
+		fixture_init();
+		global_conf.restrict_anon = 1;
+		open_pipe(1, flags, 0xac, 1);
+		stub = connect_stub();
+		req = request(1, flags | (variant == 1 ? KSMBD_RPC_RESTRICTED_CONTEXT : 0),
+			      64, stub);
+		g_assert_cmpint(rpc_write_request(req, resp), ==, 0);
+		/* READ must not replace the interface or restriction captured at WRITE. */
+		req->flags = variant == 0 ? KSMBD_RPC_WKSSVC_METHOD_INVOKE :
+			variant == 3 ? 0 : flags;
+		if (variant == 2)
+			req->flags |= KSMBD_RPC_RESTRICTED_CONTEXT;
+		g_assert_cmpint(rpc_read_request(req, resp, 128), ==, 0);
+		g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_RESPONSE);
+		g_assert_cmpuint(get32(resp->payload + resp->payload_sz - 4), ==,
+			variant == 1 ? KSMBD_NT_STATUS_ACCESS_DENIED : 0);
+		g_free(req);
+		g_free(resp);
+		g_byte_array_unref(stub);
+		fixture_destroy();
+	}
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/response-request-flags", test_response_request_flags);
 	g_test_add_func("/rpc/bind/state", test_bind_state);
 	g_test_add_func("/rpc/unexecuted-fault", test_unexecuted_fault);
 	g_test_add_func("/rpc/bind/errors", test_bind_errors);

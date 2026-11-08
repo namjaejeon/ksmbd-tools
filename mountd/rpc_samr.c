@@ -2768,7 +2768,7 @@ static int samr_return(struct ksmbd_rpc_pipe *pipe)
 	dce->offset += sizeof(struct dcerpc_response_header);
 	payload_start = dce->offset;
 
-	if (rpc_restricted_context(dce->rpc_req))
+	if (rpc_restricted_context(pipe->request_flags))
 		dce->sm_req.operation_status = KSMBD_RPC_EACCESS_DENIED;
 
 	if (dce->sm_req.operation_status) {
