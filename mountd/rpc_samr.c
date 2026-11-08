@@ -2291,9 +2291,10 @@ static int samr_write_user_all(struct ksmbd_dcerpc *dce,
 	}
 	if (samr_write_user_info_header(dce, 21))
 		return KSMBD_RPC_EBAD_DATA;
-	/* Unrecorded timestamps are zero; unauthorized fields are also zero. */
+	/* OLD_LARGE_INTEGER is a pair of 32-bit fields, LowPart then HighPart. */
+	/* Unrecorded timestamps and unauthorized fields are zero. */
 	for (i = 0; i < 6; i++)
-		if (ndr_write_int64(dce, 0))
+		if (ndr_write_int32(dce, 0) || ndr_write_int32(dce, 0))
 			return KSMBD_RPC_EBAD_DATA;
 
 	/* Ten strings, two absent OWF passwords, and absent private data. */
