@@ -297,6 +297,8 @@ struct ksmbd_dcerpc {
 	char			*payload;
 	int			num_pointers;
 	int			bind_req_active;
+	unsigned int		bind_nak_reason;
+	__u32			fault_status;
 	int			response_started;
 	char			*response_payload;
 	size_t			response_payload_sz;
@@ -430,6 +432,8 @@ int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr);
 int ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe);
 
 #define DCERPC_NCA_S_OP_RNG_ERROR	0x1C010002U
+#define DCERPC_NCA_S_PROTO_ERROR	0x1C01000BU
+#define DCERPC_NCA_S_FAULT_REMOTE_NO_MEMORY	0x1C00001BU
 
 int dcerpc_write_headers(struct ksmbd_dcerpc *dce, int method_status);
 int dcerpc_write_fault(struct ksmbd_dcerpc *dce, __u32 status);

@@ -3840,9 +3840,118 @@ static void test_bind_rejected_syntax(void)
 	fixture_destroy();
 }
 
+static void test_bind_errors(void)
+{
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	unsigned int variant, mode;
+
+	for (mode = 0; mode < 3; mode++) {
+		for (variant = 0; variant < 11; variant++) {
+			struct ksmbd_rpc_command *req, *resp = command(1, flags, 1024);
+			GByteArray *contexts = g_byte_array_new();
+			guint32 call_id;
+			guint16 length, reason;
+			int big_endian = variant == 9;
+
+			fixture_init();
+			if (mode == 2) {
+				open_pipe(1, flags, 0xab, 0);
+			} else {
+				req = command(1, flags, 0);
+				g_assert_cmpint(rpc_open_request(req, resp), ==, 0);
+				g_free(req);
+			}
+			if (variant != 0 && variant != 9)
+				put_bind_context(contexts, 0, lsad_syntax, ndr_transfer_syntax);
+			if (variant == 2)
+				put_bind_context(contexts, 0, lsad_syntax, ndr_transfer_syntax);
+			req = bind_request(flags, contexts->len / 44, contexts);
+			if (mode == 2)
+				req->payload[2] = DCERPC_PTYPE_RPC_ALTCONT;
+			switch (variant) {
+			case 1: /* Truncated transfer syntax. */
+				req->payload_sz--;
+				break;
+			case 3: /* No proposed transfer syntaxes. */
+				req->payload[30] = 0;
+				break;
+			case 4:
+				req->payload[1] = 1;
+				break;
+			case 5:
+				req->payload[0] = 4;
+				break;
+			case 6: /* An unsupported NTLM security trailer with padding. */
+				req = g_realloc(req, sizeof(*req) + 92);
+				memset(req->payload + 72, 0, 20);
+				req->payload_sz = 92;
+				req->payload[10] = 4;
+				req->payload[80] = 10;
+				req->payload[81] = 2;
+				req->payload[82] = 8;
+				break;
+			case 7: /* Authentication length exceeds the PDU. */
+				req->payload[10] = req->payload[11] = 0xff;
+				break;
+			case 8:
+				req->payload[3] |= DCERPC_PFC_RESERVED_1;
+				break;
+			case 9: /* Big-endian bind with no contexts. */
+				req->payload[4] = 0;
+				req->payload[16] = req->payload[18] = 0x10;
+				req->payload[17] = req->payload[19] = 0;
+				break;
+			case 10: /* Bind PDUs cannot be fragmented. */
+				req->payload[3] = DCERPC_PFC_FIRST_FRAG;
+				break;
+			}
+			length = big_endian ? htobe16(req->payload_sz) : htole16(req->payload_sz);
+			memcpy(req->payload + 8, &length, 2);
+			call_id = big_endian ? htobe32(0x12345678) : htole32(0x12345678);
+			memcpy(req->payload + 12, &call_id, 4);
+			if (mode == 1) {
+				g_assert_cmpint(rpc_write_request(req, resp), ==, 0);
+				g_assert_cmpint(rpc_read_request(req, resp, 1024), ==, 0);
+			} else {
+				g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+			}
+			g_assert_cmpuint(resp->payload[0], ==, 5);
+			g_assert_cmpuint(resp->payload[1], ==, 0);
+			g_assert_cmpuint(resp->payload[4], ==, big_endian ? 0 : 0x10);
+			g_assert_cmpuint(resp->payload[10], ==, 0);
+			g_assert_cmpuint(resp->payload[11], ==, 0);
+			g_assert_cmpmem(resp->payload + 12, 4, &call_id, 4);
+			if (mode == 2) {
+				guint32 status;
+
+				g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_FAULT);
+				memcpy(&status, resp->payload + 24, 4);
+				status = big_endian ? be32toh(status) : le32toh(status);
+				g_assert_cmpuint(status, ==, DCERPC_NCA_S_PROTO_ERROR);
+			} else {
+				g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_BINDNACK);
+				g_assert_cmpuint(resp->payload_sz, ==, 24);
+				memcpy(&reason, resp->payload + 16, 2);
+				reason = big_endian ? be16toh(reason) : le16toh(reason);
+				g_assert_cmpuint(reason, ==, variant == 6 ?
+					DCERPC_BIND_NAK_RSN_INVALID_AUTH_TYPE :
+					DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED);
+				g_assert_cmpuint(resp->payload[18], ==, 1);
+				g_assert_cmpuint(resp->payload[19], ==, 5);
+				g_assert_cmpuint(resp->payload[20], ==, 0);
+			}
+			g_byte_array_unref(contexts);
+			g_free(req);
+			g_free(resp);
+			fixture_destroy();
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/bind/errors", test_bind_errors);
 	g_test_add_func("/rpc/bind/rejected-syntax", test_bind_rejected_syntax);
 	g_test_add_func("/rpc/bind/feature-context", test_bind_feature_context);
 	g_test_add_func("/rpc/ndr/growth-padding", test_payload_growth_padding);

@@ -1302,8 +1302,6 @@ static int dcerpc_hdr_read(struct ksmbd_dcerpc *dce,
 		return -EINVAL;
 	if (ndr_read_int8(dce, &hdr->pfc_flags))
 		return -EINVAL;
-	if (hdr->rpc_vers != 5 || hdr->rpc_vers_minor != 0)
-		return -EINVAL;
 	/*
 	 * This common type header MUST be presented by using
 	 * little-endian format in the octet stream. The first
@@ -1323,8 +1321,6 @@ static int dcerpc_hdr_read(struct ksmbd_dcerpc *dce,
 	    hdr->packed_drep[2] != 0 ||
 	    hdr->packed_drep[3] != 0)
 		return -EINVAL;
-	if (hdr->pfc_flags & (DCERPC_PFC_RESERVED_1 | DCERPC_PFC_OBJECT_UUID))
-		return -EINVAL;
 
 	dce->flags &= ~KSMBD_DCERPC_LITTLE_ENDIAN;
 	if (hdr->packed_drep[0] == DCERPC_SERIALIZATION_LITTLE_ENDIAN)
@@ -1336,10 +1332,7 @@ static int dcerpc_hdr_read(struct ksmbd_dcerpc *dce,
 		return -EINVAL;
 	if (ndr_read_int32(dce, &hdr->call_id))
 		return -EINVAL;
-	if (hdr->frag_length < sizeof(struct dcerpc_header) ||
-	    hdr->auth_length ||
-	    hdr->auth_length > hdr->frag_length -
-				    sizeof(struct dcerpc_header))
+	if (hdr->frag_length < sizeof(struct dcerpc_header))
 		return -EINVAL;
 	dce->payload_sz = MIN(payload_sz, hdr->frag_length);
 	return 0;
@@ -1611,6 +1604,20 @@ fail:
 	return ret;
 }
 
+static int dcerpc_bind_reject(struct ksmbd_dcerpc *dce, unsigned int reason)
+{
+	dce->hdr.rpc_vers = 5;
+	dce->hdr.rpc_vers_minor = 0;
+	dce->hdr.auth_length = 0;
+	memset(&dce->req_hdr, 0, sizeof(dce->req_hdr));
+	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND)
+		dce->bind_nak_reason = reason;
+	else
+		dce->fault_status = reason == DCERPC_BIND_NAK_RSN_LOCAL_LIMIT_EXCEEDED ?
+			DCERPC_NCA_S_FAULT_REMOTE_NO_MEMORY : DCERPC_NCA_S_PROTO_ERROR;
+	return KSMBD_RPC_OK;
+}
+
 static int dcerpc_bind_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce;
@@ -1621,13 +1628,13 @@ static int dcerpc_bind_invoke(struct ksmbd_rpc_pipe *pipe)
 		dcerpc_bind_req_free(&dce->bi_req);
 	dce->bind_req_active = 0;
 	ret = dcerpc_parse_bind_req(dce, &dce->bi_req);
+	if (!ret && (!dce->bi_req.num_contexts || ndr_request_end(dce)))
+		ret = -EINVAL;
 	if (ret) {
 		dcerpc_bind_req_free(&dce->bi_req);
-		return KSMBD_RPC_EBAD_DATA;
-	}
-	if (ndr_request_end(dce)) {
-		dcerpc_bind_req_free(&dce->bi_req);
-		return KSMBD_RPC_EBAD_DATA;
+		return dcerpc_bind_reject(dce, ret == -ENOMEM ?
+			DCERPC_BIND_NAK_RSN_LOCAL_LIMIT_EXCEEDED :
+			DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED);
 	}
 
 	dce->bind_req_active = 1;
@@ -1867,15 +1874,38 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 	return KSMBD_RPC_OK;
 }
 
+static int dcerpc_bind_nak_return(struct ksmbd_dcerpc *dce)
+{
+	size_t size;
+
+	dce->offset = sizeof(struct dcerpc_header);
+	if (ndr_write_int16(dce, dce->bind_nak_reason) ||
+	    ndr_write_int8(dce, 1) || /* One supported protocol version: 5.0. */
+	    ndr_write_int8(dce, 5) || ndr_write_int8(dce, 0) ||
+	    ndr_write_bytes(dce, "\0\0\0", 3))
+		return KSMBD_RPC_EBAD_DATA;
+	size = dce->offset;
+	dce->hdr.ptype = DCERPC_PTYPE_RPC_BINDNACK;
+	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG | DCERPC_PFC_LAST_FRAG;
+	dce->hdr.frag_length = size;
+	dce->offset = 0;
+	if (dcerpc_hdr_write(dce, &dce->hdr))
+		return KSMBD_RPC_EBAD_DATA;
+	dce->offset = size;
+	dce->rpc_resp->payload_sz = size;
+	return KSMBD_RPC_OK;
+}
+
 static int dcerpc_bind_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	int ret;
 
-	if (!dce->bi_req.num_contexts)
-		ret = KSMBD_RPC_EBAD_DATA;
-	else
-		ret = dcerpc_bind_ack_return(pipe);
+	if (dce->bind_nak_reason) {
+		ret = dcerpc_bind_nak_return(dce);
+		goto out;
+	}
+	ret = dcerpc_bind_ack_return(pipe);
 	if (ret == KSMBD_RPC_OK)
 		ret = dcerpc_install_bind_contexts(pipe);
 	if (ret == KSMBD_RPC_OK)
@@ -1884,6 +1914,7 @@ static int dcerpc_bind_return(struct ksmbd_rpc_pipe *pipe)
 		pipe->max_recv_frag_sz = MIN(dce->bi_req.max_xmit_frag_sz,
 					     KSMBD_RPC_MAX_FRAGMENT_SIZE);
 
+out:
 	dcerpc_bind_req_free(&dce->bi_req);
 	dce->bind_req_active = 0;
 	return ret;
@@ -2006,6 +2037,13 @@ static int rpc_pipe_read_request(struct ksmbd_rpc_pipe *pipe,
 	dce->rpc_req = req;
 	dce->rpc_resp = resp;
 	dcerpc_set_ext_payload(dce, resp->payload, max_resp_sz);
+	if (dce->fault_status) {
+		ret = dcerpc_write_fault(dce, dce->fault_status) ?
+			KSMBD_RPC_EBAD_DATA : KSMBD_RPC_OK;
+		if (!ret)
+			resp->payload_sz = dce->offset;
+		goto out;
+	}
 
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND ||
 	    dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT) {
@@ -2103,10 +2141,10 @@ static int rpc_input_buffer_append(struct rpc_input_buffer *buffer,
 	return KSMBD_RPC_OK;
 }
 
-static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
-			      struct ksmbd_rpc_command *req,
-			      struct ksmbd_rpc_command *resp,
-			      const struct ksmbd_dcerpc *fragment)
+static void rpc_prepare_request(struct ksmbd_rpc_pipe *pipe,
+				struct ksmbd_rpc_command *req,
+				struct ksmbd_rpc_command *resp,
+				const struct ksmbd_dcerpc *fragment)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
@@ -2116,6 +2154,31 @@ static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
 	dce->rpc_req = req;
 	dce->rpc_resp = resp;
 	dce->hdr = fragment->hdr;
+	dce->bind_nak_reason = 0;
+	dce->fault_status = 0;
+}
+
+static int rpc_reject_bind(struct ksmbd_rpc_pipe *pipe,
+			   struct ksmbd_rpc_command *req,
+			   struct ksmbd_rpc_command *resp,
+			   const struct ksmbd_dcerpc *fragment,
+			   unsigned int reason)
+{
+	rpc_prepare_request(pipe, req, resp, fragment);
+	memset(&pipe->dce->bi_req, 0, sizeof(pipe->dce->bi_req));
+	rpc_input_buffer_clear(&pipe->request);
+	pipe->request_in_progress = 0;
+	return dcerpc_bind_reject(pipe->dce, reason);
+}
+
+static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
+			      struct ksmbd_rpc_command *req,
+			      struct ksmbd_rpc_command *resp,
+			      const struct ksmbd_dcerpc *fragment)
+{
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	rpc_prepare_request(pipe, req, resp, fragment);
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND ||
 	    dce->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT) {
 		dcerpc_set_ext_payload(dce, fragment->payload, fragment->payload_sz);
@@ -2148,14 +2211,40 @@ static int rpc_process_fragment(struct ksmbd_rpc_pipe *pipe,
 		KSMBD_RPC_LSARPC_METHOD_INVOKE | KSMBD_RPC_RESTRICTED_CONTEXT;
 	size_t size;
 	int ret;
+	unsigned int reason = 0;
+
+	if (fragment->hdr.rpc_vers != 5 || fragment->hdr.rpc_vers_minor != 0 ||
+	    (fragment->hdr.pfc_flags & (DCERPC_PFC_RESERVED_1 | DCERPC_PFC_OBJECT_UUID))) {
+		reason = DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED;
+	} else if (fragment->hdr.auth_length) {
+		size_t length = fragment->hdr.auth_length;
+
+		reason = DCERPC_BIND_NAK_RSN_INVALID_AUTH_TYPE;
+		/* A bind prefix and the fixed security trailer need 20 body bytes. */
+		if (fragment->payload_sz < 36 || length > fragment->payload_sz - 36) {
+			reason = DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED;
+		} else {
+			size_t trailer = fragment->payload_sz - length - 8;
+
+			if ((unsigned char)fragment->payload[trailer + 2] > trailer - 28)
+				reason = DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED;
+		}
+	}
+	if (reason) {
+		if (fragment->hdr.ptype != DCERPC_PTYPE_RPC_BIND &&
+		    fragment->hdr.ptype != DCERPC_PTYPE_RPC_ALTCONT)
+			return KSMBD_RPC_EBAD_DATA;
+		return rpc_reject_bind(pipe, req, resp, fragment, reason);
+	}
 
 	if (fragment->hdr.ptype != DCERPC_PTYPE_RPC_REQUEST) {
-		if (pipe->request_in_progress ||
-		    (fragment->hdr.pfc_flags & fragment_flags) != fragment_flags)
-			return KSMBD_RPC_EBAD_DATA;
 		if (fragment->hdr.ptype != DCERPC_PTYPE_RPC_BIND &&
 		    fragment->hdr.ptype != DCERPC_PTYPE_RPC_ALTCONT)
 			return KSMBD_RPC_ENOTIMPLEMENTED;
+		if (pipe->request_in_progress ||
+		    (fragment->hdr.pfc_flags & fragment_flags) != fragment_flags)
+			return rpc_reject_bind(pipe, req, resp, fragment,
+				DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED);
 		return rpc_invoke_request(pipe, req, resp, fragment);
 	}
 	if (dcerpc_request_hdr_read(fragment, &fragment->req_hdr) ||
