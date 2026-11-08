@@ -176,13 +176,7 @@ static const struct dcerpc_syntax dcerpc_dssetup_syntax = {
 	.ver_minor = 0,
 };
 
-/*
- * PNIO uuid
- * Transfer Syntax: PNIO (Implicit Ar)
- *
- * All zero-s.
- */
-static struct dcerpc_syntax negotiate_ack_PNIO_uuid;
+static const struct dcerpc_syntax null_syntax;
 
 /*
  * We need a proper DCE RPC (ndr/ndr64) parser. And we also need a proper
@@ -1842,12 +1836,10 @@ static int dcerpc_bind_ack_return(struct ksmbd_rpc_pipe *pipe)
 
 		result = dcerpc_bind_context_result(pipe, ctx, &reason,
 						    &selected);
-		if (result == DCERPC_BIND_ACK_RES_NEGOTIATE_ACK)
-			s = &negotiate_ack_PNIO_uuid;
-		else if (selected >= 0)
+		if (result == DCERPC_BIND_ACK_RES_ACCEPT && selected >= 0)
 			s = &ctx->transfer_syntaxes[selected];
 		else
-			s = &ctx->transfer_syntaxes[0];
+			s = &null_syntax;
 
 		if (ndr_write_int16(dce, result) ||
 		    ndr_write_int16(dce, reason))

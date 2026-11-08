@@ -3803,9 +3803,47 @@ static void test_bind_feature_context(void)
 	fixture_destroy();
 }
 
+static void test_bind_rejected_syntax(void)
+{
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	struct ksmbd_rpc_command *req, *resp = command(1, flags, 1024);
+	GByteArray *contexts = g_byte_array_new();
+	guint8 abstract[20], transfer[20];
+	unsigned int i, j;
+
+	fixture_init();
+	req = command(1, flags, 0);
+	g_assert_cmpint(rpc_open_request(req, resp), ==, 0);
+	g_free(req);
+	put_bind_context(contexts, 0, lsad_syntax, ndr_transfer_syntax);
+	memcpy(abstract, lsad_syntax, sizeof(abstract));
+	abstract[0] ^= 1;
+	put_bind_context(contexts, 1, abstract, ndr_transfer_syntax);
+	memcpy(transfer, ndr_transfer_syntax, sizeof(transfer));
+	transfer[16] = 3;
+	put_bind_context(contexts, 2, lsad_syntax, transfer);
+	req = bind_request(flags, 3, contexts);
+	g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+	g_assert_cmpuint(get32(resp->payload + 44), ==, 0);
+	g_assert_cmpmem(resp->payload + 48, 20, ndr_transfer_syntax, 20);
+	for (i = 0; i < 2; i++) {
+		unsigned int offset = 68 + i * 24;
+
+		g_assert_cmpuint(get32(resp->payload + offset) & 0xffff, ==, 2);
+		g_assert_cmpuint(get32(resp->payload + offset) >> 16, ==, i + 1);
+		for (j = 0; j < 20; j++)
+			g_assert_cmpuint(resp->payload[offset + 4 + j], ==, 0);
+	}
+	g_free(req);
+	g_free(resp);
+	g_byte_array_unref(contexts);
+	fixture_destroy();
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/bind/rejected-syntax", test_bind_rejected_syntax);
 	g_test_add_func("/rpc/bind/feature-context", test_bind_feature_context);
 	g_test_add_func("/rpc/ndr/growth-padding", test_payload_growth_padding);
 	g_test_add_func("/rpc/ndr/byte-handle-alignment", test_byte_handle_alignment);
