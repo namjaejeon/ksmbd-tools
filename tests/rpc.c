@@ -4002,7 +4002,8 @@ static void test_bind_state(void)
 		} else {
 			g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_BINDACK);
 			g_assert_cmpuint(get32(resp->payload + 44) & 0xffff, ==,
-				variant ? DCERPC_BIND_ACK_RES_PROVIDER_REJECT : DCERPC_BIND_ACK_RES_ACCEPT);
+				variant ? DCERPC_BIND_ACK_RES_PROVIDER_REJECT :
+				DCERPC_BIND_ACK_RES_ACCEPT);
 			g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
 			g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_BINDNACK);
 			g_assert_cmpuint(get32(resp->payload + 16) & 0xffff, ==,

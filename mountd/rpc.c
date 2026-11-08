@@ -312,7 +312,6 @@ void rpc_pipe_reset(struct ksmbd_rpc_pipe *pipe)
 	pipe->dce->response_payload_sz = 0;
 	pipe->dce->response_payload_offset = 0;
 	pipe->dce->response_alloc_hint = 0;
-	pipe->dce->response_limit = 0;
 }
 
 static void __rpc_pipe_free(struct ksmbd_rpc_pipe *pipe)
@@ -690,9 +689,6 @@ static gchar *ndr_convert_char_to_unicode(struct ksmbd_dcerpc *dce,
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
 
-	if (dce->flags & KSMBD_DCERPC_ASCII_STRING)
-		charset = KSMBD_CHARSET_UTF8;
-
 	out = ksmbd_gconvert(str,
 			     len,
 			     charset,
@@ -755,44 +751,6 @@ int ndr_write_vstring(struct ksmbd_dcerpc *dce, const void *value)
 	return ret;
 }
 
-int ndr_write_string(struct ksmbd_dcerpc *dce, const char *str)
-{
-	g_autofree char *out = NULL;
-	gsize bytes_written = 0;
-
-	size_t input_len, len;
-	int ret;
-
-	if (!str)
-		str = "";
-
-	input_len = strlen(str);
-	out = ndr_convert_char_to_unicode(dce, str, input_len,
-			&bytes_written);
-	if (!out)
-		return -EINVAL;
-	if (bytes_written % 2)
-		return -EINVAL;
-	len = bytes_written / 2;
-
-	ret = ndr_write_int32(dce, len); // max count
-	if (ret)
-		return ret;
-
-	ret = ndr_write_int32(dce, 0);
-	if (ret)
-		return ret;
-
-	ret = ndr_write_int32(dce, len); // actual count
-	if (ret)
-		return ret;
-
-	ret = ndr_write_bytes(dce, out, bytes_written);
-	auto_align_offset(dce);
-
-	return ret;
-}
-
 int ndr_write_string_data(struct ksmbd_dcerpc *dce, const char *str)
 {
 	g_autofree char *out = NULL;
@@ -828,8 +786,6 @@ int ndr_write_string_rep(struct ksmbd_dcerpc *dce, const char *str)
 		str = "";
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
-	if (dce->flags & KSMBD_DCERPC_ASCII_STRING)
-		charset = KSMBD_CHARSET_UTF8;
 
 	out = ksmbd_gconvert(str, strlen(str), charset,
 			     KSMBD_CHARSET_DEFAULT, NULL, &bytes_written);
@@ -892,8 +848,6 @@ int ndr_write_lsa_string_rep(struct ksmbd_dcerpc *dce, const char *str)
 		str = "";
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
-	if (dce->flags & KSMBD_DCERPC_ASCII_STRING)
-		charset = KSMBD_CHARSET_UTF8;
 
 	out = ksmbd_gconvert(str, strlen(str), charset,
 			     KSMBD_CHARSET_DEFAULT, NULL, &bytes_written);
@@ -939,9 +893,6 @@ static char *ndr_read_vstring_internal(struct ksmbd_dcerpc *dce,
 
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
-
-	if (dce->flags & KSMBD_DCERPC_ASCII_STRING)
-		charset = KSMBD_CHARSET_UTF8;
 
 	if (actual == 0) {
 		out = g_strdup("");
@@ -1094,42 +1045,6 @@ int ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr)
 	return 0;
 }
 
-int ndr_max_entries(struct ksmbd_dcerpc *dce, struct ksmbd_rpc_pipe *pipe)
-{
-	size_t current_size, limit, threshold;
-	int i;
-
-	if (!(dce->flags & KSMBD_DCERPC_FIXED_PAYLOAD_SZ))
-		return pipe->num_entries;
-
-	if (!dce->entry_size) {
-		pr_err("No ->entry_size() callback was provided\n");
-		return pipe->num_entries;
-	}
-
-	limit = dce->response_limit ? dce->response_limit :
-		dce->payload_sz;
-	threshold = limit - limit / 5;
-	current_size = 0;
-	for (i = 0; i < pipe->num_entries; i++) {
-		void *entry;
-		int entry_size;
-
-		entry = g_ptr_array_index(pipe->entries, i);
-		entry_size = dce->entry_size(dce, entry);
-		if (entry_size < 0 ||
-		    current_size > SIZE_MAX - (size_t)entry_size)
-			return i;
-		current_size += entry_size;
-
-		if (current_size < threshold)
-			continue;
-		return i;
-	}
-
-	return pipe->num_entries;
-}
-
 int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
@@ -1151,82 +1066,7 @@ int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr)
 			return KSMBD_RPC_EBAD_DATA;
 	}
 
-	if (pipe->entry_processed) {
-		for (i = 0; i < max_entry_nr; i++)
-			pipe->entry_processed(pipe, 0);
-		if (!pipe->num_entries)
-			pipe->entry_processed = NULL;
-	}
-
 	return KSMBD_RPC_OK;
-}
-
-static int ndr_write_empty_array_of_struct(struct ksmbd_rpc_pipe *pipe)
-{
-	struct ksmbd_dcerpc *dce = pipe->dce;
-
-	dce->num_pointers++;
-	if (ndr_write_int32(dce, dce->num_pointers))
-		return KSMBD_RPC_EBAD_DATA;
-
-	if (ndr_write_int32(dce, 0))
-		return KSMBD_RPC_EBAD_DATA;
-
-	if (ndr_write_int32(dce, 0))
-		return KSMBD_RPC_EBAD_DATA;
-
-	return KSMBD_RPC_OK;
-}
-
-int ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe)
-{
-	struct ksmbd_dcerpc *dce = pipe->dce;
-	int max_entry_nr;
-	int ret;
-
-	/*
-	 * In the NDR representation of a structure that contains a
-	 * conformant and varying array, the maximum counts for dimensions
-	 * of the array are moved to the beginning of the structure, but
-	 * the offsets and actual counts remain in place at the end of the
-	 * structure, immediately preceding the array elements.
-	 */
-	if (pipe->num_entries == 0) {
-		ret = ndr_write_empty_array_of_struct(pipe);
-		if (!ret)
-			pipe->entry_processed = NULL;
-		return ret;
-	}
-
-	max_entry_nr = ndr_max_entries(dce, pipe);
-	if (ndr_write_int32(dce, max_entry_nr))
-		return KSMBD_RPC_EBAD_DATA;
-	/*
-	 * ARRAY representation [per dimension]
-	 *    max_count
-	 *    offset
-	 *    actual_count
-	 *    element representation [1..N]
-	 *    actual elements [1..N]
-	 */
-	if (ndr_write_int32(dce, max_entry_nr))
-		return KSMBD_RPC_EBAD_DATA;
-
-	if (ndr_write_int32(dce, 1))
-		return KSMBD_RPC_EBAD_DATA;
-
-	if (ndr_write_int32(dce, max_entry_nr))
-		return KSMBD_RPC_EBAD_DATA;
-
-	if (max_entry_nr == 0) {
-		pr_err("DCERPC: can't fit any data, buffer is too small\n");
-		rpc_pipe_reset(pipe);
-		return KSMBD_RPC_EBAD_DATA;
-	}
-
-	if (__ndr_write_array_of_structs(pipe, max_entry_nr))
-		return KSMBD_RPC_EBAD_DATA;
-	return pipe->num_entries ? KSMBD_RPC_EMORE_DATA : KSMBD_RPC_OK;
 }
 
 void rpc_init(void)

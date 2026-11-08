@@ -1289,8 +1289,6 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 		if (ndr_read_int32(dce, &max_count) ||
 		    max_count != num_sid)
 			goto fail;
-	} else if (num_sid) {
-		goto fail;
 	}
 
 	for (i = 0; i < num_sid; i++) {
@@ -1365,8 +1363,6 @@ static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
 		if (ndr_read_int32(dce, &max_count) ||
 		    max_count != num_sid)
 			goto fail;
-	} else if (num_sid) {
-		goto fail;
 	}
 
 	for (i = 0; i < num_sid; i++) {

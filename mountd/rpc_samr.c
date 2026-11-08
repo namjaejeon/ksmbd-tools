@@ -2108,8 +2108,6 @@ static int samr_write_user_string_rep(struct ksmbd_dcerpc *dce,
 		value = "";
 	if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN))
 		charset = KSMBD_CHARSET_UTF16BE;
-	if (dce->flags & KSMBD_DCERPC_ASCII_STRING)
-		charset = KSMBD_CHARSET_UTF8;
 
 	converted = ksmbd_gconvert(value, strlen(value), charset,
 				   KSMBD_CHARSET_DEFAULT, NULL,
@@ -2544,8 +2542,6 @@ static int samr_get_alias_membership_invoke(struct ksmbd_rpc_pipe *pipe)
 		if (ndr_read_int32(dce, &max_count) ||
 		    max_count != count)
 			return KSMBD_RPC_EINVALID_PARAMETER;
-	} else if (count) {
-		return KSMBD_RPC_EINVALID_PARAMETER;
 	}
 
 	if (!count) {

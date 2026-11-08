@@ -42,7 +42,6 @@
 #define SRVSVC_OPNUM_SHARE_ENUM_STICKY	36
 
 #define SRVSVC_NERR_NET_NAME_NOT_FOUND	0x00000906U
-#define SRVSVC_SECURITY_DESCRIPTOR_SIZE	512
 #define SRVSVC_PLATFORM_ID_NT		500
 #define SRVSVC_VERSION_MAJOR		0x2
 #define SRVSVC_VERSION_MINOR		0x1
@@ -97,15 +96,6 @@ static int __share_type(struct ksmbd_share *share)
 	return SHARE_TYPE_DISKTREE;
 }
 
-static int __share_string_size(const char *value)
-{
-	size_t len = value ? strlen(value) : 0;
-
-	if (len > (INT_MAX - 14) / 2)
-		return INT_MAX;
-	return (int)(len * 2 + 14);
-}
-
 static __u32 __share_max_users(const struct ksmbd_share *share)
 {
 	if (share->max_connections <= 0)
@@ -118,40 +108,6 @@ static __u32 __share_current_users(const struct ksmbd_share *share)
 	if (share->num_connections <= 0)
 		return 0;
 	return (__u32)share->num_connections;
-}
-
-static int __share_entry_size_ctr0(struct ksmbd_dcerpc *dce, gpointer entry)
-{
-	struct ksmbd_share *share = entry;
-
-	return 4 + __share_string_size(share->name);
-}
-
-static int __share_entry_size_ctr1(struct ksmbd_dcerpc *dce, gpointer entry)
-{
-	struct ksmbd_share *share = entry;
-
-	return 3 * sizeof(__u32) +
-		__share_string_size(share->name) +
-		__share_string_size(share->comment);
-}
-
-static int __share_entry_size_ctr2(struct ksmbd_dcerpc *dce, gpointer entry)
-{
-	struct ksmbd_share *share = entry;
-
-	return 8 * sizeof(__u32) +
-		__share_string_size(share->name) +
-		__share_string_size(share->comment) +
-		__share_string_size(share->path) +
-		__share_string_size("");
-}
-
-static int __share_entry_size_ctr502(struct ksmbd_dcerpc *dce,
-				     gpointer entry)
-{
-	return __share_entry_size_ctr2(dce, entry) +
-		2 * sizeof(__u32) + SRVSVC_SECURITY_DESCRIPTOR_SIZE;
 }
 
 static int __share_write_ref(struct ksmbd_dcerpc *dce)
@@ -843,27 +799,22 @@ static int srvsvc_share_info_return(struct ksmbd_rpc_pipe *pipe)
 
 	switch (dce->si_req.level) {
 	case 0:
-		dce->entry_size = __share_entry_size_ctr0;
 		dce->entry_rep = __share_entry_rep_ctr0;
 		dce->entry_data = __share_entry_data_ctr0;
 		break;
 	case 1:
-		dce->entry_size = __share_entry_size_ctr1;
 		dce->entry_rep = __share_entry_rep_ctr1;
 		dce->entry_data = __share_entry_data_ctr1;
 		break;
 	case 2:
-		dce->entry_size = __share_entry_size_ctr2;
 		dce->entry_rep = __share_entry_rep_ctr2;
 		dce->entry_data = __share_entry_data_ctr2;
 		break;
 	case 502:
-		dce->entry_size = __share_entry_size_ctr502;
 		dce->entry_rep = __share_entry_rep_ctr502;
 		dce->entry_data = __share_entry_data_ctr502;
 		break;
 	default:
-		dce->entry_size = __share_entry_size_ctr0;
 		dce->entry_rep = __share_entry_rep_ctr0;
 		dce->entry_data = __share_entry_data_ctr0;
 		break;

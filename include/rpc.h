@@ -12,10 +12,8 @@
 #include <glib.h>
 
 #define KSMBD_DCERPC_LITTLE_ENDIAN	(1 << 0)
-#define KSMBD_DCERPC_ALIGN2		(1 << 1)
 #define KSMBD_DCERPC_ALIGN4		(1 << 2)
 #define KSMBD_DCERPC_ALIGN8		(1 << 3)
-#define KSMBD_DCERPC_ASCII_STRING	(1 << 4)
 #define KSMBD_DCERPC_FIXED_PAYLOAD_SZ	(1 << 5)
 #define KSMBD_DCERPC_EXTERNAL_PAYLOAD	(1 << 6)
 #define KSMBD_DCERPC_RETURN_READY	(1 << 7)
@@ -304,7 +302,6 @@ struct ksmbd_dcerpc {
 	size_t			response_payload_sz;
 	size_t			response_payload_offset;
 	size_t			response_alloc_hint;
-	size_t			response_limit;
 
 	union {
 		struct dcerpc_header			hdr;
@@ -325,12 +322,6 @@ struct ksmbd_dcerpc {
 	struct ksmbd_rpc_command	*rpc_resp;
 	void			(*request_cleanup)(struct ksmbd_rpc_pipe *pipe);
 
-	/*
-	 * Find out the estimated entry size under the given container level
-	 * restriction
-	 */
-	int			(*entry_size)(struct ksmbd_dcerpc *dce,
-					      gpointer entry);
 	/*
 	 * Entry representation under the given container level
 	 * restriction for array representation
@@ -414,7 +405,6 @@ int ndr_read_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz);
 int ndr_write_handle(struct ksmbd_dcerpc *dce, const unsigned char *handle);
 int ndr_read_handle(struct ksmbd_dcerpc *dce, unsigned char *handle);
 int ndr_write_vstring(struct ksmbd_dcerpc *dce, const void *value);
-int ndr_write_string(struct ksmbd_dcerpc *dce, const char *str);
 int ndr_write_lsa_string(struct ksmbd_dcerpc *dce, const char *str);
 int ndr_write_string_data(struct ksmbd_dcerpc *dce, const char *str);
 
@@ -433,10 +423,7 @@ void ndr_free_vstring_ptr(struct ndr_char_ptr *ctr);
 void ndr_free_uniq_vstring_ptr(struct ndr_uniq_char_ptr *ctr);
 int ndr_read_ptr(struct ksmbd_dcerpc *dce, struct ndr_ptr *ctr);
 int ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
-int ndr_max_entries(struct ksmbd_dcerpc *dce,
-		    struct ksmbd_rpc_pipe *pipe);
 int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr);
-int ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe);
 
 #define DCERPC_NCA_S_OP_RNG_ERROR	0x1C010002U
 #define DCERPC_NCA_S_PROTO_ERROR	0x1C01000BU
