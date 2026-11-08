@@ -496,11 +496,13 @@ static int try_realloc_payload(struct ksmbd_dcerpc *dce, size_t data_sz)
 		return -ENOMEM;
 	}
 
-	payload_sz = dce->payload_sz;
+	payload_sz = dce->payload_sz ? dce->payload_sz : 4096;
 	while (payload_sz < required_size) {
-		if (payload_sz > SIZE_MAX - 4096)
-			return -ENOMEM;
-		payload_sz += 4096;
+		if (payload_sz > SIZE_MAX / 2) {
+			payload_sz = required_size;
+			break;
+		}
+		payload_sz *= 2;
 	}
 
 	n = g_try_realloc(dce->payload, payload_sz);

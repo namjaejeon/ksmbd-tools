@@ -4057,9 +4057,34 @@ static void test_response_request_flags(void)
 	}
 }
 
+static void test_payload_growth_cost(void)
+{
+	struct ksmbd_dcerpc dce = { .flags = KSMBD_DCERPC_LITTLE_ENDIAN };
+	const unsigned int count = 1024 * 1024 / 4;
+	size_t copied = 0, previous = 0;
+	unsigned int i, growths = 0;
+
+	for (i = 0; i < count; i++) {
+		g_assert_cmpint(ndr_write_int32(&dce, i), ==, 0);
+		if (dce.payload_sz != previous) {
+			copied += previous;
+			previous = dce.payload_sz;
+			growths++;
+		}
+	}
+	/* Bound the reallocations and worst-case copying for a one-MiB reply. */
+	g_assert_cmpuint(growths, <=, 16);
+	g_assert_cmpuint(copied, <=, dce.payload_sz * 2);
+	g_assert_cmpuint(dce.offset, ==, count * 4);
+	for (i = 0; i < count; i++)
+		g_assert_cmpuint(get32(dce.payload + i * 4), ==, i);
+	g_free(dce.payload);
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/ndr/growth-cost", test_payload_growth_cost);
 	g_test_add_func("/rpc/response-request-flags", test_response_request_flags);
 	g_test_add_func("/rpc/bind/state", test_bind_state);
 	g_test_add_func("/rpc/unexecuted-fault", test_unexecuted_fault);
