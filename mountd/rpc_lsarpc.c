@@ -302,7 +302,7 @@ static int lsarpc_write_zero_handle(struct ksmbd_dcerpc *dce)
 {
 	unsigned char handle[HANDLE_SIZE] = {0};
 
-	return ndr_write_bytes(dce, handle, sizeof(handle));
+	return ndr_write_handle(dce, handle);
 }
 
 static int lsarpc_write_error_payload(struct ksmbd_dcerpc *dce,
@@ -604,7 +604,7 @@ static int lsarpc_open_policy2_return(struct ksmbd_rpc_pipe *pipe)
 	}
 
 	/* write connect handle */
-	if (ndr_write_bytes(dce, ph->handle, HANDLE_SIZE)) {
+	if (ndr_write_handle(dce, ph->handle)) {
 		lsarpc_ph_close(pipe, ph->handle);
 		return KSMBD_RPC_EBAD_DATA;
 	}
@@ -620,7 +620,7 @@ static int lsarpc_query_info_policy_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
 		return KSMBD_RPC_EINVALID_PARAMETER;
-	if (ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->lr_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	// level
 	if (ndr_read_int16(dce, &val))
@@ -1274,7 +1274,7 @@ static int lsarpc_lookup_sid2_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
 		goto fail;
-	if (ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->lr_req.handle))
 		goto fail;
 
 	if (ndr_read_int32(dce, &num_sid))
@@ -1350,7 +1350,7 @@ static int lsarpc_lookup_sid_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
 		goto fail;
-	if (ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->lr_req.handle))
 		goto fail;
 
 	if (ndr_read_int32(dce, &num_sid))
@@ -1771,7 +1771,7 @@ static int lsarpc_lookup_names3_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
 		goto fail;
-	if (ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->lr_req.handle))
 		goto fail;
 
 	if (ndr_read_int32(dce, &num_names) ||
@@ -1859,7 +1859,7 @@ static int lsarpc_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
 		goto fail;
-	if (ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->lr_req.handle))
 		goto fail;
 
 	if (ndr_read_int32(dce, &num_names) ||
@@ -2265,7 +2265,7 @@ static int lsarpc_close_invoke(struct ksmbd_rpc_pipe *pipe)
 	if (lsarpc_syntax_interface(pipe, dce->req_hdr.context_id) !=
 	    LSARPC_INTERFACE_LSAD)
 		return KSMBD_RPC_EINVALID_PARAMETER;
-	if (ndr_read_bytes(dce, dce->lr_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->lr_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
 	return ndr_request_end(dce) ? KSMBD_RPC_EINVALID_PARAMETER :
@@ -2280,7 +2280,7 @@ static int lsarpc_close_return(struct ksmbd_rpc_pipe *pipe)
 
 	ret = lsarpc_ph_close(pipe, dce->lr_req.handle);
 
-	if (ndr_write_bytes(dce, handle, sizeof(handle)))
+	if (ndr_write_handle(dce, handle))
 		return KSMBD_RPC_EBAD_DATA;
 
 	return ret;

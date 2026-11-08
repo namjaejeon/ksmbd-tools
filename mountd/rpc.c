@@ -622,7 +622,6 @@ NDR_READ_UNION(int32, __u32);
 
 int ndr_write_bytes(struct ksmbd_dcerpc *dce, const void *value, size_t sz)
 {
-	align_offset(dce, 2);
 	if (try_realloc_payload(dce, sz))
 		return -ENOMEM;
 
@@ -633,13 +632,24 @@ int ndr_write_bytes(struct ksmbd_dcerpc *dce, const void *value, size_t sz)
 
 int ndr_read_bytes(struct ksmbd_dcerpc *dce, void *value, size_t sz)
 {
-	align_offset(dce, 2);
 	if (dce->offset > dce->payload_sz ||
 	    sz > dce->payload_sz - dce->offset)
 		return -EINVAL;
 	memcpy(value, PAYLOAD_HEAD(dce), sz);
 	dce->offset += sz;
 	return 0;
+}
+
+int ndr_write_handle(struct ksmbd_dcerpc *dce, const unsigned char *handle)
+{
+	align_offset(dce, 4);
+	return ndr_write_bytes(dce, handle, KSMBD_RPC_HANDLE_SIZE);
+}
+
+int ndr_read_handle(struct ksmbd_dcerpc *dce, unsigned char *handle)
+{
+	align_offset(dce, 4);
+	return ndr_read_bytes(dce, handle, KSMBD_RPC_HANDLE_SIZE);
 }
 
 int ndr_request_end(struct ksmbd_dcerpc *dce)

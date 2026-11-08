@@ -430,7 +430,7 @@ static int samr_write_zero_handle(struct ksmbd_dcerpc *dce)
 {
 	unsigned char handle[HANDLE_SIZE] = {0};
 
-	return ndr_write_bytes(dce, handle, sizeof(handle));
+	return ndr_write_handle(dce, handle);
 }
 
 static int samr_write_null_string_rep(struct ksmbd_dcerpc *dce)
@@ -908,7 +908,7 @@ static int samr_connect5_return(struct ksmbd_rpc_pipe *pipe)
 	}
 
 	/* write connect handle */
-	if (ndr_write_bytes(dce, ch->handle, HANDLE_SIZE)) {
+	if (ndr_write_handle(dce, ch->handle)) {
 		samr_ch_close(pipe, ch->handle);
 		return KSMBD_RPC_EBAD_DATA;
 	}
@@ -920,7 +920,7 @@ static int samr_enum_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &dce->sm_req.resume_handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -1167,7 +1167,7 @@ static int samr_enum_accounts_invoke(struct ksmbd_rpc_pipe *pipe, int users)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &dce->sm_req.resume_handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -1299,7 +1299,7 @@ static int samr_lookup_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct ndr_string_rep rep;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_string_rep(dce, &rep) || !rep.ref_id)
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -1353,7 +1353,7 @@ static int samr_open_domain_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	struct smb_sid sid;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &dce->sm_req.access_mask))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -1390,7 +1390,7 @@ static int samr_open_domain_return(struct ksmbd_rpc_pipe *pipe)
 	if (!domain) {
 		goto fail;
 	}
-	if (ndr_write_bytes(dce, domain->handle, HANDLE_SIZE)) {
+	if (ndr_write_handle(dce, domain->handle)) {
 		samr_ch_close(pipe, domain->handle);
 		ret = KSMBD_RPC_EBAD_DATA;
 		goto fail;
@@ -1414,7 +1414,7 @@ static int samr_lookup_names_invoke(struct ksmbd_rpc_pipe *pipe)
 	__u32 count, max_count, offset, actual;
 	unsigned int i;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
 	if (ndr_read_int32(dce, &count) ||
@@ -1595,7 +1595,7 @@ static int samr_lookup_ids_invoke(struct ksmbd_rpc_pipe *pipe)
 	__u32 count, max_count, offset, actual;
 	unsigned int i;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &count) ||
 	    ndr_read_int32(dce, &max_count) ||
@@ -1764,7 +1764,7 @@ static int samr_open_user_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
 	if (ndr_read_int32(dce, &dce->sm_req.access_mask))
@@ -1812,7 +1812,7 @@ static int samr_open_user_return(struct ksmbd_rpc_pipe *pipe)
 		goto fail;
 	}
 
-	if (ndr_write_bytes(dce, user_handle->handle, HANDLE_SIZE)) {
+	if (ndr_write_handle(dce, user_handle->handle)) {
 		samr_ch_close(pipe, user_handle->handle);
 		ret = KSMBD_RPC_EBAD_DATA;
 		goto fail;
@@ -1879,7 +1879,7 @@ static int samr_open_account_handle_return(struct ksmbd_rpc_pipe *pipe,
 		goto fail;
 	}
 
-	if (ndr_write_bytes(dce, account->handle, HANDLE_SIZE)) {
+	if (ndr_write_handle(dce, account->handle)) {
 		samr_ch_close(pipe, account->handle);
 		ret = KSMBD_RPC_EBAD_DATA;
 		goto fail;
@@ -1912,7 +1912,7 @@ static int samr_get_members_in_group_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
 	return ndr_request_end(dce) ? KSMBD_RPC_EINVALID_PARAMETER :
@@ -2086,7 +2086,7 @@ static int samr_query_user_info_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	__u16 level;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int16(dce, &level))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -2380,7 +2380,7 @@ static int samr_query_security_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &dce->sm_req.security_secinfo))
 		return KSMBD_RPC_EINVALID_PARAMETER;
@@ -2477,7 +2477,7 @@ static int samr_get_group_for_user_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
 	return ndr_request_end(dce) ? KSMBD_RPC_EINVALID_PARAMETER :
@@ -2531,7 +2531,7 @@ static int samr_get_alias_membership_invoke(struct ksmbd_rpc_pipe *pipe)
 	__u32 count, array_ref, max_count;
 	unsigned int i;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 	if (ndr_read_int32(dce, &count) ||
 	    ndr_read_int32(dce, &array_ref))
@@ -2644,7 +2644,7 @@ static int samr_close_invoke(struct ksmbd_rpc_pipe *pipe)
 	struct ksmbd_dcerpc *dce = pipe->dce;
 	__u32 compatibility_field;
 
-	if (ndr_read_bytes(dce, dce->sm_req.handle, HANDLE_SIZE))
+	if (ndr_read_handle(dce, dce->sm_req.handle))
 		return KSMBD_RPC_EINVALID_PARAMETER;
 
 	/*

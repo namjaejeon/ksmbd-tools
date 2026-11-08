@@ -3675,9 +3675,45 @@ static void test_string_terminators(void)
 	}
 }
 
+static void test_byte_handle_alignment(void)
+{
+	char payload[64];
+	unsigned char handle[KSMBD_RPC_HANDLE_SIZE], decoded[KSMBD_RPC_HANDLE_SIZE];
+	const unsigned char bytes[] = { 0x12, 0x34, 0x56 };
+	struct ksmbd_dcerpc dce = {
+		.payload = payload,
+		.payload_sz = sizeof(payload),
+		.flags = KSMBD_DCERPC_FIXED_PAYLOAD_SZ,
+		.offset = 1,
+	};
+	unsigned int i;
+
+	memset(payload, 0xa5, sizeof(payload));
+	g_assert_cmpint(ndr_write_bytes(&dce, bytes, sizeof(bytes)), ==, 0);
+	g_assert_cmpuint(dce.offset, ==, 4);
+	g_assert_cmpmem(payload + 1, sizeof(bytes), bytes, sizeof(bytes));
+	dce.offset = 1;
+	g_assert_cmpint(ndr_read_bytes(&dce, decoded, sizeof(bytes)), ==, 0);
+	g_assert_cmpmem(decoded, sizeof(bytes), bytes, sizeof(bytes));
+	g_assert_cmpuint(dce.offset, ==, 4);
+	for (i = 0; i < sizeof(handle); i++)
+		handle[i] = i + 1;
+	memset(payload, 0xa5, sizeof(payload));
+	dce.offset = 1;
+	g_assert_cmpint(ndr_write_handle(&dce, handle), ==, 0);
+	g_assert_cmpuint(dce.offset, ==, 24);
+	g_assert_cmpmem(payload + 4, sizeof(handle), handle, sizeof(handle));
+	g_assert_cmpuint((unsigned char)payload[3], ==, 0xa5);
+	dce.offset = 1;
+	g_assert_cmpint(ndr_read_handle(&dce, decoded), ==, 0);
+	g_assert_cmpmem(decoded, sizeof(handle), handle, sizeof(handle));
+	g_assert_cmpuint(dce.offset, ==, 24);
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/ndr/byte-handle-alignment", test_byte_handle_alignment);
 	g_test_add_func("/rpc/ndr/string-terminators", test_string_terminators);
 	g_test_add_func("/rpc/input/conformant-counts", test_conformant_counts);
 	g_test_add_func("/rpc/samr/invalid-handle", test_samr_invalid_handle);
