@@ -3735,9 +3735,78 @@ static void test_payload_growth_padding(void)
 	g_free(dce.payload);
 }
 
+static const guint8 ndr_transfer_syntax[] = {
+	4, 0x5d, 0x88, 0x8a, 0xeb, 0x1c, 0xc9, 0x11,
+	0x9f, 0xe8, 8, 0, 0x2b, 0x10, 0x48, 0x60, 2, 0, 0, 0
+};
+
+static void put_bind_context(GByteArray *contexts, unsigned int id,
+			     const guint8 *abstract, const guint8 *transfer)
+{
+	put16(contexts, id);
+	put16(contexts, 1);
+	g_byte_array_append(contexts, abstract, 20);
+	g_byte_array_append(contexts, transfer, 20);
+}
+
+static struct ksmbd_rpc_command *bind_request(unsigned int flags,
+					     unsigned int count,
+					     GByteArray *contexts)
+{
+	GByteArray *stub = g_byte_array_new();
+	struct ksmbd_rpc_command *req;
+
+	put32(stub, count);
+	g_byte_array_append(stub, contexts->data, contexts->len);
+	req = request(1, flags, 0, stub);
+	req->payload[2] = DCERPC_PTYPE_RPC_BIND;
+	/* max_xmit_frag, max_recv_frag, assoc_group_id */
+	memset(req->payload + 16, 0, 8);
+	req->payload[17] = req->payload[19] = 0x10;
+	g_byte_array_unref(stub);
+	return req;
+}
+
+static void test_bind_feature_context(void)
+{
+	const guint8 features[] = {
+		0x2c, 0x1c, 0xb7, 0x6c, 0x12, 0x98, 0x40, 0x45,
+		0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
+	};
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	struct ksmbd_rpc_command *req, *resp = command(1, flags, 1024);
+	GByteArray *contexts = g_byte_array_new(), *stub, *result;
+
+	fixture_init();
+	req = command(1, flags, 0);
+	g_assert_cmpint(rpc_open_request(req, resp), ==, 0);
+	g_free(req);
+	put_bind_context(contexts, 0, lsad_syntax, ndr_transfer_syntax);
+	put_bind_context(contexts, 1, lsad_syntax, features);
+	req = bind_request(flags, 2, contexts);
+	g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+	g_assert_cmpuint(get32(resp->payload + 44) & 0xffff, ==, 0);
+	g_assert_cmpuint(get32(resp->payload + 68) & 0xffff, ==, 3);
+	g_free(req);
+	stub = policy_attributes(0);
+	req = request(1, flags, 44, stub);
+	req->payload[20] = 1;
+	g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, KSMBD_RPC_EBAD_DATA);
+	g_free(req);
+	/* The feature context must not affect the usable NDR context. */
+	result = exchange_context(0, 44, stub);
+	g_assert_cmpuint(get32(result->data + 20), ==, 0);
+	g_byte_array_unref(result);
+	g_byte_array_unref(stub);
+	g_byte_array_unref(contexts);
+	g_free(resp);
+	fixture_destroy();
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/bind/feature-context", test_bind_feature_context);
 	g_test_add_func("/rpc/ndr/growth-padding", test_payload_growth_padding);
 	g_test_add_func("/rpc/ndr/byte-handle-alignment", test_byte_handle_alignment);
 	g_test_add_func("/rpc/ndr/string-terminators", test_string_terminators);

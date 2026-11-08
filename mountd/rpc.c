@@ -1757,8 +1757,7 @@ static int dcerpc_install_bind_contexts(struct ksmbd_rpc_pipe *pipe)
 
 		result = dcerpc_bind_context_result(pipe, &dce->bi_req.list[i],
 						    &reason, &selected);
-		if (result != DCERPC_BIND_ACK_RES_ACCEPT &&
-		    result != DCERPC_BIND_ACK_RES_NEGOTIATE_ACK)
+		if (result != DCERPC_BIND_ACK_RES_ACCEPT)
 			continue;
 		if (rpc_pipe_context_syntax(pipe, dce->bi_req.list[i].id))
 			continue;
