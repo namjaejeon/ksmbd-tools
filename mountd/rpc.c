@@ -1437,6 +1437,8 @@ int dcerpc_write_fault(struct ksmbd_dcerpc *dce, __u32 status)
 	dce->hdr.ptype = DCERPC_PTYPE_RPC_FAULT;
 	dce->hdr.pfc_flags = DCERPC_PFC_FIRST_FRAG |
 		DCERPC_PFC_LAST_FRAG;
+	if (status == DCERPC_NCA_S_OP_RNG_ERROR)
+		dce->hdr.pfc_flags |= DCERPC_PFC_DID_NOT_EXECUTE;
 	dce->hdr.frag_length = payload_offset;
 	ret = dcerpc_hdr_write(dce, &dce->hdr);
 	if (ret)

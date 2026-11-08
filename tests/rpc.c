@@ -3948,9 +3948,36 @@ static void test_bind_errors(void)
 	}
 }
 
+static void test_unexecuted_fault(void)
+{
+	const unsigned int interfaces[] = {
+		KSMBD_RPC_SRVSVC_METHOD_INVOKE, KSMBD_RPC_WKSSVC_METHOD_INVOKE,
+	};
+	unsigned int i;
+
+	for (i = 0; i < G_N_ELEMENTS(interfaces); i++) {
+		struct ksmbd_rpc_command *req, *resp = command(1, interfaces[i], 128);
+		GByteArray *stub = g_byte_array_new();
+
+		fixture_init();
+		open_pipe(1, interfaces[i], 0, 0);
+		req = request(1, interfaces[i], UINT16_MAX, stub);
+		g_assert_cmpint(rpc_ioctl_request(req, resp, 128), ==, 0);
+		g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_FAULT);
+		g_assert_cmpuint(resp->payload[3], ==, DCERPC_PFC_FIRST_FRAG |
+			DCERPC_PFC_LAST_FRAG | DCERPC_PFC_DID_NOT_EXECUTE);
+		g_assert_cmpuint(get32(resp->payload + 24), ==, DCERPC_NCA_S_OP_RNG_ERROR);
+		g_free(req);
+		g_free(resp);
+		g_byte_array_unref(stub);
+		fixture_destroy();
+	}
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/unexecuted-fault", test_unexecuted_fault);
 	g_test_add_func("/rpc/bind/errors", test_bind_errors);
 	g_test_add_func("/rpc/bind/rejected-syntax", test_bind_rejected_syntax);
 	g_test_add_func("/rpc/bind/feature-context", test_bind_feature_context);
