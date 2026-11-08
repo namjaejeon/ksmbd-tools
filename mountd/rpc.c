@@ -513,9 +513,9 @@ static int try_realloc_payload(struct ksmbd_dcerpc *dce, size_t data_sz)
 	if (!n)
 		return -ENOMEM;
 
+	memset(n + dce->payload_sz, 0, payload_sz - dce->payload_sz);
 	dce->payload = n;
 	dce->payload_sz = payload_sz;
-	memset(dce->payload + dce->offset, 0, dce->payload_sz - dce->offset);
 	return 0;
 }
 

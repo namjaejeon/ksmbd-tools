@@ -3710,9 +3710,35 @@ static void test_byte_handle_alignment(void)
 	g_assert_cmpuint(dce.offset, ==, 24);
 }
 
+static void test_payload_growth_padding(void)
+{
+	struct ksmbd_dcerpc dce = {
+		.payload = g_malloc(4096),
+		.payload_sz = 5,
+		.offset = 5,
+		.flags = KSMBD_DCERPC_LITTLE_ENDIAN,
+	};
+	const guint8 value[] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+	size_t i;
+
+	/* Make bytes outside the advertised capacity predictably nonzero. */
+	memset(dce.payload, 0xa5, 4096);
+	g_assert_cmpint(ndr_write_int64(&dce, 0x0102030405060708ULL), ==, 0);
+	g_assert_cmpuint(dce.offset, ==, 16);
+	for (i = 0; i < 5; i++)
+		g_assert_cmpuint((guint8)dce.payload[i], ==, 0xa5);
+	for (i = 5; i < 8; i++)
+		g_assert_cmpuint(dce.payload[i], ==, 0);
+	g_assert_cmpmem(dce.payload + 8, 8, value, sizeof(value));
+	for (i = 16; i < dce.payload_sz; i++)
+		g_assert_cmpuint(dce.payload[i], ==, 0);
+	g_free(dce.payload);
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/ndr/growth-padding", test_payload_growth_padding);
 	g_test_add_func("/rpc/ndr/byte-handle-alignment", test_byte_handle_alignment);
 	g_test_add_func("/rpc/ndr/string-terminators", test_string_terminators);
 	g_test_add_func("/rpc/input/conformant-counts", test_conformant_counts);
