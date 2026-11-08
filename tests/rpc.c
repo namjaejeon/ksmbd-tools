@@ -4081,9 +4081,64 @@ static void test_payload_growth_cost(void)
 	g_free(dce.payload);
 }
 
+static void test_share_enum_pages(void)
+{
+	const unsigned int total = 128, page_size = 17;
+	unsigned int i, resume = 0;
+
+	fixture_init();
+	while (shares->len < total) {
+		struct ksmbd_share *share = g_new0(struct ksmbd_share, 1);
+
+		share->comment = g_strdup("share");
+		share->path = g_strdup("/srv/share");
+		share->flags = KSMBD_SHARE_FLAG_BROWSEABLE | KSMBD_SHARE_FLAG_AVAILABLE;
+		g_ptr_array_add(shares, share);
+	}
+	for (i = 0; i < total; i++) {
+		struct ksmbd_share *share = shares->pdata[i];
+
+		g_free(share->name);
+		share->name = g_strdup_printf("share-%04u", total - i - 1);
+	}
+	open_pipe(1, KSMBD_RPC_SRVSVC_METHOD_INVOKE, 0, 3);
+	while (resume < total) {
+		GByteArray *result = share_enum(0, 12 + page_size * 40, resume);
+		struct wire_reader wire = { .data = result->data, .size = result->len };
+		unsigned int count = MIN(page_size, total - resume);
+		unsigned int next = resume + count < total ? resume + count : 0;
+
+		g_assert_cmpuint(wire32(&wire), ==, 0);
+		g_assert_cmpuint(wire32(&wire), ==, 0);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, count);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, count);
+		for (i = 0; i < count; i++)
+			g_assert_cmpuint(wire32(&wire), !=, 0);
+		for (i = 0; i < count; i++) {
+			g_autofree char *name = wire_string(&wire);
+			g_autofree char *expected = g_strdup_printf("share-%04u", resume + i);
+
+			g_assert_cmpstr(name, ==, expected);
+		}
+		g_assert_cmpuint(wire32(&wire), ==, total - resume);
+		g_assert_cmpuint(wire32(&wire), !=, 0);
+		g_assert_cmpuint(wire32(&wire), ==, next);
+		g_assert_cmpuint(wire32(&wire), ==, next ? KSMBD_RPC_EMORE_DATA : 0);
+		g_assert_cmpuint(wire.offset, ==, wire.size);
+		g_byte_array_unref(result);
+		for (i = 0; i < total; i++)
+			g_assert_cmpint(((struct ksmbd_share *)shares->pdata[i])->ref_count, ==, 0);
+		resume += count;
+	}
+	fixture_destroy();
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/srvsvc/enum-pages", test_share_enum_pages);
 	g_test_add_func("/rpc/ndr/growth-cost", test_payload_growth_cost);
 	g_test_add_func("/rpc/response-request-flags", test_response_request_flags);
 	g_test_add_func("/rpc/bind/state", test_bind_state);

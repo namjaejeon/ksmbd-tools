@@ -55,6 +55,8 @@
 
 static int srvsvc_clear_headers(struct ksmbd_rpc_pipe *pipe,
 				int status);
+static void __share_entries_discard(struct ksmbd_rpc_pipe *pipe,
+				    unsigned int count);
 
 static int __share_level_supported(__u32 level)
 {
@@ -477,7 +479,6 @@ static int srvsvc_share_enum_build_response(struct ksmbd_rpc_pipe *pipe)
 	int (*entry_processed)(struct ksmbd_rpc_pipe *pipe, int i);
 	int response_entries = 0;
 	int response_status;
-	int i;
 	int ret;
 
 	pipe->num_processed = 0;
@@ -564,8 +565,8 @@ static int srvsvc_share_enum_build_response(struct ksmbd_rpc_pipe *pipe)
 
 	if (entry_processed) {
 		pipe->entry_processed = entry_processed;
-		for (i = 0; i < response_entries; i++)
-			entry_processed(pipe, 0);
+		__share_entries_discard(pipe, response_entries);
+		pipe->num_processed += response_entries;
 		if (!pipe->num_entries)
 			pipe->entry_processed = NULL;
 	}
@@ -603,15 +604,17 @@ static int __share_entry_processed(struct ksmbd_rpc_pipe *pipe, int i)
 	return 0;
 }
 
-static void __share_entry_discard(struct ksmbd_rpc_pipe *pipe)
+static void __share_entries_discard(struct ksmbd_rpc_pipe *pipe,
+				    unsigned int count)
 {
-	struct ksmbd_share *share;
+	unsigned int i;
 
-	if (!pipe->num_entries)
+	if (!count)
 		return;
-	share = g_ptr_array_remove_index(pipe->entries, 0);
-	pipe->num_entries--;
-	put_ksmbd_share(share);
+	for (i = 0; i < count; i++)
+		put_ksmbd_share(g_ptr_array_index(pipe->entries, i));
+	g_ptr_array_remove_range(pipe->entries, 0, count);
+	pipe->num_entries -= count;
 }
 
 static gint __share_name_compare(gconstpointer a, gconstpointer b)
@@ -645,15 +648,14 @@ static void __enum_all_shares(struct ksmbd_share *share,
 static int srvsvc_share_enum_all_invoke(struct ksmbd_rpc_pipe *pipe)
 {
 	struct srvsvc_share_info_request *req = &pipe->dce->si_req;
-	unsigned int i;
 
 	shm_iter_shares((share_cb)__enum_all_shares, pipe);
 	g_ptr_array_sort(pipe->entries, __share_name_compare);
 	pipe->entry_processed = __share_entry_processed;
 	req->resume_handle = req->payload_handle.ptr;
 
-	for (i = 0; i < req->resume_handle && pipe->num_entries; i++)
-		__share_entry_discard(pipe);
+	__share_entries_discard(pipe, MIN(req->resume_handle,
+					(unsigned int)pipe->num_entries));
 	req->total_entries = pipe->num_entries;
 	return KSMBD_RPC_OK;
 }
