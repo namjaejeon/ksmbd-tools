@@ -351,10 +351,17 @@ struct rpc_input_buffer {
 	size_t capacity;
 };
 
+enum dcerpc_bind_state {
+	DCERPC_UNBOUND,
+	DCERPC_BOUND,
+	DCERPC_BIND_FAILED,
+};
+
 struct ksmbd_rpc_pipe {
 	unsigned int		id;
 	unsigned int		refcount;
 	int			retired;
+	enum dcerpc_bind_state	bind_state;
 	__u16			max_xmit_frag_sz;
 	__u16			max_recv_frag_sz;
 	GMutex			op_lock;

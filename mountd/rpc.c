@@ -1606,8 +1606,11 @@ fail:
 	return ret;
 }
 
-static int dcerpc_bind_reject(struct ksmbd_dcerpc *dce, unsigned int reason)
+static int dcerpc_bind_reject(struct ksmbd_rpc_pipe *pipe, unsigned int reason)
 {
+	struct ksmbd_dcerpc *dce = pipe->dce;
+
+	pipe->bind_state = DCERPC_BIND_FAILED;
 	dce->hdr.rpc_vers = 5;
 	dce->hdr.rpc_vers_minor = 0;
 	dce->hdr.auth_length = 0;
@@ -1634,7 +1637,7 @@ static int dcerpc_bind_invoke(struct ksmbd_rpc_pipe *pipe)
 		ret = -EINVAL;
 	if (ret) {
 		dcerpc_bind_req_free(&dce->bi_req);
-		return dcerpc_bind_reject(dce, ret == -ENOMEM ?
+		return dcerpc_bind_reject(pipe, ret == -ENOMEM ?
 			DCERPC_BIND_NAK_RSN_LOCAL_LIMIT_EXCEEDED :
 			DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED);
 	}
@@ -1901,6 +1904,7 @@ static int dcerpc_bind_nak_return(struct ksmbd_dcerpc *dce)
 static int dcerpc_bind_return(struct ksmbd_rpc_pipe *pipe)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
+	int initial_bind = dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND;
 	int ret;
 
 	if (dce->bind_nak_reason) {
@@ -1915,6 +1919,8 @@ static int dcerpc_bind_return(struct ksmbd_rpc_pipe *pipe)
 	if (ret == KSMBD_RPC_OK)
 		pipe->max_recv_frag_sz = MIN(dce->bi_req.max_xmit_frag_sz,
 					     KSMBD_RPC_MAX_FRAGMENT_SIZE);
+	if (ret == KSMBD_RPC_OK && initial_bind)
+		pipe->bind_state = DCERPC_BOUND;
 
 out:
 	dcerpc_bind_req_free(&dce->bi_req);
@@ -2170,7 +2176,7 @@ static int rpc_reject_bind(struct ksmbd_rpc_pipe *pipe,
 	memset(&pipe->dce->bi_req, 0, sizeof(pipe->dce->bi_req));
 	rpc_input_buffer_clear(&pipe->request);
 	pipe->request_in_progress = 0;
-	return dcerpc_bind_reject(pipe->dce, reason);
+	return dcerpc_bind_reject(pipe, reason);
 }
 
 static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
@@ -2214,6 +2220,13 @@ static int rpc_process_fragment(struct ksmbd_rpc_pipe *pipe,
 	size_t size;
 	int ret;
 	unsigned int reason = 0;
+
+	if ((fragment->hdr.ptype == DCERPC_PTYPE_RPC_BIND &&
+	     pipe->bind_state != DCERPC_UNBOUND) ||
+	    (fragment->hdr.ptype == DCERPC_PTYPE_RPC_ALTCONT &&
+	     pipe->bind_state != DCERPC_BOUND))
+		return rpc_reject_bind(pipe, req, resp, fragment,
+			DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED);
 
 	if (fragment->hdr.rpc_vers != 5 || fragment->hdr.rpc_vers_minor != 0 ||
 	    (fragment->hdr.pfc_flags & (DCERPC_PFC_RESERVED_1 | DCERPC_PFC_OBJECT_UUID))) {
@@ -2302,6 +2315,8 @@ static int rpc_pipe_write_request(struct ksmbd_rpc_pipe *pipe,
 
 	if (!pipe || pipe->retired || !pipe->dce)
 		return KSMBD_RPC_EBAD_FID;
+	if (pipe->bind_state == DCERPC_BIND_FAILED)
+		return KSMBD_RPC_EBAD_DATA;
 	if (pipe->dce->flags & KSMBD_DCERPC_RETURN_READY)
 		return KSMBD_RPC_EBAD_DATA;
 

@@ -3974,9 +3974,61 @@ static void test_unexecuted_fault(void)
 	}
 }
 
+static void test_bind_state(void)
+{
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	unsigned int variant;
+
+	for (variant = 0; variant < 3; variant++) {
+		struct ksmbd_rpc_command *req, *resp = command(1, flags, 1024);
+		GByteArray *contexts = g_byte_array_new(), *stub;
+		guint8 abstract[20];
+
+		fixture_init();
+		req = command(1, flags, 0);
+		g_assert_cmpint(rpc_open_request(req, resp), ==, 0);
+		g_free(req);
+		memcpy(abstract, lsad_syntax, sizeof(abstract));
+		if (variant == 1)
+			abstract[0] ^= 1;
+		put_bind_context(contexts, 0, abstract, ndr_transfer_syntax);
+		req = bind_request(flags, 1, contexts);
+		if (variant == 2)
+			req->payload[2] = DCERPC_PTYPE_RPC_ALTCONT;
+		g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+		if (variant == 2) {
+			g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_FAULT);
+			g_assert_cmpuint(get32(resp->payload + 24), ==, DCERPC_NCA_S_PROTO_ERROR);
+		} else {
+			g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_BINDACK);
+			g_assert_cmpuint(get32(resp->payload + 44) & 0xffff, ==,
+				variant ? DCERPC_BIND_ACK_RES_PROVIDER_REJECT : DCERPC_BIND_ACK_RES_ACCEPT);
+			g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+			g_assert_cmpuint(resp->payload[2], ==, DCERPC_PTYPE_RPC_BINDNACK);
+			g_assert_cmpuint(get32(resp->payload + 16) & 0xffff, ==,
+				DCERPC_BIND_NAK_RSN_PROTOCOL_VERSION_NOT_SUPPORTED);
+		}
+		g_free(req);
+		/* A protocol error leaves the connection unusable until it is closed. */
+		stub = policy_attributes(0);
+		req = request(1, flags, 44, stub);
+		g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, KSMBD_RPC_EBAD_DATA);
+		g_free(req);
+		g_byte_array_unref(stub);
+		req = command(1, flags, 0);
+		g_assert_cmpint(rpc_close_request(req, resp), ==, 0);
+		g_free(req);
+		open_pipe(1, flags, 0xab, 0);
+		g_byte_array_unref(contexts);
+		g_free(resp);
+		fixture_destroy();
+	}
+}
+
 int main(int argc, char **argv)
 {
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/bind/state", test_bind_state);
 	g_test_add_func("/rpc/unexecuted-fault", test_unexecuted_fault);
 	g_test_add_func("/rpc/bind/errors", test_bind_errors);
 	g_test_add_func("/rpc/bind/rejected-syntax", test_bind_rejected_syntax);
