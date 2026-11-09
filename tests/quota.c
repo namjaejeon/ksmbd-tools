@@ -33,7 +33,9 @@ static uid_t session_uid;
 static unsigned int conn_flags;
 static int session_error, calls, updates, stale, other_volume;
 static int is_btrfs, short_item, missing, quota_error;
-static int open_error;
+static int open_error, reopen_error, reopens, path_closes, data_closes;
+static mode_t target_mode;
+static bool stat_checked, statfs_checked;
 static uint64_t status_flags, qgroup_limit, last_qgroup, limit_flags;
 static struct if_nextdqblk native;
 static struct if_dqblk native_update;
@@ -62,13 +64,25 @@ int __wrap_open(const char *path, int flags, ...)
 	g_assert_true(flags & O_CLOEXEC);
 	if (!strcmp(path, "/share"))
 		return 112;
+	if (!strcmp(path, "/proc/self/fd/113")) {
+		g_assert_false(flags & O_PATH);
+		g_assert_true(stat_checked && statfs_checked);
+		g_assert_true(S_ISDIR(target_mode) || S_ISREG(target_mode));
+		reopens++;
+		if (reopen_error) {
+			errno = reopen_error;
+			return -1;
+		}
+		return 111;
+	}
 	g_assert_cmpstr(path, ==, "/target");
 	g_assert_true(flags & O_NOFOLLOW);
+	g_assert_true(flags & O_PATH);
 	if (open_error) {
 		errno = open_error;
 		return -1;
 	}
-	return 111;
+	return 113;
 }
 
 int __wrap_open64(const char *path, int flags, ...)
@@ -78,22 +92,29 @@ int __wrap_open64(const char *path, int flags, ...)
 
 int __wrap_close(int fd)
 {
-	g_assert_true(fd == 111 || fd == 112);
+	g_assert_true(fd == 111 || fd == 112 || fd == 113);
+	if (fd == 113)
+		path_closes++;
+	if (fd == 111)
+		data_closes++;
 	return 0;
 }
 
 int __wrap_fstat(int fd, struct stat *st)
 {
-	g_assert_cmpint(fd, ==, 111);
+	g_assert_cmpint(fd, ==, 113);
+	stat_checked = true;
 	memset(st, 0, sizeof(*st));
 	st->st_ino = 99 + (stale == 1);
 	st->st_dev = makedev(8, 1 + (stale == 2));
-	st->st_mode = S_IFDIR | 0755;
+	st->st_mode = target_mode;
 	return 0;
 }
 
 int __wrap_fstatfs(int fd, struct statfs *st)
 {
+	if (fd == 113)
+		statfs_checked = true;
 	memset(st, 0, sizeof(*st));
 	st->f_type = is_btrfs ? BTRFS_SUPER_MAGIC : EXT4_SUPER_MAGIC;
 	st->f_fsid.__val[0] = 123 + (stale == 3) + (fd == 112 && other_volume);
@@ -105,11 +126,12 @@ int __wrap_fstatfs(int fd, struct statfs *st)
 
 int __wrap_fstat64(int fd, struct stat64 *st)
 {
-	g_assert_cmpint(fd, ==, 111);
+	g_assert_cmpint(fd, ==, 113);
+	stat_checked = true;
 	memset(st, 0, sizeof(*st));
 	st->st_ino = 99 + (stale == 1);
 	st->st_dev = makedev(8, 1 + (stale == 2));
-	st->st_mode = S_IFDIR | 0755;
+	st->st_mode = target_mode;
 	return 0;
 }
 
@@ -128,6 +150,8 @@ int __wrap___fxstat64(int version, int fd, struct stat64 *st)
 
 int __wrap_fstatfs64(int fd, struct statfs64 *st)
 {
+	if (fd == 113)
+		statfs_checked = true;
 	memset(st, 0, sizeof(*st));
 	st->f_type = is_btrfs ? BTRFS_SUPER_MAGIC : EXT4_SUPER_MAGIC;
 	st->f_fsid.__val[0] = 123 + (stale == 3) + (fd == 112 && other_volume);
@@ -286,6 +310,9 @@ static void reset(void)
 	session_error = calls = updates = stale = other_volume = 0;
 	is_btrfs = short_item = missing = quota_error = 0;
 	open_error = 0;
+	reopen_error = reopens = path_closes = data_closes = 0;
+	target_mode = S_IFDIR | 0755;
+	stat_checked = statfs_checked = false;
 	status_flags = BTRFS_QGROUP_STATUS_FLAG_ON;
 	qgroup_limit = 1000000;
 	limit_flags = BTRFS_QGROUP_LIMIT_MAX_RFER;
@@ -334,6 +361,7 @@ static void test_identity(void)
 	for (stale = 1; stale <= 3; stale++)
 		g_assert_cmpint(run(req, &resp), ==, -ESTALE);
 	g_assert_cmpint(calls, ==, 0);
+	g_assert_cmpint(reopens, ==, 0);
 	stale = 0;
 	open_error = ENOENT;
 	g_assert_cmpint(run(req, &resp), ==, -ESTALE);
@@ -345,6 +373,36 @@ static void test_identity(void)
 	is_btrfs = other_volume = 1;
 	g_assert_cmpint(run(req, &resp), ==, -EOPNOTSUPP);
 	g_assert_cmpint(updates, ==, 0);
+	g_free(req);
+}
+
+static void test_safe_reopen(void)
+{
+	struct ksmbd_quota_request *req = request(KSMBD_QUOTA_GET);
+	struct ksmbd_quota_response resp;
+	const mode_t rejected[] = { S_IFCHR, S_IFBLK, S_IFIFO, S_IFSOCK, S_IFLNK };
+	unsigned int i;
+
+	for (i = 0; i < G_N_ELEMENTS(rejected); i++) {
+		reset();
+		target_mode = rejected[i] | 0600;
+		g_assert_cmpint(run(req, &resp), ==, -EOPNOTSUPP);
+		g_assert_cmpint(reopens, ==, 0);
+		g_assert_cmpint(calls, ==, 0);
+		g_assert_cmpint(path_closes, ==, 1);
+	}
+	reset();
+	reopen_error = EACCES;
+	g_assert_cmpint(run(req, &resp), ==, -EACCES);
+	g_assert_cmpint(calls, ==, 0);
+	g_assert_cmpint(path_closes, ==, 1);
+	g_assert_cmpint(data_closes, ==, 0);
+	reset();
+	target_mode = S_IFREG | 0600;
+	g_assert_cmpint(run(req, &resp), ==, 0);
+	g_assert_cmpint(reopens, ==, 1);
+	g_assert_cmpint(path_closes, ==, 1);
+	g_assert_cmpint(data_closes, ==, 1);
 	g_free(req);
 }
 
@@ -518,6 +576,7 @@ int main(int argc, char **argv)
 	g_test_add_func("/quota/probe", test_probe);
 	g_test_add_func("/quota/auth", test_auth);
 	g_test_add_func("/quota/open-identity", test_identity);
+	g_test_add_func("/quota/safe-reopen", test_safe_reopen);
 	g_test_add_func("/quota/request-validation", test_request);
 	g_test_add_func("/quota/reserved", test_reserved);
 	g_test_add_func("/quota/native", test_native);

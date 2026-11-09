@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -333,7 +334,8 @@ void quota_handle_request(const struct ksmbd_quota_request *req, size_t size,
 	struct statfs fs;
 	uid_t uid;
 	unsigned int flags;
-	int fd = -1, ret = -EINVAL;
+	char fd_path[64];
+	int path_fd = -1, fd = -1, ret = -EINVAL;
 
 	memset(resp, 0, sizeof(*resp));
 	if (size >= sizeof(req->handle))
@@ -373,13 +375,14 @@ void quota_handle_request(const struct ksmbd_quota_request *req, size_t size,
 	    !(flags & KSMBD_TREE_CONN_FLAG_WRITABLE))
 		goto out;
 
-	fd = open((const char *)req->path,
-		  O_RDONLY | O_CLOEXEC | O_NONBLOCK | O_NOFOLLOW);
-	if (fd < 0) {
+	/* Pin the object without invoking a device's open method. */
+	path_fd = open((const char *)req->path,
+		       O_PATH | O_CLOEXEC | O_NOFOLLOW);
+	if (path_fd < 0) {
 		ret = errno == ENOENT || errno == ENOTDIR ? -ESTALE : -errno;
 		goto out;
 	}
-	if (fstat(fd, &st) || fstatfs(fd, &fs)) {
+	if (fstat(path_fd, &st) || fstatfs(path_fd, &fs)) {
 		ret = -errno;
 		goto out;
 	}
@@ -394,6 +397,13 @@ void quota_handle_request(const struct ksmbd_quota_request *req, size_t size,
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
+	/* Reopen the verified object, even if the original path was replaced. */
+	snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", path_fd);
+	fd = open(fd_path, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+	if (fd < 0) {
+		ret = -errno;
+		goto out;
+	}
 	if (fs.f_type == BTRFS_SUPER_MAGIC)
 		ret = quota_btrfs(fd, share, req, resp);
 	else
@@ -401,6 +411,8 @@ void quota_handle_request(const struct ksmbd_quota_request *req, size_t size,
 out:
 	if (fd >= 0)
 		close(fd);
+	if (path_fd >= 0)
+		close(path_fd);
 	put_ksmbd_share(share);
 	resp->status = ret;
 }
