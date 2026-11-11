@@ -1,4 +1,11 @@
 option(
+  'ndr64',
+  type: 'boolean',
+  value: false,
+  description: 'Enable the independent NDR64 RPC codecs',
+)
+
+option(
   'rundir',
   type: 'string',
   description: 'Directory to store modifiable per-process data (LOCALSTATEDIR/run by default)',

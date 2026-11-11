@@ -4,6 +4,7 @@ SUBDIRS = addshare adduser control mountd tools tests
 
 EXTRA_DIST = include \
              README.md \
+             docs/rpc-ndr.md \
              ksmbd-tools.spec \
              ksmbd.conf.5.in \
              ksmbdpwd.db.5.in \

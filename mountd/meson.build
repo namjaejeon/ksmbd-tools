@@ -4,6 +4,7 @@ mountd_lib = static_library(
   'quota.c',
   'ipc.c',
   'rpc.c',
+  'rpc_ndr.c',
   'rpc_srvsvc.c',
   'rpc_wkssvc.c',
   'mountd.c',

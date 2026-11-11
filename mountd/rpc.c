@@ -13,6 +13,7 @@
 #include <linux/ksmbd_server.h>
 
 #include <rpc.h>
+#include <rpc_ndr.h>
 #include <rpc_srvsvc.h>
 #include <rpc_wkssvc.h>
 #include <rpc_samr.h>
@@ -114,6 +115,17 @@ static struct dcerpc_syntax_table known_syntaxes[] = {
 		.syn.ver_minor = 0x0,
 		.ack_result = DCERPC_BIND_ACK_RES_NEGOTIATE_ACK,
 	},
+};
+
+static const struct dcerpc_syntax dcerpc_ndr64_syntax = {
+	.uuid = {
+		.time_low = 0x71710533,
+		.time_mid = 0xbeba,
+		.time_hi_and_version = 0x4937,
+		.clock_seq = {0x83, 0x19},
+		.node = {0xb5, 0xdb, 0xef, 0x9c, 0xcc, 0x36},
+	},
+	.ver_major = 1,
 };
 
 static const struct dcerpc_syntax dcerpc_srvsvc_syntax = {
@@ -218,7 +230,7 @@ static struct ksmbd_rpc_pipe *rpc_pipe_lookup(unsigned int id)
 	return pipe;
 }
 
-const struct dcerpc_syntax *rpc_pipe_context_syntax(
+static const struct dcerpc_context_binding *rpc_pipe_context(
 					struct ksmbd_rpc_pipe *pipe,
 					__u16 context_id)
 {
@@ -232,10 +244,19 @@ const struct dcerpc_syntax *rpc_pipe_context_syntax(
 
 		binding = g_ptr_array_index(pipe->contexts, i);
 		if (binding->id == context_id)
-			return &binding->abstract_syntax;
+			return binding;
 	}
 
 	return NULL;
+}
+
+const struct dcerpc_syntax *rpc_pipe_context_syntax(
+					struct ksmbd_rpc_pipe *pipe,
+					__u16 context_id)
+{
+	const struct dcerpc_context_binding *binding = rpc_pipe_context(pipe, context_id);
+
+	return binding ? &binding->abstract_syntax : NULL;
 }
 
 static void dcerpc_free(struct ksmbd_dcerpc *dce)
@@ -284,6 +305,7 @@ static void rpc_pipe_cleanup_request(struct ksmbd_rpc_pipe *pipe)
 		return;
 
 	dce = pipe->dce;
+	rpc_ndr_cleanup(dce);
 	cleanup = dce->request_cleanup;
 	if (!cleanup)
 		return;
@@ -1303,6 +1325,8 @@ int dcerpc_write_fault(struct ksmbd_dcerpc *dce, __u32 status)
 static int __dcerpc_read_syntax(struct ksmbd_dcerpc *dce,
 				struct dcerpc_syntax *syn)
 {
+	__u32 version;
+
 	if (ndr_read_int32(dce, &syn->uuid.time_low))
 		return -EINVAL;
 	if (ndr_read_int16(dce, &syn->uuid.time_mid))
@@ -1314,10 +1338,10 @@ static int __dcerpc_read_syntax(struct ksmbd_dcerpc *dce,
 		return -EINVAL;
 	if (ndr_read_bytes(dce, syn->uuid.node, sizeof(syn->uuid.node)))
 		return -EINVAL;
-	if (ndr_read_int16(dce, &syn->ver_major))
+	if (ndr_read_int32(dce, &version))
 		return -EINVAL;
-	if (ndr_read_int16(dce, &syn->ver_minor))
-		return -EINVAL;
+	syn->ver_major = version & 0xffff;
+	syn->ver_minor = version >> 16;
 	return 0;
 }
 
@@ -1347,11 +1371,8 @@ static int __dcerpc_write_syntax(struct ksmbd_dcerpc *dce,
 	if (ret)
 		return ret;
 
-	ret = ndr_write_int16(dce, syn->ver_major);
-	if (ret)
-		return ret;
-
-	ret = ndr_write_int16(dce, syn->ver_minor);
+	ret = ndr_write_int32(dce, syn->ver_major |
+				 ((__u32)syn->ver_minor << 16));
 
 	return ret;
 }
@@ -1514,6 +1535,8 @@ static int dcerpc_syntax_supported(const struct dcerpc_syntax *a)
 {
 	int k;
 
+	if (rpc_ndr64_available() && !dcerpc_syntax_cmp(a, &dcerpc_ndr64_syntax))
+		return DCERPC_BIND_ACK_RES_ACCEPT;
 	for (k = 0; k < ARRAY_SIZE(known_syntaxes); k++) {
 		const struct dcerpc_syntax *b = &known_syntaxes[k].syn;
 
@@ -1555,7 +1578,7 @@ static int dcerpc_bind_context_result(struct ksmbd_rpc_pipe *pipe,
 				      int *reason,
 				      int *selected)
 {
-	const struct dcerpc_syntax *existing;
+	const struct dcerpc_context_binding *existing;
 	int i;
 
 	if (reason)
@@ -1563,9 +1586,10 @@ static int dcerpc_bind_context_result(struct ksmbd_rpc_pipe *pipe,
 	if (selected)
 		*selected = -1;
 
-	/* An existing context ID must keep its negotiated abstract syntax. */
-	existing = rpc_pipe_context_syntax(pipe, ctx->id);
-	if (existing && dcerpc_syntax_cmp(existing, &ctx->abstract_syntax))
+	/* An existing context ID must keep both negotiated syntaxes. */
+	existing = rpc_pipe_context(pipe, ctx->id);
+	if (existing && dcerpc_syntax_cmp(&existing->abstract_syntax,
+					 &ctx->abstract_syntax))
 		return DCERPC_BIND_ACK_RES_PROVIDER_REJECT;
 
 	if (!dcerpc_abstract_syntax_supported(pipe, &ctx->abstract_syntax)) {
@@ -1582,6 +1606,9 @@ static int dcerpc_bind_context_result(struct ksmbd_rpc_pipe *pipe,
 		if (result != DCERPC_BIND_ACK_RES_ACCEPT &&
 		    !(result == DCERPC_BIND_ACK_RES_NEGOTIATE_ACK &&
 		      ctx->num_syntaxes == 1))
+			continue;
+		if (existing && dcerpc_syntax_cmp(&existing->transfer_syntax,
+						 &ctx->transfer_syntaxes[i]))
 			continue;
 		if (selected)
 			*selected = i;
@@ -1618,6 +1645,8 @@ static int dcerpc_install_bind_contexts(struct ksmbd_rpc_pipe *pipe)
 
 		binding->id = dce->bi_req.list[i].id;
 		binding->abstract_syntax = dce->bi_req.list[i].abstract_syntax;
+		binding->transfer_syntax =
+			dce->bi_req.list[i].transfer_syntaxes[selected];
 		g_ptr_array_add(pipe->contexts, binding);
 	}
 
@@ -1827,7 +1856,21 @@ int rpc_write_response_fragment(struct ksmbd_rpc_pipe *pipe)
 	size_t header_size = sizeof(struct dcerpc_header) +
 		sizeof(struct dcerpc_response_header);
 	size_t remaining, capacity, size;
+	int ret;
 
+	if (dce->response_payload) {
+		ret = rpc_ndr_encode_response(dce);
+		if (ret) {
+			rpc_pipe_reset(pipe);
+			ret = dcerpc_write_fault(dce, ret == KSMBD_RPC_ENOMEM ?
+				DCERPC_NCA_S_FAULT_REMOTE_NO_MEMORY :
+				DCERPC_FAULT_BAD_STUB_DATA);
+			if (ret)
+				goto bad_data;
+			dce->rpc_resp->payload_sz = dce->offset;
+			return KSMBD_RPC_OK;
+		}
+	}
 	if (!dce->response_payload ||
 	    dce->response_payload_offset > dce->response_payload_sz ||
 	    dce->payload_sz < header_size)
@@ -2027,6 +2070,8 @@ static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
 			      const struct ksmbd_dcerpc *fragment)
 {
 	struct ksmbd_dcerpc *dce = pipe->dce;
+	const struct dcerpc_context_binding *binding;
+	int ret;
 
 	rpc_prepare_request(pipe, req, resp, fragment);
 	if (dce->hdr.ptype == DCERPC_PTYPE_RPC_BIND ||
@@ -2039,6 +2084,24 @@ static int rpc_invoke_request(struct ksmbd_rpc_pipe *pipe,
 	dce->hdr = pipe->request_header;
 	dce->req_hdr = pipe->request_method;
 	dcerpc_set_ext_payload(dce, pipe->request.data, pipe->request.size);
+	binding = rpc_pipe_context(pipe, dce->req_hdr.context_id);
+	if (binding && !dcerpc_syntax_cmp(&binding->transfer_syntax,
+					 &dcerpc_ndr64_syntax)) {
+		if (!(dce->flags & KSMBD_DCERPC_LITTLE_ENDIAN)) {
+			dce->fault_status = DCERPC_NCA_S_PROTO_ERROR;
+			return KSMBD_RPC_OK;
+		}
+		ret = rpc_ndr_decode_request(pipe);
+		if (ret) {
+			if (ret == KSMBD_RPC_ENOTIMPLEMENTED)
+				dce->fault_status = DCERPC_NCA_S_OP_RNG_ERROR;
+			else if (ret == KSMBD_RPC_ENOMEM)
+				dce->fault_status = DCERPC_NCA_S_FAULT_REMOTE_NO_MEMORY;
+			else
+				dce->fault_status = DCERPC_FAULT_BAD_STUB_DATA;
+			return KSMBD_RPC_OK;
+		}
+	}
 	if (pipe->request_flags & KSMBD_RPC_SRVSVC_METHOD_INVOKE)
 		return rpc_srvsvc_write_request(pipe);
 	if (pipe->request_flags & KSMBD_RPC_WKSSVC_METHOD_INVOKE)

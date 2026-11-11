@@ -4,6 +4,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -13,6 +14,7 @@
 #include "management/share.h"
 #include "management/user.h"
 #include "rpc.h"
+#include "rpc_ndr.h"
 #include "tools.h"
 
 struct smbconf_global global_conf;
@@ -3740,6 +3742,11 @@ static const guint8 ndr_transfer_syntax[] = {
 	0x9f, 0xe8, 8, 0, 0x2b, 0x10, 0x48, 0x60, 2, 0, 0, 0
 };
 
+static const guint8 ndr64_transfer_syntax[] = {
+	0x33, 0x05, 0x71, 0x71, 0xba, 0xbe, 0x37, 0x49,
+	0x83, 0x19, 0xb5, 0xdb, 0xef, 0x9c, 0xcc, 0x36, 1, 0, 0, 0
+};
+
 static void put_bind_context(GByteArray *contexts, unsigned int id,
 			     const guint8 *abstract, const guint8 *transfer)
 {
@@ -3765,6 +3772,131 @@ static struct ksmbd_rpc_command *bind_request(unsigned int flags,
 	req->payload[17] = req->payload[19] = 0x10;
 	g_byte_array_unref(stub);
 	return req;
+}
+
+static void test_ndr64_negotiation(void)
+{
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	struct ksmbd_rpc_command *req, *resp = command(1, flags, 1024);
+	GByteArray *contexts = g_byte_array_new();
+	GByteArray *stub = policy_attributes(0), *result;
+	unsigned int i;
+
+	fixture_init();
+	req = command(1, flags, 0);
+	g_assert_cmpint(rpc_open_request(req, resp), ==, 0);
+	g_free(req);
+	put_bind_context(contexts, 0, lsad_syntax, ndr64_transfer_syntax);
+	put_bind_context(contexts, 1, lsad_syntax, ndr_transfer_syntax);
+	req = bind_request(flags, 2, contexts);
+	g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+	g_assert_cmpuint(get32(resp->payload + 68), ==, 0);
+	if (rpc_ndr64_available()) {
+		g_assert_cmpuint(get32(resp->payload + 44), ==, 0);
+		g_assert_cmpmem(resp->payload + 48, 20, ndr64_transfer_syntax, 20);
+	} else {
+		g_assert_cmpuint(get32(resp->payload + 44), ==, 0x00020002);
+		for (i = 0; i < 20; i++)
+			g_assert_cmpuint(resp->payload[48 + i], ==, 0);
+	}
+	/* An NDR32 context remains usable alongside the NDR64 offer. */
+	result = exchange_context(1, 44, stub);
+	g_assert_cmpuint(get32(result->data + 20), ==, 0);
+	g_byte_array_unref(result);
+	g_byte_array_unref(stub);
+	g_byte_array_unref(contexts);
+	g_free(req);
+	g_free(resp);
+	fixture_destroy();
+}
+
+struct ndr64_worker {
+	unsigned int id;
+	GByteArray *stub;
+};
+
+static gpointer ndr64_worker(gpointer data)
+{
+	struct ndr64_worker *worker = data;
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	unsigned int i;
+
+	for (i = 0; i < 64; i++) {
+		GByteArray *result = exchange(worker->id, flags, 44, worker->stub, 128);
+		GByteArray *close = g_byte_array_new();
+
+		g_assert_cmpuint(result->len, ==, 24);
+		g_assert_cmpuint(get32(result->data + 20), ==, 0);
+		g_byte_array_append(close, result->data, 20);
+		g_byte_array_unref(result);
+		result = exchange(worker->id, flags, 0, close, 128);
+		g_assert_cmpuint(get32(result->data + 20), ==, 0);
+		g_byte_array_unref(result);
+		g_byte_array_unref(close);
+	}
+	return NULL;
+}
+
+static void put64(GByteArray *buffer, guint64 value)
+{
+	pad_buffer(buffer, 8);
+	value = htole64(value);
+	g_byte_array_append(buffer, (const guint8 *)&value, sizeof(value));
+}
+
+static void test_ndr64_parallel(void)
+{
+	unsigned int flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	GByteArray *contexts = g_byte_array_new(), *stub = g_byte_array_new();
+	struct ndr64_worker workers[2];
+	GThread *threads[2];
+	unsigned int i;
+
+	if (!rpc_ndr64_available()) {
+		g_test_skip("NDR64 codecs not enabled");
+		goto out;
+	}
+	fixture_init();
+	put_bind_context(contexts, 0, lsad_syntax, ndr64_transfer_syntax);
+	/* Non-ASCII SystemName exercises independent concurrent codec state. */
+	put64(stub, 1);
+	put64(stub, 3);
+	put64(stub, 0);
+	put64(stub, 3);
+	put16(stub, 0xac00);
+	put16(stub, 0xb098);
+	put16(stub, 0);
+	pad_buffer(stub, 8);
+	put32(stub, 0);
+	put64(stub, 0);
+	put64(stub, 0);
+	put32(stub, 0);
+	put64(stub, 0);
+	put64(stub, 0);
+	put32(stub, 0x02000000);
+	for (i = 0; i < G_N_ELEMENTS(workers); i++) {
+		struct ksmbd_rpc_command *req = command(i + 1, flags, 0);
+		struct ksmbd_rpc_command *resp = command(i + 1, flags, 1024);
+
+		g_assert_cmpint(rpc_open_request(req, resp), ==, 0);
+		g_free(req);
+		req = bind_request(flags, 1, contexts);
+		req->handle = i + 1;
+		g_assert_cmpint(rpc_ioctl_request(req, resp, 1024), ==, 0);
+		g_assert_cmpuint(get32(resp->payload + 44), ==, 0);
+		g_free(req);
+		g_free(resp);
+		workers[i].id = i + 1;
+		workers[i].stub = stub;
+	}
+	for (i = 0; i < G_N_ELEMENTS(workers); i++)
+		threads[i] = g_thread_new("rpc-ndr64", ndr64_worker, &workers[i]);
+	for (i = 0; i < G_N_ELEMENTS(workers); i++)
+		g_thread_join(threads[i]);
+	fixture_destroy();
+out:
+	g_byte_array_unref(contexts);
+	g_byte_array_unref(stub);
 }
 
 static void test_bind_feature_context(void)
@@ -4136,9 +4268,74 @@ static void test_share_enum_pages(void)
 	fixture_destroy();
 }
 
+/* Length-prefixed PDUs let independent RPC clients exercise the IPC boundary. */
+static int wire_server(const char *interface)
+{
+	struct ksmbd_rpc_command *req, *resp;
+	unsigned int flags;
+	uint32_t length, header[2];
+	int ret = 0;
+
+	if (!strcmp(interface, "samr"))
+		flags = KSMBD_RPC_SAMR_METHOD_INVOKE;
+	else if (!strcmp(interface, "lsa"))
+		flags = KSMBD_RPC_LSARPC_METHOD_INVOKE;
+	else if (!strcmp(interface, "srvsvc"))
+		flags = KSMBD_RPC_SRVSVC_METHOD_INVOKE;
+	else if (!strcmp(interface, "wkssvc"))
+		flags = KSMBD_RPC_WKSSVC_METHOD_INVOKE;
+	else
+		return 2;
+	fixture_init();
+	req = command(1, flags, 0);
+	resp = command(1, flags, KSMBD_RPC_MAX_FRAGMENT_SIZE);
+	ret = rpc_open_request(req, resp);
+	g_free(req);
+	while (!ret && fread(&length, sizeof(length), 1, stdin) == 1) {
+		length = le32toh(length);
+		if (length > UINT16_MAX) {
+			ret = 2;
+			break;
+		}
+		req = command(1, flags | KSMBD_RPC_WRITE_METHOD, length);
+		if (length && fread(req->payload, 1, length, stdin) != length) {
+			g_free(req);
+			ret = 2;
+			break;
+		}
+		resp->payload_sz = 0;
+		if (length) {
+			header[0] = rpc_write_request(req, resp);
+			if (!header[0] && length >= 16 &&
+			    (req->payload[3] & DCERPC_PFC_LAST_FRAG))
+				header[0] = rpc_read_request(req, resp,
+						 KSMBD_RPC_MAX_FRAGMENT_SIZE);
+		} else {
+			header[0] = rpc_read_request(req, resp,
+						 KSMBD_RPC_MAX_FRAGMENT_SIZE);
+		}
+		g_free(req);
+		header[0] = htole32(header[0]);
+		header[1] = htole32(resp->payload_sz);
+		if (fwrite(header, sizeof(header), 1, stdout) != 1 ||
+		    fwrite(resp->payload, 1, resp->payload_sz, stdout) !=
+			resp->payload_sz || fflush(stdout)) {
+			ret = 2;
+			break;
+		}
+	}
+	g_free(resp);
+	fixture_destroy();
+	return ret;
+}
+
 int main(int argc, char **argv)
 {
+	if (argc == 3 && !strcmp(argv[1], "--wire"))
+		return wire_server(argv[2]);
 	g_test_init(&argc, &argv, NULL);
+	g_test_add_func("/rpc/bind/ndr64", test_ndr64_negotiation);
+	g_test_add_func("/rpc/ndr/parallel-ndr64", test_ndr64_parallel);
 	g_test_add_func("/rpc/srvsvc/enum-pages", test_share_enum_pages);
 	g_test_add_func("/rpc/ndr/growth-cost", test_payload_growth_cost);
 	g_test_add_func("/rpc/response-request-flags", test_response_request_flags);

@@ -3,10 +3,8 @@ AM_CFLAGS = -DSYSCONFDIR='"${sysconfdir}"' -DRUNSTATEDIR='"${runstatedir}"' \
 
 noinst_LIBRARIES = libmountd.a
 libmountd_a_SOURCES = worker.c quota.c ipc.c rpc.c rpc_srvsvc.c rpc_wkssvc.c mountd.c \
-                      smbacl.c rpc_samr.c rpc_lsarpc.c
-
-EXTRA_DIST = ksmbd.mountd.8.in \
-	     meson.build
+                      smbacl.c rpc_samr.c rpc_lsarpc.c rpc_ndr.c
+EXTRA_DIST = ksmbd.mountd.8.in meson.build rpc_ndr_types.h
 
 man_MANS = ksmbd.mountd.8
 $(man_MANS): %: %.in; @$(in_script) $< >$@

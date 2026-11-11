@@ -49,6 +49,17 @@ Continue with `make` and `make install` for Autotools, or `ninja` and
 `ninja install` for Meson. Heimdal's ASN.1 library is detected and linked
 automatically when required.
 
+### RPC NDR64 support
+
+NDR32 and NDR64 use ksmbd-tools' own wire codecs. No additional runtime
+library or code generator is required. NDR64 remains opt-in: use
+`-Dndr64=true` with Meson or `--enable-ndr64` with Autotools. Supported
+operations cover SAMR, LSAD/LSAT, DSSETUP, SRVSVC and WKSSVC, with transfer
+syntax negotiated per RPC presentation context. Impacket is an optional
+external test client.
+See [RPC interoperability and codec design](docs/rpc-ndr.md) for implementation
+scope and validation commands.
+
 Example build and install:
 ```sh
 git clone https://github.com/cifsd-team/ksmbd-tools.git

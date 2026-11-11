@@ -39,6 +39,7 @@ asn1_lib = []
 
 config_h_data = configuration_data()
 cc = meson.get_compiler('c')
+config_h_data.set('CONFIG_NDR64', get_option('ndr64'))
 
 pthread_lib = dependency(
   'threads',

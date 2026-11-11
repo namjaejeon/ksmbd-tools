@@ -237,6 +237,7 @@ struct dcerpc_context {
 struct dcerpc_context_binding {
 	__u16			id;
 	struct dcerpc_syntax	abstract_syntax;
+	struct dcerpc_syntax	transfer_syntax;
 };
 
 struct dcerpc_bind_request {
@@ -287,9 +288,12 @@ enum DCERPC_BIND_TIME_OPTIONS {
 
 struct ksmbd_rpc_command;
 struct ksmbd_rpc_pipe;
+struct rpc_ndr_call;
 
 struct ksmbd_dcerpc {
 	unsigned int		flags;
+	struct rpc_ndr_call	*ndr_call;
+	int			response_ndr_encoded;
 	size_t			offset;
 	size_t			payload_sz;
 	char			*payload;
@@ -426,6 +430,7 @@ int ndr_read_uniq_ptr(struct ksmbd_dcerpc *dce, struct ndr_uniq_ptr *ctr);
 int __ndr_write_array_of_structs(struct ksmbd_rpc_pipe *pipe, int max_entry_nr);
 
 #define DCERPC_NCA_S_OP_RNG_ERROR	0x1C010002U
+#define DCERPC_FAULT_BAD_STUB_DATA	0x000006F7U
 #define DCERPC_NCA_S_PROTO_ERROR	0x1C01000BU
 #define DCERPC_NCA_S_FAULT_REMOTE_NO_MEMORY	0x1C00001BU
 

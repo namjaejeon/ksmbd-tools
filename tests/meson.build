@@ -18,3 +18,21 @@ rpc_test = executable(
   link_with: mountd_lib,
 )
 test('rpc', rpc_test)
+
+python = find_program('python3', required: false)
+if python.found()
+  impacket = run_command(python, '-c',
+    'from impacket.dcerpc.v5 import samr, lsad, lsat, srvs, wkst, dssp', check: false)
+  if impacket.returncode() == 0
+    interop_args = [files('rpc-interop.py'), '--rpc-test', rpc_test.full_path()]
+    if get_option('ndr64')
+      interop_args += ['--ndr64']
+    endif
+    test('rpc-interop', python,
+      args: interop_args,
+      depends: rpc_test,
+    )
+  else
+    message('Impacket unavailable: rpc-interop test omitted')
+  endif
+endif

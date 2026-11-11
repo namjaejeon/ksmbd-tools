@@ -166,6 +166,23 @@ krb5_error_code krb5_auth_con_getauthenticator(krb5_context, krb5_auth_context, 
 
 AM_CONDITIONAL(HAVE_LIBKRB5, [test "x$enable_krb5" != xno])
 
+AC_PATH_PROG([PYTHON], [python3])
+AC_ARG_ENABLE([ndr64],
+              [AS_HELP_STRING([--enable-ndr64], [Enable independent NDR64 RPC codecs @<:@default=no@:>@])],
+              [enable_ndr64=$enableval], [enable_ndr64=no])
+AS_IF([test "x$enable_ndr64" = xyes], [
+	AC_DEFINE([CONFIG_NDR64], [1], [Define to enable independent NDR64 RPC codecs.])
+])
+AM_CONDITIONAL(HAVE_NDR64, [test "x$enable_ndr64" = xyes])
+
+have_impacket=no
+AS_IF([test -n "$PYTHON"], [
+	AS_IF([$PYTHON -c 'from impacket.dcerpc.v5 import samr, lsad, lsat, srvs, wkst, dssp' 2>/dev/null], [
+		have_impacket=yes
+	])
+])
+AM_CONDITIONAL(HAVE_IMPACKET, [test "x$have_impacket" = xyes])
+
 AC_CONFIG_FILES([
 	Makefile
 	addshare/Makefile
